@@ -1,0 +1,13 @@
+PROJECT_NAME = "Twisty"
+PROJECT_BRIEF = "Framework for simulating radiance through a multiple scattering medium."
+OUTPUT_LANGUAGE = "English"
+
+FULL_PATH_NAMES = NO
+TAB_SIZE = 4
+RECURSIVE = YES
+OUTPUT_DIRECTORY = doxygen_output
+
+EXCLUDE_PATTERNS = */build/*
+EXCLUDE_PATTERNS += */Curves/*
+EXCLUDE_PATTERNS += */python/*
+EXCLUDE_PATTERNS += */twisty-config/*
