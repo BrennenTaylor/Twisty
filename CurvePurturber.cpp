@@ -4,6 +4,7 @@
 
 #include <assert.h>
 #include <random>
+#include <cmath>
 #include <ctime>
 
 namespace twisty
@@ -14,7 +15,7 @@ namespace twisty
 
     std::unique_ptr<Curve> CurvePuturber::GetCurvePutrubation(const Curve& curve, const Range& kdsRange, const Range& tdsRange)
     {
-        assert(false, "Unsupported at the moment.");
+        assert(false);
         return nullptr;
         ////TODO: Figure out how to pull all rng out into a single place which we can then use for repeating experiments
         //std::mt19937 rng(time(0));

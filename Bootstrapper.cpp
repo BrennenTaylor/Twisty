@@ -3,6 +3,7 @@
 #include "Sample.h"
 
 #include <assert.h>
+#include <cmath>
 #include <ctime>
 #include <random>
 
@@ -140,8 +141,8 @@ namespace twisty
         std::cout << "\tmaxL2ArcLength: " << maxL2ArcLength << std::endl;
 #endif
 
-        float minArclength = std::max(m_arclengthRange.m_min, minL2ArcLength);
-        float maxArclength = std::min(m_arclengthRange.m_max, maxL2ArcLength);
+        float minArclength = std::max(static_cast<float>(m_arclengthRange.m_min), minL2ArcLength);
+        float maxArclength = std::min(static_cast<float>(m_arclengthRange.m_max), maxL2ArcLength);
 
         assert(minArclength <= maxArclength);
 
@@ -183,13 +184,13 @@ namespace twisty
             //std::cout << "\t\tGuess: " << guessVal << std::endl;
             //std::cout << "\t\tGuess Arclength: " << guessArclength << std::endl;
             //std::cout << "\t\tGuess Error: " << guessError << std::endl;
-            if (abs(guessError) < errorThresh)
+            if (std::abs(guessError) < errorThresh)
             {
                 // Guess works
                 break;
             }
 
-            if (abs(a - b) < distThresh)
+            if (std::abs(a - b) < distThresh)
             {
                 // a and b close enough, we terminate
                 break;
@@ -217,7 +218,7 @@ namespace twisty
 #if defined(DetailedCurveGen)
         std::cout << "\tFinal arc length: " << finalArclength << std::endl;
         std::cout << "\tTarget arc length: " << targetArcLength<< std::endl;
-        std::cout << "\tFinal bezier error: " << abs(finalArclength - targetArcLength) << std::endl;
+        std::cout << "\tFinal bezier error: " << std::abs(finalArclength - targetArcLength) << std::endl;
 #endif
 
         // Cached that bezier info for retrieval later
@@ -320,13 +321,13 @@ namespace twisty
                 float aVal = bezierCurve.CalculateArclengthAlreadyCached(minT, a) - targetArclength;
                 float bVal = bezierCurve.CalculateArclengthAlreadyCached(minT, b) - targetArclength;
                 float guessF = bezierCurve.CalculateArclengthAlreadyCached(minT, guessVal) - targetArclength;
-                if (abs(guessF) < errorThresh)
+                if (std::abs(guessF) < errorThresh)
                 {
                     // Guess works
                     break;
                 }
 
-                if (abs(a - b) < distThresh)
+                if (std::abs(a - b) < distThresh)
                 {
                     // a and b close enough, we terminate
                     break;

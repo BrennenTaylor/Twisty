@@ -19,7 +19,7 @@ namespace twisty
      */
     struct Range
     {
-        float m_min = 0.0f;
-        float m_max = 0.0f;
+        double m_min = 0.0f;
+        double m_max = 0.0f;
     };
 }

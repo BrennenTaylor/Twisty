@@ -1,5 +1,7 @@
 #include "BezierCurve.h"
 
+#include <cmath>
+
 #include <assert.h>
 
 // This bezier curve exists in default parameter space, t.
@@ -32,11 +34,11 @@ namespace twisty
 
         // TODO: We should use de casteljau's algorithm
         Farlor::Vector3 val(0.0f, 0.0f, 0.0f);
-        val += 1.0f * pow(t, 4)              * m_controlPts[4];
-        val += 4.0f * pow(t, 3) * pow(mt, 1) * m_controlPts[3];
-        val += 6.0f * pow(t, 2) * pow(mt, 2) * m_controlPts[2];
-        val += 4.0f * pow(t, 1) * pow(mt, 3) * m_controlPts[1];
-        val += 1.0f             * pow(mt, 4) * m_controlPts[0];
+        val += 1.0f * std::pow(t, 4)              * m_controlPts[4];
+        val += 4.0f * std::pow(t, 3) * std::pow(mt, 1) * m_controlPts[3];
+        val += 6.0f * std::pow(t, 2) * std::pow(mt, 2) * m_controlPts[2];
+        val += 4.0f * std::pow(t, 1) * std::pow(mt, 3) * m_controlPts[1];
+        val += 1.0f             * std::pow(mt, 4) * m_controlPts[0];
         return val;
     }
 

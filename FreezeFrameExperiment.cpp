@@ -1,5 +1,9 @@
 #include "FullExperimentRunner.h"
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
 #include "GpuFullExperimentRunnerGeneral.h"
+#endif
+
 #include "Geometry.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
@@ -50,7 +54,7 @@ int main(int argc, char *argv[])
     if (argc < 11)
     {
         fmt::print("Call as: {} numPathsPerPixel numPathsToSkip experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY", argv[0]);
-        return false;
+        return 1;
     }
 
     const uint32_t numPathsToGenerate = std::stoi(argv[1]);

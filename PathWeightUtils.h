@@ -2,7 +2,8 @@
 
 #include "Curve.h"
 
-#include <boost\multiprecision\cpp_dec_float.hpp>
+#include <boost/serialization/nvp.hpp>
+#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #include <functional>
 #include <vector>

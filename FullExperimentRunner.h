@@ -13,7 +13,7 @@
 #include "Range.h"
 #include "PathWeightUtils.h"
 
-#include <boost\multiprecision\cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #include <optional>
 #include <random>

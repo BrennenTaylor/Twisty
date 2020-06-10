@@ -1,6 +1,7 @@
 #include "CurveUtils.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace twisty
 {
@@ -14,12 +15,13 @@ namespace twisty
         const float posWeight = 1.0f;
         const float tanWeight = 1.0f;
 
-        float dx = abs(finalPos.x - curve.m_targetPos.x);
-        float dy = abs(finalPos.y - curve.m_targetPos.y);
-        float dz = abs(finalPos.z - curve.m_targetPos.z);
+        float dx = std::abs(finalPos.x - curve.m_targetPos.x);
+        float dy = std::abs(finalPos.y - curve.m_targetPos.y);
+        float dz = std::abs(finalPos.z - curve.m_targetPos.z);
 
         // L1 norm of tangents
-        float l1 = abs(finalDir.x - curve.m_targetTangent.x) + abs(finalDir.y - curve.m_targetTangent.y) + abs(finalDir.z - curve.m_targetTangent.z);
+        float l1 = std::abs(finalDir.x - curve.m_targetTangent.x) + std::abs(finalDir.y - curve.m_targetTangent.y)
+            + std::abs(finalDir.z - curve.m_targetTangent.z);
         // L2 norm of tangents
         float l2 = (finalDir - curve.m_targetTangent).Magnitude();
 
@@ -36,6 +38,6 @@ namespace twisty
     {
         float curveError = CalculateCurveError(curve);
         //std::cout << "Curve Error: " << curveError << std::endl;
-        return exp(-1.0f * curveError);
+        return std::exp(-1.0f * curveError);
     }
 }

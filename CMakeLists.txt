@@ -2,17 +2,25 @@ cmake_minimum_required(VERSION 3.12)
 
 project(Twisty CXX)
 
-find_package(BOOST REQUIRED)
+
+find_package(Boost)
+if (WIN32)
 find_package(CUDA REQUIRED)
+endif (WIN32)
+
 find_package(FMath REQUIRED)
+find_package(glm CONFIG REQUIRED )
 find_package(fmt CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
+if (WIN32)
 SET( CUDA_PROPAGATE_HOST_FLAGS ON)
 SET(CUDA_SEPARABLE_COMPILATION ON)
 SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+endif (WIN32)
 
+if (WIN32)
 cuda_add_library(Twisty
     BezierCurve.h
     BezierCurve.cpp
@@ -31,8 +39,8 @@ cuda_add_library(Twisty
     DeviceCurve.h
     ExperimentRunner.cpp
     ExperimentRunner.h
-    ExperimentRunnerCpu.cpp
-    ExperimentRunnerCpu.h
+    # ExperimentRunnerCpu.cpp
+    # ExperimentRunnerCpu.h
     # ExperimentRunnerGpu.cu
     # ExperimentRunnerGpu.h
     FullExperimentRunner.cpp
@@ -60,9 +68,53 @@ cuda_add_library(Twisty
     TestBootstrappers.cpp
     Twisty_Cuda_Helpers.cu
     Twisty_Cuda_Helpers.h
-    TwistyYamlUtils.cpp
-    TwistyYamlUtils.h
 )
+else()
+add_library(Twisty
+    BezierCurve.h
+    BezierCurve.cpp
+    Bootstrapper.h
+    Bootstrapper.cpp
+    Curve.h
+    Curve.cpp
+    CurvePurturber.h
+    CurvePurturber.cpp
+    CurvePerturbUtils.h
+    CurvePerturbUtils_linux.cpp
+    CurveUtils.h
+    CurveUtils.cpp
+    CurveGen.cu
+    Derivative.h
+    DeviceCurve.h
+    ExperimentRunner.cpp
+    ExperimentRunner.h
+    # ExperimentRunnerCpu.cpp
+    # ExperimentRunnerCpu.h
+    # ExperimentRunnerGpu.cu
+    # ExperimentRunnerGpu.h
+    FullExperimentRunner.cpp
+    FullExperimentRunner.h
+    Geometry.h
+    Geometry.cpp
+    GeometryBootstrapper.h
+    GeometryBootstrapper.cpp
+    Integrate.h
+    MathConsts.h
+    PathWeightUtils.h
+    PathWeightUtils.cpp
+    Range.h
+    Sample.h
+    Sample.cpp
+    SpecifiedCurveParamBootstrapper.h
+    SpecifiedCurveParamBootstrapper.cpp
+    StartEndBootstrapper.h
+    StartEndBootstrapper.cpp
+    TestBootstrappers.h
+    TestBootstrappers.cpp
+    Twisty_Cuda_Helpers.cu
+    Twisty_Cuda_Helpers.h
+)
+endif (WIN32)
 
 target_include_directories(Twisty
     INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -72,72 +124,86 @@ target_include_directories(Twisty
 
 target_compile_features(Twisty
     PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
 )
 
+if (WIN32)
 target_compile_options(Twisty
-    PUBLIC /std:c++17
     PRIVATE /openmp
     PUBLIC /D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 )
+else()
+target_link_options(Twisty
+    PUBLIC -pthread
+)
+endif (WIN32)
 
 target_link_libraries(Twisty
-    FMath::FMath
-    yaml-cpp
-    fmt::fmt
-    fmt::fmt-header-only
+    PUBLIC FMath::FMath
+    PUBLIC yaml-cpp
+    PUBLIC fmt::fmt
+    PUBLIC fmt::fmt-header-only
+    PUBLIC glm
 )
 
-cuda_add_executable(PathGeneratorCpu
-    Main_CPU.cpp
-)
+# if (WIN32)
+# cuda_add_executable(PathGeneratorCpu
+#     Main_CPU.cpp
+# )
+# else()
+# add_executable(PathGeneratorCpu
+#     Main_CPU.cpp
+# )
+# endif (WIN32)
 
-target_compile_features(PathGeneratorCpu
-    PUBLIC cxx_static_assert
-)
+# target_compile_features(PathGeneratorCpu
+#     PUBLIC cxx_static_assert
+#     PUBLIC cxx_std_17
+# )
 
-target_compile_options(PathGeneratorCpu
-    PUBLIC /std:c++17)
+# target_link_libraries(PathGeneratorCpu
+#     Twisty
+# )
 
-
-target_link_libraries(PathGeneratorCpu
-    Twisty
-)
-
+if (WIN32)
 cuda_add_executable(FullExperiment
     FullExperiment.cpp
 )
+else()
+add_executable(FullExperiment
+    FullExperiment.cpp
+)
+endif (WIN32)
 
 target_compile_features(FullExperiment
     PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
 )
-
-target_compile_options(FullExperiment
-    PUBLIC /std:c++17)
-
 
 target_link_libraries(FullExperiment
-    Twisty
+    PUBLIC Twisty
+    PUBLIC glm
 )
 
-cuda_add_executable(FreezeFrameExperiment
+add_executable(FreezeFrameExperiment
     FreezeFrameExperiment.cpp
 )
 
 target_compile_features(FreezeFrameExperiment
     PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
 )
 
-target_compile_options(FreezeFrameExperiment
-    PUBLIC /std:c++17)
-
-
 target_link_libraries(FreezeFrameExperiment
-    Twisty
+    PUBLIC Twisty
+    PUBLIC glm
 )
 
 # add_subdirectory(Experiments)
+if (WIN32)
 add_subdirectory(Tests)
 add_subdirectory(Tools)
 add_subdirectory(Viewer)
 add_subdirectory(ThirdParty)
 add_subdirectory(Utils)
+endif (WIN32)

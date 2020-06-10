@@ -222,7 +222,7 @@ namespace twisty
             const uint32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
 
             float c = scattering + absorbtion;
-            float absorbtionConst = std::exp(-c * segmentLength) / (2.0 * CUDART_PI_F * CUDART_PI_F);
+            float absorbtionConst = std::exp(-c * segmentLength) / (2.0 * TwistyPi * TwistyPi);
 
             float lnAbsorbtionConst = log(absorbtionConst);
 
@@ -725,7 +725,7 @@ namespace twisty
         // Caclulate the first global path index this thread will start on
         int32_t threadStartingPathIdx = numPathsPerThread * threadIdx;
         float c = scattering + absorbtion;
-        float absorbtionConst = std::exp(-c * segmentLength) / (2.0 * CUDART_PI_F * CUDART_PI_F);
+        float absorbtionConst = std::exp(-c * segmentLength) / (2.0 * TwistyPi * TwistyPi);
         float lnAbsorbtionConst = log(absorbtionConst);
 
         {
@@ -1139,7 +1139,7 @@ namespace twisty
         // Caclulate the first global path index this thread will start on
         int32_t threadStartingPathIdx = numPathsPerThread * threadIdx;
         float c = scattering + absorbtion;
-        float absorbtionConst = std::exp(-c * segmentLength) / (2.0 * CUDART_PI_F * CUDART_PI_F);
+        float absorbtionConst = std::exp(-c * segmentLength) / (2.0 * TwistyPi * TwistyPi);
         float lnAbsorbtionConst = log(absorbtionConst);
 
         {
@@ -1917,7 +1917,7 @@ namespace twisty
 
 #ifdef DelayedAbsorbtionContribution
         double c = scatter + m_experimentParams.weightingParameters.absorbtion;
-        double constant = std::exp(-c * m_upInitialCurve->m_segmentLength) / (2.0 * CUDART_PI_F * CUDART_PI_F);
+        double constant = std::exp(-c * m_upInitialCurve->m_segmentLength) / (2.0 * TwistyPi * TwistyPi);
 
         std::cout << "Absorbtion const delayed: " << constant << std::endl;
 

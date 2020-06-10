@@ -1,11 +1,13 @@
 #include "FullExperimentRunner.h"
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
 #include "GpuFullExperimentRunnerGeneral.h"
+#endif
+
 #include "Geometry.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "Range.h"
-#include "TwistyYamlUtils.h"
 
 #include <FMath/Vector3.h>
 
@@ -22,7 +24,7 @@ int main(int argc, char *argv[])
     if (argc < 10)
     {
         fmt::print("Call as: {} numPathsToGenerate numPathsToSkip experimentName numSegments minArclength maxArclength useGpu bootstrapperSeed perturbSeed", argv[0]);
-        return false;
+        return 1;
     }
 
     const uint32_t numPathsToGenerate = std::stoi(argv[1]);
@@ -91,7 +93,7 @@ int main(int argc, char *argv[])
 
     std::unique_ptr<ExperimentRunner> upExperimentRunner = nullptr;
 
-
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
     if (useGpu)
     {
         upExperimentRunner = std::make_unique<GpuFullExperimentRunnerGeneral>(experimentParams, bootstrapper, kdsRange, tdsRange);
@@ -101,6 +103,10 @@ int main(int argc, char *argv[])
         // NOTE: This is tuned to maximize purturb kernel
         upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
     }
+#else
+    upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+#endif
+
     bool result = upExperimentRunner->Setup();
     if (!result)
     {
@@ -123,7 +129,9 @@ int main(int argc, char *argv[])
     upExperimentRunner->Shutdown();
     upExperimentRunner.reset(nullptr);
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
     _CrtDumpMemoryLeaks();
+#endif
 
     return 0;
 }

@@ -1,6 +1,6 @@
 #include "PathWeightUtils.h"
 
-#include "math_constants.h"
+#include "MathConsts.h"
 
 #include <algorithm>
 #include <assert.h>
@@ -20,7 +20,7 @@ namespace twisty
         // Parameterized gaussian function
         double GaussianPhase(double evalLocation, double mu)
         {
-            double a = std::sqrt(CUDART_PI * mu * 0.5);
+            double a = std::sqrt(TwistyPi * mu * 0.5);
             double b = SimpleGaussianPhase(evalLocation, mu);
             double c = 1.0 - std::exp(-2.0 / mu);
             return (a * b) / c;
@@ -96,7 +96,7 @@ namespace twisty
         TwistyWeight IntegralStrategy::Eval(double density, double absorbtion, double curvature) const
         {
             TwistyWeight c = density + absorbtion;
-            TwistyWeight constant = std::exp(-c * m_ds) / (2.0 * CUDART_PI_F * CUDART_PI_F);
+            TwistyWeight constant = std::exp(-c * m_ds) / (2.0 * TwistyPi * TwistyPi);
             return constant * Integrate(density, curvature);
         }
 
@@ -113,7 +113,7 @@ namespace twisty
         //TwistyWeight LogIntegralStrategy::Eval(double density, double absorbtion, double curvature) const
         //{
         //    TwistyWeight c = density + absorbtion;
-        //    TwistyWeight constant = std::exp(-c * m_ds) / (2.0 * CUDART_PI_F * CUDART_PI_F);
+        //    TwistyWeight constant = std::exp(-c * m_ds) / (2.0 * TwistyPi * TwistyPi);
         //    return log(constant) + Integrate(density, curvature);
         //}
 

@@ -3,7 +3,7 @@
 #include "Bootstrapper.h"
 
 #include "PathWeightUtils.h"
-#include <boost\multiprecision\cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #pragma warning(push, 0)
 #include <rapidjson/document.h>

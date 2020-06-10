@@ -15,7 +15,7 @@ namespace twisty
 
     std::unique_ptr<Curve> SpecifiedCurveParamBootstrapper::CreateCurve(uint32_t numSegments)
     {
-        assert(false, "Not Supported a.t.m");
+        assert(false);
         return nullptr;
         //m_upCachedCurve = std::make_unique<Curve>(numSegments);
         //// Min/max should be the same values, just pick one.

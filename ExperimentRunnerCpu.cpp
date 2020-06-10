@@ -5,7 +5,7 @@
 
 #include <omp.h>
 
-#include <assert.h>
+#include <std::assert.h>
 #include <ctime>
 #include <fstream>
 #include <limits>
@@ -307,7 +307,7 @@ namespace twisty
         //}
         else
         {
-            assert(false);
+            std::assert(false);
         }
 
         return upNewCurve;
@@ -374,8 +374,8 @@ namespace twisty
         leftPointIndex = 1;
         rightPointIndex = 9;*/
 
-        assert(leftPointIndex < rightPointIndex);
-        assert((rightPointIndex - leftPointIndex) >= 2);
+        std::assert(leftPointIndex < rightPointIndex);
+        std::assert((rightPointIndex - leftPointIndex) >= 2);
 
         if (DetailedPurturb)
         {
@@ -443,7 +443,7 @@ namespace twisty
         }
         updatedPolyline.push_back(m_upInitialCurve->m_targetPos);
 
-        assert(points.size() + 1 == updatedPolyline.size());
+        std::assert(points.size() + 1 == updatedPolyline.size());
 
         // Now that we have the polyline, we want to construct the reference frames.
         // Now, we build up reference frames.
@@ -464,7 +464,7 @@ namespace twisty
             tangents.push_back(m_bootstrapper.GetTargetNormal());
         }
 
-        assert(tangents.size() == upNewCurve->m_numSegments + 1);
+        std::assert(tangents.size() == upNewCurve->m_numSegments + 1);
 
         for (uint32_t i = 0; i < upNewCurve->m_numSegments; ++i)
         {
@@ -479,13 +479,13 @@ namespace twisty
 
     std::unique_ptr<Curve> ExperimentRunnerCpu::ComplexGeometryCurvePerturb(const Curve& curve, uint32_t& flag)
     {
-        assert(false);
+        std::assert(false);
         return nullptr;
     }
 
     std::unique_ptr<Curve> ExperimentRunnerCpu::RootSolveCurvePerturb(const Curve& curve, uint32_t& flag)
     {
-        assert(false, "RootSolveCurvePerturb unsupported at the moment.");
+        std::assert(false, "RootSolveCurvePerturb unsupported at the moment.");
         return nullptr;
         //std::unique_ptr<Curve> upNewCurve = std::make_unique<Curve>(curve);
 
@@ -496,8 +496,8 @@ namespace twisty
         //int32_t leftIndex = leftGen(m_rng);
         //int32_t rightIndex = rightGen(m_rng);
 
-        //assert(leftIndex < middleIndex);
-        //assert(middleIndex < rightIndex);
+        //std::assert(leftIndex < middleIndex);
+        //std::assert(middleIndex < rightIndex);
 
         //// Modify the curvature of the middle selection
         //std::uniform_real_distribution<float> curvatureGen(m_kRange.m_min, m_kRange.m_max);

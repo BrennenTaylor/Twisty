@@ -175,7 +175,7 @@ namespace twisty
 
         std::unique_ptr<Curve> CircleBootstrapper::CreateCurve(uint32_t numSegments)
         {
-            assert(false, "Not supported at the moment");
+            assert(false);
             return nullptr;
             //if (m_isCached)
             //{

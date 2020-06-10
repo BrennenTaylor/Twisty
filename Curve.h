@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include <FMath\Vector3.h>
-#include <FMath\Matrix3x3.h>
+#include <FMath/Vector3.h>
+#include <FMath/Matrix3x3.h>
 
 #include <cstdint>
 #include <string>

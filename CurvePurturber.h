@@ -14,6 +14,7 @@
 #include "Range.h"
 
 #include <optional>
+#include <memory>
 
 namespace twisty
 {

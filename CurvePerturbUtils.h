@@ -2,11 +2,16 @@
 
 #include <cstdint>
 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
 #include <cuda_occupancy.h>
 #include <device_launch_parameters.h>
 #include <math_constants.h>
+#else
+#define __device__ 
+#define __host__ 
+#endif
 
 namespace twisty
 {
