@@ -9,10 +9,11 @@ find_package(CUDA REQUIRED)
 endif (WIN32)
 
 find_package(FMath REQUIRED)
+find_package(fmt REQUIRED)
 find_package(glm CONFIG REQUIRED )
-find_package(fmt CONFIG REQUIRED)
 find_package(RapidJSON CONFIG REQUIRED)
-find_package(yaml-cpp REQUIRED)
+
+set(CMAKE_CXX_STANDARD 17)
 
 if (WIN32)
 SET( CUDA_PROPAGATE_HOST_FLAGS ON)
@@ -133,18 +134,24 @@ target_compile_options(Twisty
     PUBLIC /D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 )
 else()
+target_compile_options(Twisty
+    PUBLIC -lstdc++fs
+    PUBLIC -std=c++17
+)
 target_link_options(Twisty
     PUBLIC -pthread
+    PUBLIC -lstdc++fs
 )
 endif (WIN32)
 
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
-    PUBLIC yaml-cpp
     PUBLIC fmt::fmt
     PUBLIC fmt::fmt-header-only
     PUBLIC glm
 )
+
+
 
 # if (WIN32)
 # cuda_add_executable(PathGeneratorCpu
@@ -185,6 +192,18 @@ target_link_libraries(FullExperiment
     PUBLIC glm
 )
 
+if (WIN32)
+else()
+target_compile_options(FullExperiment
+    PUBLIC -lstdc++fs
+    PUBLIC -std=c++17
+)
+target_link_options(FullExperiment
+    PUBLIC -pthread
+    PUBLIC -lstdc++fs
+)
+endif (WIN32)
+
 add_executable(FreezeFrameExperiment
     FreezeFrameExperiment.cpp
 )
@@ -198,6 +217,18 @@ target_link_libraries(FreezeFrameExperiment
     PUBLIC Twisty
     PUBLIC glm
 )
+
+if (WIN32)
+else()
+target_compile_options(FreezeFrameExperiment
+    PUBLIC -lstdc++fs
+    PUBLIC -std=c++17
+)
+target_link_options(FreezeFrameExperiment
+    PUBLIC -pthread
+    PUBLIC -lstdc++fs
+)
+endif (WIN32)
 
 # add_subdirectory(Experiments)
 if (WIN32)
