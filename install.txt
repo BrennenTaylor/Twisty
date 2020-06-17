@@ -1,8 +1,6 @@
 // Required apt installs
-apt get install clang-9 // Required for using std filesytem
 apt get install cmake
 sudo apt install libglm-dev
-sudo apt-get install -y ninja-build
 sudo apt-get install libboost-all-dev
 sudo apt install rapidjson-dev
 
