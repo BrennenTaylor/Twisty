@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 11)
     {
-        fmt::print("Call as: {} numPathsPerPixel numPathsToSkip experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY", argv[0]);
+        fmt::print("Call as: {} numPathsPerPixel numPathsToSkip experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY\n", argv[0]);
         return 1;
     }
 

@@ -149,7 +149,6 @@ endif (WIN32)
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
     PUBLIC fmt::fmt
-    PUBLIC fmt::fmt-header-only
     PUBLIC glm
 )
 

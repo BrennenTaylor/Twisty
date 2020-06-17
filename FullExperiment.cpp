@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 10)
     {
-        fmt::print("Call as: {} numPathsToGenerate numPathsToSkip experimentName numSegments minArclength maxArclength useGpu bootstrapperSeed perturbSeed", argv[0]);
+        fmt::print("Call as: {} numPathsToGenerate numPathsToSkip experimentName numSegments minArclength maxArclength useGpu bootstrapperSeed perturbSeed\n", argv[0]);
         return 1;
     }
 
