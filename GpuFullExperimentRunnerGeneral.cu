@@ -88,8 +88,15 @@ namespace twisty
         uint32_t currentPathIdx = numPathsPerThread * globalThreadIdx;
         if (currentPathIdx >= numExperimentPaths)
         {
+            //printf("Not executing thread idx: %d\n", globalThreadIdx);
+
             // We dont want to continue if we have already generated the correct number of paths.
             return;
+        }
+
+        if (globalThreadIdx == 0)
+        {
+            printf("Thread Idx 0 called\n");
         }
 
         // The current thread is stored at the beginning
@@ -132,6 +139,10 @@ namespace twisty
                 // Update the running path weight. We also want to cache the segment weights
                 runningPathWeight += segmentWeight;
                 pCachedSegmentWeights[segIdx + (numSegmentsPerCurve * globalThreadIdx)] = segmentWeight;
+                //if (globalThreadIdx == 0)
+                //{
+                //    printf("Segment %d cached weight: %0.6f\n", segIdx, segmentWeight);
+                //}
             }
 
 #if defined(SingleThreadDebugMode)
@@ -146,6 +157,11 @@ namespace twisty
 #endif
         }
 
+        if (globalThreadIdx == 0)
+        {
+            printf("Running path weight after cache: %0.6f\n", runningPathWeight);
+        }
+
         // Now, we can begin the actual algorithm
         {
             // This is the perturbation piece.
@@ -158,6 +174,10 @@ namespace twisty
 
             for (int32_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread); ++pathCount)
             {
+                if (globalThreadIdx == 0)
+                {
+                    printf("Path count: %d\n", pathCount);
+                }
 
                 // Start at the thread's first path idx
                 int32_t currentPathIdx = numPathsPerThread * globalThreadIdx + pathCount - numPathsToSkipPerThread;
@@ -196,6 +216,11 @@ namespace twisty
 
                     // We dont want to continue if we have already generated the correct number of paths.
                     break;
+                }
+
+                if (globalThreadIdx == 0)
+                {
+                    printf("Beginning perturb of path %d\n", pathCount);
                 }
 
                 // Do the perturb now
@@ -392,16 +417,23 @@ namespace twisty
                         runningPathWeight += segmentWeight;
                     }
 
-                    if (pathCount < numPathsPerThread)
+                    if (globalThreadIdx == 0)
+                    {
+                        printf("Made it to the end of path %d\n", pathCount);
+                    }
+
+                    if (pathCount < numPathsToSkipPerThread)
                     {
                         // Skip
                     }
                     else
                     {
+                        printf("Here\n");
                         // Else, contribute to the paths
                         int32_t currentPathIdx = numPathsPerThread * globalThreadIdx + pathCount - numPathsToSkipPerThread;
                         assert(currentPathIdx >= numPathsPerThread * globalThreadIdx);
                         pCompressedPathWeights[currentPathIdx] = runningPathWeight;
+                        printf("Updating path weight at %d to %0.6f\n", currentPathIdx, runningPathWeight);
                     }
                 }
             }
@@ -958,7 +990,7 @@ namespace twisty
                 totalExperimentWeight += threadWeights[threadIdx];
             }
 
-            boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = totalExperimentWeight;
+            bigTotalExperimentWeight += totalExperimentWeight;
 
             auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
             weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();
