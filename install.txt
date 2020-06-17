@@ -1,8 +1,6 @@
 // Required apt installs
-apt get install clang-9 // Required for using std filesytem
 apt get install cmake
 sudo apt install libglm-dev
-sudo apt-get install -y ninja-build
 sudo apt-get install libboost-all-dev
 sudo apt install rapidjson-dev
 
@@ -11,7 +9,7 @@ git clone https://github.tamu.edu/GreatWall1001/FMath
 cd FMath
 mkdir build
 cd build
-cmake .. -G "Ninja"
+cmake ..
 sudo cmake --build . --config Release --target install
 
 // Setup vcpkg
@@ -27,5 +25,5 @@ git clone https://github.tamu.edu/GreatWall1001/Twisty
 cd Twisty
 mkdir build
 cd build
-cmake .. -G "Ninja" -DCMAKE_TOOLCHAIN_FILE=%path_from_vcpkg_integrate%
+cmake .. -DCMAKE_TOOLCHAIN_FILE=%path_from_vcpkg_integrate%
 cmake --build . --config Release
