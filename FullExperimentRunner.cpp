@@ -230,6 +230,11 @@ namespace twisty
             // Lets make this a double actually...
             // Though this is a ln compressed version, so it shouuuuld be ok.
 
+            //if (threadIdx == 0)
+            //{
+            //    printf("On thread 0\n");
+            //}
+
             double runningPathWeight = 0.0;
             {
 #ifdef BlockingMultithread
@@ -281,7 +286,23 @@ namespace twisty
                     }
                 }
 #endif
+
+                //if (threadIdx == 1)
+                //{
+                //    printf("Cached Weights:\n");
+
+                //    for (uint32_t segIdx = 0; segIdx < numSegmentsPerCurve; segIdx++)
+                //    {
+                //        printf("\tCached Weight: <%0.6f>\n", cachedSegmentWeights[segIdx + (numSegmentsPerCurve * threadIdx)]);
+                //    }
+                //}
+
             }
+
+            //if (threadIdx == 1)
+            //{
+            //    printf("Thread 0 running path weight: %0.6f\n", runningPathWeight);
+            //}
 
 
             {
@@ -349,8 +370,8 @@ namespace twisty
                         // Do the perturb now
                         {
 #ifdef HardcodedSegments
-                            int32_t leftPointIndex = 17;
-                            int32_t rightPointIndex = 39;
+                            int32_t leftPointIndex = 2;
+                            int32_t rightPointIndex = 4;
 #else
                             std::uniform_int_distribution<int> leftPointIndexUniformDist(1, numSegmentsPerCurve - 3); // uniform, unbiased
                             int32_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
@@ -380,6 +401,19 @@ namespace twisty
 
                             Farlor::Vector3 axisOfRotation = (rightPoint - leftPoint).Normalized();
 
+#if defined(DetailedPurturb) && defined(SingleThreadMode)
+                            printf("Axis before (%.6f, %.6f, %.6f)\n",
+                                axisOfRotation[0], axisOfRotation[1], axisOfRotation[2]
+                            );
+#endif
+
+                            //if (threadIdx == 1)
+                            //{
+                            //    printf("Axis before (%.6f, %.6f, %.6f)\n",
+                            //        axisOfRotation[0], axisOfRotation[1], axisOfRotation[2]
+                            //    );
+                            //}
+
 #ifdef HardcodedRotation
                             float randomAngle = 1.38f;
 #else
@@ -394,10 +428,14 @@ namespace twisty
                             }
 #endif
 
-                            float rotationMatrix[9];
+                            float rotationMatrix[9] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
                             RotationMatrixAroundAxis(randomAngle, (float*)(&axisOfRotation), rotationMatrix);
 #if defined(DetailedPurturb) && defined(SingleThreadMode)
                             {
+                                printf("Normalized axis(%.6f, %.6f, %.6f)\n",
+                                    axisOfRotation[0], axisOfRotation[1], axisOfRotation[2]
+                                );
+
                                 printf("Rotation Matrix\n\t(%.6f, %.6f, %.6f)\n\t(%.6f, %.6f, %.6f)\n\t(%.6f, %.6f, %.6f)\n",
                                     rotationMatrix[0], rotationMatrix[1], rotationMatrix[2],
                                     rotationMatrix[3], rotationMatrix[4], rotationMatrix[5],
@@ -405,6 +443,19 @@ namespace twisty
                                 );
                             }
 #endif
+                            //if (threadIdx == 1)
+                            //{
+                            //    printf("Normalized axis(%.6f, %.6f, %.6f)\n",
+                            //        axisOfRotation[0], axisOfRotation[1], axisOfRotation[2]
+                            //    );
+
+                            //    printf("Rotation Matrix\n\t(%.6f, %.6f, %.6f)\n\t(%.6f, %.6f, %.6f)\n\t(%.6f, %.6f, %.6f)\n",
+                            //        rotationMatrix[0], rotationMatrix[1], rotationMatrix[2],
+                            //        rotationMatrix[3], rotationMatrix[4], rotationMatrix[5],
+                            //        rotationMatrix[6], rotationMatrix[7], rotationMatrix[8]
+                            //    );
+                            //}
+
 
                             int32_t numChanged = 0;
                             for (int32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
@@ -426,7 +477,21 @@ namespace twisty
                             {
                                 Farlor::Vector3 leftPoint = globalPos[CurrentThreadPosStartIdx + leftPointIndex];
                                 Farlor::Vector3 rightPos = globalPos[CurrentThreadPosStartIdx + leftPointIndex + 1];
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Left Tangent Left Point: (%.6f, %.6f, %.6f)\n", leftPoint[0], leftPoint[1], leftPoint[2]);
+                                //    printf("Left Tangent Right Point: (%.6f, %.6f, %.6f)\n", rightPos[0], rightPos[1], rightPos[2]);
+                                //}
+
+
                                 globalTans[CurrentThreadTanStartIdx + leftPointIndex] = (rightPoint - leftPoint).Normalized();
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    auto val = (rightPoint - leftPoint).Normalized();
+                                //    printf("New Left Tangent: (%.6f, %.6f, %.6f)\n", val.x, val.y, val.z);
+                                //}
                             }
 
                             // Right side
@@ -435,6 +500,12 @@ namespace twisty
                                 Farlor::Vector3 rightPoint = globalPos[CurrentThreadPosStartIdx + rightPointIndex];
 
                                 globalTans[CurrentThreadTanStartIdx + rightPointIndex - 1] = (rightPoint - leftPoint).Normalized();
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    auto val = (rightPoint - leftPoint).Normalized();
+                                //    printf("New Right Tangent: (%.6f, %.6f, %.6f)\n", val.x, val.y, val.z);
+                                //}
                             }
 
 
@@ -445,6 +516,11 @@ namespace twisty
                                 Farlor::Vector3 temp = (rightTan - leftTan) * (1.0f / segmentLength);
                                 float curvature = temp.Magnitude();
                                 globalCurvatures[CurrentThreadCurvatureStartIdx + (leftPointIndex - 1)] = curvature;
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Left Segment Curvature: %.6f\n", curvature);
+                                //}
 
                                 // Also, cache the weight of that changed segment
                                 float distance = curvature - minCurvature;
@@ -470,6 +546,11 @@ namespace twisty
                                 segmentWeight += lnAbsorbtionConst;
 #endif
 
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Left Segment Weight: %.6f\n", segmentWeight);
+                                //}
+
                                 // Remove old segmentWeight
                                 //runningPathWeight -= pCachedSegmentWeights[leftPointIndex - 1];
                                 runningPathWeight -= cachedSegmentWeights[(leftPointIndex - 1) + (numSegmentsPerCurve * threadIdx)];
@@ -477,16 +558,32 @@ namespace twisty
                                 cachedSegmentWeights[(leftPointIndex - 1) + (numSegmentsPerCurve * threadIdx)] = segmentWeight;
                                 // Add segment weighting into running path weight
                                 runningPathWeight += segmentWeight;
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Running path weight after left: %.6f\n", runningPathWeight);
+                                //}
                             }
 
                             // Update right curvature
                             {
-                                Farlor::Vector3 leftTan = globalPos[CurrentThreadTanStartIdx + (rightPointIndex - 1)];
-                                Farlor::Vector3 rightTan = globalPos[CurrentThreadTanStartIdx + rightPointIndex];
+                                Farlor::Vector3 leftTan = globalTans[CurrentThreadTanStartIdx + (rightPointIndex - 1)];
+                                Farlor::Vector3 rightTan = globalTans[CurrentThreadTanStartIdx + rightPointIndex];
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Rights Calc Left Tangent: (%.6f, %.6f, %.6f)\n", leftTan[0], leftTan[1], leftTan[2]);
+                                //    printf("Rights Calc Right Tangent: (%.6f, %.6f, %.6f)\n", rightTan[0], rightTan[1], rightTan[2]);
+                                //}
 
                                 Farlor::Vector3 temp = (rightTan - leftTan) * (1.0f / segmentLength);
                                 float curvature = temp.Magnitude();
                                 globalCurvatures[CurrentThreadCurvatureStartIdx + (rightPointIndex - 1)] = curvature;
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Right Segment Curvature: %.6f\n", curvature);
+                                //}
 
                                 // Also, cache the weight of that changed segment
                                 float distance = curvature - minCurvature;
@@ -512,10 +609,20 @@ namespace twisty
                                 segmentWeight += lnAbsorbtionConst;
 #endif
 
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Right Segment Weight: %.6f\n", segmentWeight);
+                                //}
+
                                 // Remove old segmentWeight
                                 runningPathWeight -= cachedSegmentWeights[(rightPointIndex - 1) + (numSegmentsPerCurve * threadIdx)];
                                 runningPathWeight += segmentWeight;
                                 cachedSegmentWeights[(rightPointIndex - 1) + (numSegmentsPerCurve * threadIdx)] = segmentWeight;
+
+                                //if (threadIdx == 1)
+                                //{
+                                //    printf("Running path weight after right: %.6f\n", runningPathWeight);
+                                //}
                             }
                         }
 
@@ -1844,8 +1951,15 @@ namespace twisty
             auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
             perturbTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(perturbTimeEnd - perturbTimeStart).count();
 
+            // Temporarily print them out
+            //std::cout << "Weights: " << std::endl;
+            //for (uint32_t weightIdx = 0; weightIdx < 10; weightIdx++)
+            //{
+            //    std::cout << "Weight: " << compressedWeightBuffer[weightIdx] << std::endl;
+            //}
+
             // -------------------
-            auto weightingTimeStart = std::chrono::high_resolution_clock::now();
+             auto weightingTimeStart = std::chrono::high_resolution_clock::now();
 
             std::vector<boost::multiprecision::cpp_dec_float_100> bigFloatWeights(pathsInDispatch);
             uint32_t numWeightingThreads = std::thread::hardware_concurrency();
@@ -1989,6 +2103,12 @@ namespace twisty
             }
 
             twisty::BigFloat bigfloatCompressed = compressedWeights[idx];
+
+            //if (threadIdx == 0)
+            //{
+            //    std::cout << "Big float compressed weight: " << bigfloatCompressed << std::endl;
+            //}
+
 #ifdef BigFloatMultiprecision
             boost::multiprecision::cpp_dec_float_100 decompressed = boost::multiprecision::exp(bigfloatCompressed);
             // Pulled from Jerry analysis

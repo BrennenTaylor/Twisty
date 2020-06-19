@@ -1,5 +1,7 @@
 #include "CurvePerturbUtils.h"
 
+#include <cmath>
+
 // Cuda Functions
 namespace twisty
 {
@@ -7,7 +9,7 @@ namespace twisty
     __host__ __device__ void NormalizeVector3f(float* pVector3f)
     {
         float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
-        normalizer = 1.0 / sqrt(normalizer);
+        normalizer = 1.0 / std::sqrt(normalizer);
         pVector3f[0] *= normalizer;
         pVector3f[1] *= normalizer;
         pVector3f[2] *= normalizer;
@@ -19,17 +21,17 @@ namespace twisty
         // Ensure its normalized
         NormalizeVector3f(pAxisVector3f);
 
-        pMatrix3x3[0] = cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - cos(angle));
-        pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - cos(angle)) - pAxisVector3f[2] * sin(angle);
-        pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - cos(angle)) + pAxisVector3f[1] * sin(angle);
+        pMatrix3x3[0] = std::cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - std::cos(angle));
+        pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - std::cos(angle)) - pAxisVector3f[2] * std::sin(angle);
+        pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - std::cos(angle)) + pAxisVector3f[1] * std::sin(angle);
 
-        pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - cos(angle)) + pAxisVector3f[2] * sin(angle);
-        pMatrix3x3[4] = cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - cos(angle));
-        pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - cos(angle)) - pAxisVector3f[0] * sin(angle);
+        pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - std::cos(angle)) + pAxisVector3f[2] * std::sin(angle);
+        pMatrix3x3[4] = std::cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - std::cos(angle));
+        pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - std::cos(angle)) - pAxisVector3f[0] * std::sin(angle);
 
-        pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - cos(angle)) - pAxisVector3f[1] * sin(angle);
-        pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - cos(angle)) + pAxisVector3f[0] * sin(angle);
-        pMatrix3x3[8] = cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - cos(angle));
+        pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - std::cos(angle)) - pAxisVector3f[1] * std::sin(angle);
+        pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - std::cos(angle)) + pAxisVector3f[0] * std::sin(angle);
+        pMatrix3x3[8] = std::cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - std::cos(angle));
     }
 
     __host__ __device__ float DotVector3fVector3f(float* lhs, float* rhs)

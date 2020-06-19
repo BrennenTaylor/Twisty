@@ -60,9 +60,9 @@ namespace twisty
 
     // Dispatch which atually runs the purtibation algorithm on the GPU
     __global__ void GeneratePathBatchPutrubations(
-        uint32_t numExperimentPaths,
-        uint32_t numPathsPerThread,
-        uint32_t numPathsToSkipPerThread,
+        int32_t numExperimentPaths,
+        int32_t numPathsPerThread,
+        int32_t numPathsToSkipPerThread,
         uint32_t numSegmentsPerCurve,
         curandState_t* pRandStates, 
         float* pPerThreadPositions,
@@ -83,21 +83,23 @@ namespace twisty
         // First, we calculate the block thread index of the entire gpu dispatch.
         // For the number of threads dispatched, each is responsible for a number of 
         // paths to generate, i.e. numExperimentThreads / numGlobalThreads
-        uint32_t globalThreadIdx = threadIdx.x + blockDim.x * blockIdx.x;
+        int32_t globalThreadIdx = threadIdx.x + blockDim.x * blockIdx.x;
 
-        uint32_t currentPathIdx = numPathsPerThread * globalThreadIdx;
-        if (currentPathIdx >= numExperimentPaths)
         {
-            //printf("Not executing thread idx: %d\n", globalThreadIdx);
+            int32_t currentPathIdx = numPathsPerThread * globalThreadIdx;
+            if (currentPathIdx >= numExperimentPaths)
+            {
+                //printf("Not executing thread idx: %d\n", globalThreadIdx);
 
-            // We dont want to continue if we have already generated the correct number of paths.
-            return;
+                // We dont want to continue if we have already generated the correct number of paths.
+                return;
+            }
         }
 
-        if (globalThreadIdx == 0)
-        {
-            printf("Thread Idx 0 called\n");
-        }
+        //if (globalThreadIdx == 0)
+        //{
+        //    printf("Thread Idx 0 called\n");
+        //}
 
         // The current thread is stored at the beginning
         // We want to index into shared memory via threadIdx.x as this is assigned per block
@@ -155,12 +157,22 @@ namespace twisty
                 }
             }
 #endif
+
+            //if (globalThreadIdx == 1)
+            //{
+            //    printf("Cached Weights:\n");
+
+            //    for (uint32_t segIdx = 0; segIdx < numSegmentsPerCurve; segIdx++)
+            //    {
+            //        printf("\tCached Weight: <%0.6f>\n", pCachedSegmentWeights[segIdx + numSegmentsPerCurve * globalThreadIdx]);
+            //    }
+            //}
         }
 
-        if (globalThreadIdx == 0)
-        {
-            printf("Running path weight after cache: %0.6f\n", runningPathWeight);
-        }
+        //if (globalThreadIdx == 1)
+        //{
+        //    printf("Running path weight after cache: %0.6f\n", runningPathWeight);
+        //}
 
         // Now, we can begin the actual algorithm
         {
@@ -174,13 +186,18 @@ namespace twisty
 
             for (int32_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread); ++pathCount)
             {
-                if (globalThreadIdx == 0)
-                {
-                    printf("Path count: %d\n", pathCount);
-                }
+                //if (globalThreadIdx == 0)
+                //{
+                //    printf("Path count: %d\n", pathCount);
+                //}
 
                 // Start at the thread's first path idx
                 int32_t currentPathIdx = numPathsPerThread * globalThreadIdx + pathCount - numPathsToSkipPerThread;
+                //if (globalThreadIdx == 0)
+                //{
+                //    printf("Current path idx: %d\n", currentPathIdx);
+                //}
+
                 if (currentPathIdx >= numExperimentPaths)
                 {
 #ifdef BlockingOutputThread
@@ -215,13 +232,17 @@ namespace twisty
 
 
                     // We dont want to continue if we have already generated the correct number of paths.
+                    //if (globalThreadIdx == 0)
+                    //{
+                    //    printf("Exiting, we generated the correct number of paths\n");
+                    //}
                     break;
                 }
 
-                if (globalThreadIdx == 0)
-                {
-                    printf("Beginning perturb of path %d\n", pathCount);
-                }
+                //if (globalThreadIdx == 0)
+                //{
+                //    printf("Beginning perturb of path %d\n", pathCount);
+                //}
 
                 // Do the perturb now
                 {
@@ -229,11 +250,12 @@ namespace twisty
                     // Left bound by m-2 as we at least want there to be one point between the left and right points selected so an actual perturbation occurs
                     float leftPtRand = curand_uniform(&pRandStates[globalThreadIdx]);
                     float rightPtRand = curand_uniform(&pRandStates[globalThreadIdx]);
+
+                    //int32_t leftPointIndex = 2;
+                    //int32_t rightPointIndex = 4;
+
                     unsigned int leftPointIndex = floorf(leftPtRand * ((numSegmentsPerCurve - 3) - 1) + 1);
                     unsigned int rightPointIndex = floorf(leftPtRand * ((numSegmentsPerCurve - 1) - (leftPointIndex + 2)) + (leftPointIndex + 2));
-
-                    //unsigned int leftPointIndex = 17;
-                    //unsigned int rightPointIndex = 39;
 
 #if defined(SingleThreadDebugMode)
                     {
@@ -273,6 +295,14 @@ namespace twisty
                     }
 #endif
 
+                    //if (globalThreadIdx == 1)
+                    //{
+                    //    printf("Axis before (%.6f, %.6f, %.6f)\n",
+                    //        axisOfRotation[0], axisOfRotation[1], axisOfRotation[2]
+                    //    );
+                    //}
+
+                    //float randomAngle = 1.38f;
                     float randomAngle = (curand_uniform(&pRandStates[globalThreadIdx]) * 360.0f) - 180.0f;
 
 #if defined(SingleThreadDebugMode)
@@ -293,6 +323,19 @@ namespace twisty
                         );
                     }
 #endif
+
+                    //if (globalThreadIdx == 1)
+                    //{
+                    //    printf("Normalized axis(%.6f, %.6f, %.6f)\n",
+                    //        axisOfRotation[0], axisOfRotation[1], axisOfRotation[2]
+                    //    );
+
+                    //    printf("Rotation Matrix\n\t(%.6f, %.6f, %.6f)\n\t(%.6f, %.6f, %.6f)\n\t(%.6f, %.6f, %.6f)\n",
+                    //        rotationMatrix[0], rotationMatrix[1], rotationMatrix[2],
+                    //        rotationMatrix[3], rotationMatrix[4], rotationMatrix[5],
+                    //        rotationMatrix[6], rotationMatrix[7], rotationMatrix[8]
+                    //    );
+                    //}
 
                     uint32_t numChanged = 0;
                     for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
@@ -321,6 +364,12 @@ namespace twisty
                         float* pLeftPointTanCalc = pPerThreadPositions + CurrentThreadPosStartIdx + PositionFloatCount * leftPointIndex;
                         float* pRightPointTanCalc = pPerThreadPositions + CurrentThreadPosStartIdx + PositionFloatCount * (leftPointIndex + 1);
 
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Left Tangent Left Point: (%.6f, %.6f, %.6f)\n", pLeftPointTanCalc[0], pLeftPointTanCalc[1], pLeftPointTanCalc[2]);
+                        //    printf("Left Tangent Right Point: (%.6f, %.6f, %.6f)\n", pRightPointTanCalc[0], pRightPointTanCalc[1], pRightPointTanCalc[2]);
+                        //}
+
                         float* pCurrentTan = pPerThreadTangents + CurrentThreadTanStartIdx + TangentFloatCount * leftPointIndex;
 
                         pCurrentTan[0] = pRightPointTanCalc[0] - pLeftPointTanCalc[0];
@@ -328,6 +377,11 @@ namespace twisty
                         pCurrentTan[2] = pRightPointTanCalc[2] - pLeftPointTanCalc[2];
 
                         NormalizeVector3f(pCurrentTan);
+
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("New Left Tangent: (%.6f, %.6f, %.6f)\n", pCurrentTan[0], pCurrentTan[1], pCurrentTan[2]);
+                        //}
                     }
 
                     // Right side
@@ -342,6 +396,11 @@ namespace twisty
                         pCurrentTan[2] = pRightPointTanCalc[2] - pLeftPointTanCalc[2];
 
                         NormalizeVector3f(pCurrentTan);
+
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("New Right Tangent: (%.6f, %.6f, %.6f)\n", pCurrentTan[0], pCurrentTan[1], pCurrentTan[2]);
+                        //}
                     }
 
                     // Update left curvature
@@ -359,6 +418,11 @@ namespace twisty
                         float curvature = MagVector3f(temp);
                         pCurvature[0] = curvature;
 
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Left Segment Curvature: %.6f\n", curvature);
+                        //}
+
                         // Also, cache the weight of that changed segment
                         float distance = curvature - minCurvature;
                         float realIdx = distance / curvatureStepSize;
@@ -375,10 +439,20 @@ namespace twisty
                         double segmentWeight = interpolatedResultLog;
                         segmentWeight += lnAbsorbtionConst;
 
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Left Segment Weight: %.6f\n", segmentWeight);
+                        //}
+
                         // Remove old segmentWeight
                         runningPathWeight -= pCachedSegmentWeights[(leftPointIndex - 1) + (numSegmentsPerCurve * globalThreadIdx)];
                         pCachedSegmentWeights[(leftPointIndex - 1) + (numSegmentsPerCurve * globalThreadIdx)] = segmentWeight;
                         runningPathWeight += segmentWeight;
+
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Running path weight after left: %.6f\n", runningPathWeight);
+                        //}
                     }
 
                     // Update right curvature
@@ -386,6 +460,12 @@ namespace twisty
                         float* pLeftTanCurvatureCalc = pPerThreadTangents + CurrentThreadTanStartIdx + TangentFloatCount * (rightPointIndex - 1);
                         float* pRightTanCurvatureCalc = pPerThreadTangents + CurrentThreadTanStartIdx + TangentFloatCount * rightPointIndex;
                         float* pCurvature = pPerThreadCurvatures + CurrentThreadCurvatureStartIdx + (rightPointIndex - 1);
+
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Rights Calc Left Tangent: (%.6f, %.6f, %.6f)\n", pLeftTanCurvatureCalc[0], pLeftTanCurvatureCalc[1], pLeftTanCurvatureCalc[2]);
+                        //    printf("Rights Calc Right Tangent: (%.6f, %.6f, %.6f)\n", pRightTanCurvatureCalc[0], pRightTanCurvatureCalc[1], pRightTanCurvatureCalc[2]);
+                        //}
 
                         float temp[3];
                         temp[0] = (pRightTanCurvatureCalc[0] - pLeftTanCurvatureCalc[0]) * (1.0f / segmentLength);
@@ -395,6 +475,11 @@ namespace twisty
                         float curvature = MagVector3f(temp);
                         pCurvature[0] = curvature;
 
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Right Segment Curvature: %.6f\n", curvature);
+                        //}
+
                         // Also, cache the weight of that changed segment
                         float distance = curvature - minCurvature;
                         float realIdx = distance / curvatureStepSize;
@@ -411,16 +496,26 @@ namespace twisty
                         double segmentWeight = interpolatedResultLog;
                         segmentWeight += lnAbsorbtionConst;
 
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Right Segment Weight: %.6f\n", segmentWeight);
+                        //}
+
                         // Remove old segmentWeight
                         runningPathWeight -= pCachedSegmentWeights[(rightPointIndex - 1) + (numSegmentsPerCurve * globalThreadIdx)];
                         pCachedSegmentWeights[(rightPointIndex - 1) + (numSegmentsPerCurve * globalThreadIdx)] = segmentWeight;
                         runningPathWeight += segmentWeight;
+
+                        //if (globalThreadIdx == 1)
+                        //{
+                        //    printf("Running path weight after right: %.6f\n", runningPathWeight);
+                        //}
                     }
 
-                    if (globalThreadIdx == 0)
+                    /*if (globalThreadIdx == 0)
                     {
                         printf("Made it to the end of path %d\n", pathCount);
-                    }
+                    }*/
 
                     if (pathCount < numPathsToSkipPerThread)
                     {
@@ -428,12 +523,14 @@ namespace twisty
                     }
                     else
                     {
-                        printf("Here\n");
                         // Else, contribute to the paths
-                        int32_t currentPathIdx = numPathsPerThread * globalThreadIdx + pathCount - numPathsToSkipPerThread;
+                        //int32_t currentPathIdx = numPathsPerThread * globalThreadIdx + pathCount - numPathsToSkipPerThread;
                         assert(currentPathIdx >= numPathsPerThread * globalThreadIdx);
                         pCompressedPathWeights[currentPathIdx] = runningPathWeight;
-                        printf("Updating path weight at %d to %0.6f\n", currentPathIdx, runningPathWeight);
+                        //if (globalThreadIdx == 0)
+                        //{
+                        //    printf("Updating path weight at %d to %0.6f\n", currentPathIdx, runningPathWeight);
+                        //}
                     }
                 }
             }
@@ -764,9 +861,24 @@ namespace twisty
         return true;
     }
 
-    void GpuFullExperimentRunnerGeneral::WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread, const std::vector<double>& compressedWeights,
+    void GpuFullExperimentRunnerGeneral::WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread,
+        float arclength, uint32_t numSegmentsPerCurve, const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights,
         twisty::BigFloat& threadWeight)
     {
+        // Hardcoded value from Jerry analysis.
+        boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
+        boost::multiprecision::cpp_dec_float_100 segmentNormalizer = 1.0;
+        for (uint32_t segIdx = 0; segIdx < (numSegmentsPerCurve - 1); ++segIdx)
+        {
+            segmentNormalizer = segmentNormalizer * singleSegmentNormalizer;
+        }
+
+        // Full path normalization term
+        boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
+        pathNormalizer = pathNormalizer * boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(static_cast<float>(numSegmentsPerCurve) / arclength), 3.0);
+        pathNormalizer = pathNormalizer * segmentNormalizer;
+        pathNormalizer = pathNormalizer * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
+
         for (uint32_t i = 0; i < numWeightsPerThread; i++)
         {
             uint32_t idx = threadIdx * numWeightsPerThread + i;
@@ -776,8 +888,18 @@ namespace twisty
             }
 
             twisty::BigFloat bigfloatCompressed = compressedWeights[idx];
+
+            /*if (threadIdx == 0)
+            {
+                std::cout << "Big float compressed weight: " << bigfloatCompressed << std::endl;
+            }*/
+
 #ifdef BigFloatMultiprecision
-            threadWeight += boost::multiprecision::exp(bigfloatCompressed);
+            boost::multiprecision::cpp_dec_float_100 decompressed = boost::multiprecision::exp(bigfloatCompressed);
+            // Pulled from Jerry analysis
+            decompressed = decompressed * pathNormalizer;
+            bigFloatWeights[idx] = decompressed;
+            threadWeight += decompressed;
 #else
             //threadWeight += std::exp(bigfloatCompressed);
 #endif
@@ -960,9 +1082,21 @@ namespace twisty
             weightCopyTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightCopyTimeEnd - weightCopyTimeStart).count();
             /* ---------------------------- */
 
+
+            // Temporarily print them out
+            //std::cout << "Weights: " << std::endl;
+            //for (uint32_t weightIdx = 0; weightIdx < 10; weightIdx++)
+            //{
+            //    std::cout << "Weight: " << compressedWeightBuffer[weightIdx] << std::endl;
+            //}
+
+
             /* ---------------------------- */
             auto weightingTimeStart = std::chrono::high_resolution_clock::now();
-            twisty::BigFloat totalExperimentWeight = 0.0f;
+            
+            twisty::BigFloat totalDispatchWeight = 0.0f;
+
+            std::vector<boost::multiprecision::cpp_dec_float_100> bigFloatWeights(pathsInDispatch);
             // Create threads and dispatch them
             uint32_t numHardwareThreads = std::thread::hardware_concurrency();
             uint32_t numWeightsPerThread = (pathsInDispatch + numHardwareThreads - 1) / numHardwareThreads;
@@ -973,7 +1107,8 @@ namespace twisty
             {
                 threadWeights[threadIdx] = 0.0;
                 std::thread newThread(&GpuFullExperimentRunnerGeneral::WeightCombineThreadKernel, this, threadIdx,
-                    pathsInDispatch, numWeightsPerThread, std::ref(compressedWeightBuffer), std::ref(threadWeights[threadIdx]));
+                    pathsInDispatch, numWeightsPerThread, m_upInitialCurve->m_arclength, m_upInitialCurve->m_numSegments,
+                    std::ref(compressedWeightBuffer), std::ref(bigFloatWeights), std::ref(threadWeights[threadIdx]));
                 threads[threadIdx] = std::move(newThread);
             }
 
@@ -987,10 +1122,12 @@ namespace twisty
 
             for (uint32_t threadIdx = 0; threadIdx < numHardwareThreads; ++threadIdx)
             {
-                totalExperimentWeight += threadWeights[threadIdx];
+                totalDispatchWeight += threadWeights[threadIdx];
             }
 
-            bigTotalExperimentWeight += totalExperimentWeight;
+            std::cout << "Dispatch " << dispatchIdx << " Weight: " << totalDispatchWeight << std::endl;
+
+            bigTotalExperimentWeight += totalDispatchWeight;
 
             auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
             weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();

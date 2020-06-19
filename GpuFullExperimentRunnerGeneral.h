@@ -51,12 +51,9 @@ namespace twisty
         bool SetupCrossDispatchCurveData(uint32_t numGlobalPerturbThreads);
         bool SetupWeightLookupTexture(const twisty::PathSpaceUtils::WeightLookupTableIntegral& lookupEvaluator);
 
-        void WeightCombineThreadKernel(const uint32_t threadIdx,
-            uint32_t numWeights,
-            uint32_t numWeightsPerThread,
-            const std::vector<double>& compressedWeights,
-            twisty::BigFloat& threadWeight
-        );
+        void WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread,
+            float arclength, uint32_t numSegmentsPerCurve, const std::vector<double>& compressedWeights,
+            std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, twisty::BigFloat& threadWeight);
 
         void CleanupCudaMemory();
 
