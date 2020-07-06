@@ -155,6 +155,15 @@ namespace twisty
                 successfulGen = true;
             }
         }
+
+        std::filesystem::path currentPath = std::filesystem::current_path();
+        currentPath.append(m_experimentParams.experimentDir);
+
+        if (!std::filesystem::exists(currentPath))
+        {
+            std::filesystem::create_directories(currentPath);
+        }
+
         return true;
     }
 
@@ -1666,7 +1675,7 @@ namespace twisty
             BeginPathBatchOutput();
 
             std::filesystem::path currentPath = std::filesystem::current_path();
-            currentPath.append(m_experimentParams.pathBatchDirectory);
+            currentPath.append(m_experimentParams.experimentDir);
 
             if (!std::filesystem::exists(currentPath))
             {
@@ -1841,7 +1850,6 @@ namespace twisty
 
 
         /* --------------------- */
-        auto perturbTimeStart = std::chrono::high_resolution_clock::now();
 
 #ifdef SerialMultithread
         activeThreadIdx.store(numPurturbThreads - 1);
@@ -1862,8 +1870,13 @@ namespace twisty
         long long weightCalcTimeCount = 0;
 
         // We need a number of dispatches
+        boost::multiprecision::cpp_dec_float_100 minimumPathWeight = 0.0;
+        boost::multiprecision::cpp_dec_float_100 maximumPathWeight = 0.0;
+
         for (uint32_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
         {
+            auto perturbTimeStart = std::chrono::high_resolution_clock::now();
+
             uint32_t pathsInDispatch = std::min(m_experimentParams.numPathsPerBatch, numPathsLeft);
             std::cout << "Paths in dispatch " << dispatchIdx << ": " << pathsInDispatch << std::endl;
             {
@@ -1969,11 +1982,14 @@ namespace twisty
             {
                 std::vector<std::thread> threads(numWeightingThreads);
                 std::vector<twisty::BigFloat> threadWeights(numWeightingThreads);
+                std::vector<twisty::BigFloat> minimums(numWeightingThreads);
+                std::vector<twisty::BigFloat> maximums(numWeightingThreads);
                 for (uint32_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
                 {
                     threadWeights[threadIdx] = 0.0;
                     std::thread newThread(&FullExperimentRunner::WeightCombineThreadKernel, this, threadIdx, pathsInDispatch, numWeightsPerThread, m_upInitialCurve->m_arclength,
-                        m_upInitialCurve->m_numSegments, std::ref(compressedWeightBuffer), std::ref(bigFloatWeights), std::ref(threadWeights[threadIdx]));
+                        m_upInitialCurve->m_numSegments, std::ref(compressedWeightBuffer), std::ref(bigFloatWeights), std::ref(threadWeights[threadIdx]),
+                        std::ref(minimums), std::ref(maximums));
                     threads[threadIdx] = std::move(newThread);
                 }
 
@@ -1999,6 +2015,41 @@ namespace twisty
                 {
                     totalDispatchWeight += threadWeights[threadIdx];
                 }
+
+                if (dispatchIdx == 0)
+                {
+                    minimumPathWeight = minimums[0];
+                    maximumPathWeight = maximums[0];
+
+                    for (uint32_t threadIdx = 1; threadIdx < numWeightingThreads; ++threadIdx)
+                    {
+                        if (minimumPathWeight > minimums[threadIdx])
+                        {
+                            minimumPathWeight = minimums[threadIdx];
+                        }
+
+                        if (maximumPathWeight < maximums[threadIdx])
+                        {
+                            maximumPathWeight = maximums[threadIdx];
+                        }
+                    }
+                }
+                else
+                {
+                    for (uint32_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
+                    {
+                        if (minimumPathWeight > minimums[threadIdx])
+                        {
+                            minimumPathWeight = minimums[threadIdx];
+                        }
+
+                        if (maximumPathWeight < maximums[threadIdx])
+                        {
+                            maximumPathWeight = maximums[threadIdx];
+                        }
+                    }
+                }
+
             }
 
             std::cout << "Dispatch " << dispatchIdx << " Weight: " << totalDispatchWeight << std::endl;
@@ -2009,11 +2060,22 @@ namespace twisty
             /* --------------------- */
 
 #ifdef OutputBigFloatPathWeights
-            std::string bigfloatOutputFile = m_experimentParams.experimentName;
-            bigfloatOutputFile += "_BigFloatWeights.txt";
-            std::ofstream bigfloatOFS(bigfloatOutputFile);
+            std::filesystem::path currentPath = std::filesystem::current_path();
+            currentPath.append(m_experimentParams.experimentDir);
+            std::string bigfloatOutputFile = "BigFloatWeights.txt";
+            currentPath.append(bigfloatOutputFile);
 
-            bigfloatOFS << bigFloatWeights.size() << std::endl;
+            std::ofstream bigfloatOFS;
+            if (dispatchIdx == 0)
+            {
+                bigfloatOFS.open(currentPath.c_str());
+                bigfloatOFS << m_experimentParams.numPathsInExperiment << std::endl;
+            }
+            else
+            {
+                bigfloatOFS.open(currentPath.c_str(), std::ios::app);
+            }
+            
             for (uint32_t i = 0; i < bigFloatWeights.size(); ++i)
             {
                 bigfloatOFS << bigFloatWeights[i] << std::endl;
@@ -2026,7 +2088,8 @@ namespace twisty
             numPathsGenerated += pathsInDispatch;
         }
 
-
+        std::cout << "Minimum Weight: " << minimumPathWeight << std::endl;
+        std::cout << "Maximum Weight: " << maximumPathWeight << std::endl;
         std::cout << "Big total weight before: " << bigTotalExperimentWeight << std::endl;
 
 #ifdef DelayedAbsorbtionContribution
@@ -2078,7 +2141,8 @@ namespace twisty
     }
 
     void FullExperimentRunner::WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread, float arclength, uint32_t numSegmentsPerCurve,
-        const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, twisty::BigFloat& threadWeight)
+        const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, twisty::BigFloat& threadWeight,
+        std::vector<boost::multiprecision::cpp_dec_float_100>& minimums, std::vector<boost::multiprecision::cpp_dec_float_100>& maximums)
     {
         // Hardcoded value from Jerry analysis.
         boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
@@ -2090,9 +2154,9 @@ namespace twisty
 
         // Full path normalization term
         boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
-        pathNormalizer = pathNormalizer * boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(static_cast<float>(numSegmentsPerCurve) / arclength), 3.0);
-        pathNormalizer = pathNormalizer * segmentNormalizer;
-        pathNormalizer = pathNormalizer * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
+        //pathNormalizer = pathNormalizer * boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(static_cast<float>(numSegmentsPerCurve) / arclength), 3.0);
+        //pathNormalizer = pathNormalizer * segmentNormalizer;
+        //pathNormalizer = pathNormalizer * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
 
         for (uint32_t i = 0; i < numWeightsPerThread; i++)
         {
@@ -2111,6 +2175,26 @@ namespace twisty
 
 #ifdef BigFloatMultiprecision
             boost::multiprecision::cpp_dec_float_100 decompressed = boost::multiprecision::exp(bigfloatCompressed);
+            
+            if (i == 0)
+            {
+                minimums[threadIdx] = decompressed;
+                maximums[threadIdx] = decompressed;
+            }
+            else
+            {
+                if (decompressed < minimums[threadIdx])
+                {
+                    minimums[threadIdx] = decompressed;
+                }
+
+                if (decompressed > maximums[threadIdx])
+                {
+                    maximums[threadIdx] = decompressed;
+                }
+            }
+            
+            
             // Pulled from Jerry analysis
             decompressed = decompressed * pathNormalizer;
             bigFloatWeights[idx] = decompressed;

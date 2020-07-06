@@ -14,3 +14,8 @@ Saved/
 RelatedWork/
 ThirdParty/
 twisty-config/
+.vscode/
+NormalTest_Arclength_50/
+Test_Cpu_Fix_FFE/
+Test_Normals/
+unitweights/

@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
     experimentParams.numPathsToSkip = numPathsToSkip;
     experimentParams.exportGeneratedCurves = true;
     experimentParams.experimentName = experimentName;
-    experimentParams.pathBatchDirectory = experimentName;
+    experimentParams.experimentDir = experimentName;
     experimentParams.numSegmentsPerCurve = numExperimentSegments;
     experimentParams.maximumBootstrapCurveError = 0.5f;
     experimentParams.curvePerturbMethod = ExperimentRunner::CurvePerturbMethod::SimpleGeometry;

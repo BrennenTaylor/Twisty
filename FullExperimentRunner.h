@@ -119,7 +119,8 @@ namespace twisty
         );
 
         void WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread, float arclength, uint32_t numSegmentsPerCurve,
-            const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, twisty::BigFloat& threadWeight);
+            const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, twisty::BigFloat& threadWeight,
+            std::vector<boost::multiprecision::cpp_dec_float_100>& minimums, std::vector<boost::multiprecision::cpp_dec_float_100>& maximums);
 
     private:
         std::unique_ptr<PathSpaceUtils::RegularizedIntegral> m_upRegIntEvaluator;

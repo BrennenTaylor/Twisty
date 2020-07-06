@@ -226,29 +226,52 @@ namespace twisty
 
             double min = m_lookupTable[0];
             double max = m_lookupTable[0];
-
-            uint32_t numInvalid = 0;
-
             for (uint32_t i = 1; i <= m_numCurvatureSteps; ++i)
             {
                 double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
                 double value = m_regularizedIntegral.Integrate(scattering, curvatureEval);
 
-                if (value < 0.0)
-                {
-                    numInvalid++;
-                    value = 0.0;
-                }
-
                 m_lookupTable[i] = value;
 
-                if (value < min)
+
+                if (min < 0.0)
                 {
-                    min = value;
+                    if (value > 0.0)
+                    {
+                        min = value;
+                    }
+                    else
+                    {
+                        // Do nothing because we dont want a negative min in the end, thus we dont need to update to a min
+                    }
                 }
+                else
+                {
+                    // We only want values greater than zero in this case, no negatives
+                    if (value > 0.0)
+                    {
+                        if (value < min)
+                        {
+                            min = value;
+                        }
+                    }
+                }
+
                 if (value > max)
                 {
                     max = value;
+                }
+            }
+
+            uint32_t numInvalid = 0;
+            for (uint32_t i = 0; i <= m_numCurvatureSteps; ++i)
+            {
+                double value = m_lookupTable[i];
+
+                if (value <= 0.0)
+                {
+                    numInvalid++;
+                    value = min;
                 }
             }
 

@@ -31,9 +31,6 @@ using namespace twisty;
 // Ok, we want to kick off an experiment per pixel.
 //const uint32_t numDirections = 15;
 //const uint32_t numArclengths = 15;
-const float frameLength = 10.0f;
-// Lets keep this odd for now
-const uint32_t framePixelCount = 9;
 const float distanceFromPlane = 10.0f;
 //
 //Farlor::Vector3 UniformlySampleHemisphereFacingNegativeX(const float u, const float v)
@@ -53,7 +50,9 @@ int main(int argc, char *argv[])
 {
     if (argc < 11)
     {
-        fmt::print("Call as: {} numPathsPerPixel numPathsToSkip experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY\n", argv[0]);
+        fmt::print(
+            "Call as: {} numPathsPerPixel numPathsToSkip experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY startArclength frameLength framePixelCount\n",
+            argv[0]);
         return 1;
     }
 
@@ -69,6 +68,9 @@ int main(int argc, char *argv[])
     int startX = std::stoi(argv[8]);
     int startY = std::stoi(argv[9]);
     int startArclength = std::stoi(argv[10]);
+
+    const int frameLength = std::stoi(argv[11]);
+    const uint32_t framePixelCount = std::stoi(argv[12]);
 
     assert(startX < framePixelCount);
     assert(startY < framePixelCount);
@@ -180,7 +182,7 @@ int main(int argc, char *argv[])
 
                 // Start at somehting close to 1.05 times the minimum arclength and go to 1.5 times the arclength
 
-                const uint32_t numArclengths = 40;
+                const uint32_t numArclengths = 10;
                 const float minArclength = (recieverPos - emitterStart).Magnitude() * 1.05f;
                 const float maxArclength = (recieverPos - emitterStart).Magnitude() * 1.5f;
                 const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);

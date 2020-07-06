@@ -76,7 +76,7 @@ namespace twisty
             uint32_t exportPathBatchSize = 1000;
             bool exportGeneratedCurves = false;
             std::string experimentName = "Default_Experiment";
-            std::string pathBatchDirectory = "Default_Experiment/";
+            std::string experimentDir = "Default_Experiment/";
             std::string pathBatchPrepend = "";
             float maximumBootstrapCurveError = 0.1f;
             uint32_t curvePurturbSeed = 0;

@@ -231,6 +231,36 @@ target_link_options(FreezeFrameExperiment
 )
 endif (WIN32)
 
+
+
+add_executable(DifferentNormalSThetaExperiment
+    DifferentNormalSThetaExperiment.cpp
+)
+
+target_compile_features(DifferentNormalSThetaExperiment
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+target_link_libraries(DifferentNormalSThetaExperiment
+    PUBLIC Twisty
+    PUBLIC glm
+)
+
+if (WIN32)
+else()
+target_compile_options(DifferentNormalSThetaExperiment
+    PUBLIC -lstdc++fs
+    PUBLIC -std=c++17
+)
+target_link_options(DifferentNormalSThetaExperiment
+    PUBLIC -pthread
+    PUBLIC -lstdc++fs
+)
+endif (WIN32)
+
+
+
 # add_subdirectory(Experiments)
 if (WIN32)
 add_subdirectory(Tests)
