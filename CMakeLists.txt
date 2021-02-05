@@ -8,7 +8,6 @@ endif (WIN32)
 
 find_package(Boost)
 
-add_subdirectory(glm)
 add_subdirectory(FMath)
 add_subdirectory(tinyexr)
 
