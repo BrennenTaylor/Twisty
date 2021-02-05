@@ -8,6 +8,7 @@ endif (WIN32)
 
 find_package(Boost)
 
+add_subdirectory(rapidjson)
 add_subdirectory(FMath)
 add_subdirectory(tinyexr)
 
@@ -171,25 +172,6 @@ target_link_libraries(Twisty
 )
 
 
-
-# if (WIN32)
-# cuda_add_executable(PathGeneratorCpu
-#     Main_CPU.cpp
-# )
-# else()
-# add_executable(PathGeneratorCpu
-#     Main_CPU.cpp
-# )
-# endif (WIN32)
-
-# target_compile_features(PathGeneratorCpu
-#     PUBLIC cxx_static_assert
-#     PUBLIC cxx_std_17
-# )
-
-# target_link_libraries(PathGeneratorCpu
-#     Twisty
-# )
 
 if (WIN32)
 add_executable(FullExperiment

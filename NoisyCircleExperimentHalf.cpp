@@ -9,8 +9,6 @@
 
 #include <FMath/Vector3.h>
 
-#include <fmt/format.h>
-
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -25,7 +23,7 @@ int main(int argc, char *argv[])
 {
 //     if (argc < 13)
 //     {
-//         fmt::print(
+//        (
 //             "Call as: {} numPathsPerInternalExperiment numPathsToSkipPerInternalExperiment experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY startArclength frameLength framePixelCount numInitialCurves numPerInitialCurve\n",
 //             argv[0]);
 //         return 1;

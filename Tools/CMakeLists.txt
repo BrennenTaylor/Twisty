@@ -6,17 +6,9 @@ add_executable(FFEImageGen
     FFE_ImageGen.cpp
 )
 
-target_include_directories(FFEImageGen
-    PUBLIC ${OpenEXR_INCLUDE_DIRS}
-)
-
 target_link_libraries(FFEImageGen
     PRIVATE FMath::FMath
-    PRIVATE ${OpenEXR_LIBRARIES}
-)
-
-target_compile_definitions(FFEImageGen
-    PUBLIC OPENEXR_DLL
+    PRIVATE tinyexr
 )
 
 add_executable(LogifyGridOfData

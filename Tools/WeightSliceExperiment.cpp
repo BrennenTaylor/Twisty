@@ -1,7 +1,5 @@
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
-#include <fmt/format.h>
-
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -14,7 +12,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 5)
     {
-        fmt::print("Call as: {} sliceSize numSlices dataFilename seed", argv[0]);
+        printf("Call as: %s sliceSize numSlices dataFilename seed", argv[0]);
         return false;
     }
 

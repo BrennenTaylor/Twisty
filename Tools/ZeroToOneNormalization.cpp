@@ -1,5 +1,3 @@
-#include <fmt/format.h>
-
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
 #include <fstream>
@@ -12,7 +10,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        fmt::print("Call as: {} dataFilename", argv[0]);
+        printf("Call as: %s dataFilename", argv[0]);
         return 0;
     }
 

@@ -12,8 +12,6 @@
 
 #include <FMath/Vector3.h>
 
-#include <fmt/format.h>
-
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -82,9 +80,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 11)
     {
-        fmt::print(
-            "Call as: {} numPathsPerPixel numPathsToSkip experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY startArclength frameLength framePixelCount\n",
-            argv[0]);
+        std::cout << "Call as: " << argv[0] << " numPathsPerPixel numPathsToSkip experimentName bootstrapperSeed perturbSeed normalGenSeed arclengthGenSeed startX startY startArclength frameLength framePixelCount" << std::endl;
         return 1;
     }
 

@@ -15,8 +15,6 @@
 #include <QApplication>
 #include <QSurfaceFormat>
 
-#include <fmt/format.h>
-
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/prettywriter.h>
@@ -31,7 +29,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        fmt::print("Call as: {} ExperimentDirectory RawPathFilename", argv[0]);
+        printf("Call as: %s ExperimentDirectory RawPathFilename", argv[0]);
         return 1;
     }
 
@@ -99,7 +97,7 @@ int main(int argc, char *argv[])
     std::ifstream seedCurveFS(seedCurvePath, std::ios::binary);
     if (!seedCurveFS.is_open())
     {
-        fmt::print("Failed to open {}\n", seedCurvePath.string());
+        printf("Failed to open %s\n", seedCurvePath.string());
         return false;
     }
 

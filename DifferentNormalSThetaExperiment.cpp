@@ -7,9 +7,6 @@
 
 #include <FMath/Vector3.h>
 
-#include <fmt/format.h>
-#include <fmt/ostream.h>
-
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -23,7 +20,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 14)
     {
-        fmt::print("Call as: {} numPathsToGenerate numPathsToSkip experimentName experimentDir numSegments minArclength maxArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed perturbSeed\n", argv[0]);
+        std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentDir numSegments minArclength maxArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed perturbSeed" << std::endl;
         return 1;
     }
 
@@ -67,9 +64,6 @@ int main(int argc, char *argv[])
         const float currentAngleRads = currentAngleDegree * toRadians;
 
         const Farlor::Vector3 recieverDir{std::cos(currentAngleRads), std::sin(currentAngleRads), 0.0f};
-
-        //fmt::print("{} idx receiver direction: {}\n", degreeIdx, recieverDir);
-        //continue;
 
         RayGeometry rayReciever(recieverPos, recieverDir);
 

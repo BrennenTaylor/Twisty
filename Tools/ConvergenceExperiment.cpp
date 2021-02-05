@@ -3,8 +3,6 @@
 //typedef boost::multiprecision::number < boost::multiprecision::cpp_dec_float<1000>> cpp_dec_float_custom;
 typedef boost::multiprecision::cpp_dec_float_100 cpp_dec_float_custom;
 
-#include <fmt/format.h>
-
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -17,7 +15,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 5)
     {
-        fmt::print("Call as: {} exportRate dataFilename outputFilename compressedWeightsLog10", argv[0]);
+        std::cout << "Call as: " << argv[0] << " exportRate dataFilename outputFilename compressedWeightsLog10" << std::endl;
         return false;
     }
 

@@ -1,5 +1,3 @@
-#include <fmt/format.h>
-
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
 #include <FMath\FMath.h>
@@ -19,7 +17,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 4)
     {
-        fmt::print("Call as: {} imgWidth imgHeight outFilename", argv[0]);
+        printf("Call as: %s imgWidth imgHeight outFilename", argv[0]);
         return 0;
     }
 

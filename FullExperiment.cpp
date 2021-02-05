@@ -18,8 +18,6 @@
 
 #include <FMath/Vector3.h>
 
-#include <fmt/format.h>
-
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -31,7 +29,7 @@ int main(int argc, char *argv[])
     {
         if (argc < 11)
         {
-            fmt::print("Call as: {} numPathsToGenerate numPathsToSkip experimentName experimentPath numSegments minArclength maxArclength runnerVersion bootstrapperSeed perturbSeed\n", argv[0]);
+            std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentPath numSegments minArclength maxArclength runnerVersion bootstrapperSeed perturbSeed" << std::endl;
             return 1;
         }
 

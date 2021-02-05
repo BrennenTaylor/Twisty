@@ -1,7 +1,5 @@
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
-#include <fmt/format.h>
-
 #include <Curve.h>
 
 #include <FMath/Vector3.h>
@@ -25,7 +23,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        fmt::print("Call as: {} pathFromLocalToDir", argv[0]);
+        printf("Call as: %s pathFromLocalToDir", argv[0]);
         return false;
     }
 
@@ -95,7 +93,7 @@ int main(int argc, char* argv[])
     std::ifstream seedCurveFS(seedCurvePath, std::ios::binary);
     if (!seedCurveFS.is_open())
     {
-        fmt::print("Failed to open {}\n", seedCurvePath.string());
+        printf("Failed to open %s\n", seedCurvePath.string());
         return false;
     }
 
