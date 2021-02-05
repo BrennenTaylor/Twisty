@@ -152,21 +152,17 @@ target_compile_options(Twisty
     PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:MSVC>:/openmp>>
 )
 
-# if (WIN32)
-# target_compile_options(Twisty
-#     PUBLIC /openmp
-#     PUBLIC /D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
-# )
-# else()
-# target_compile_options(Twisty
-#     PUBLIC -lstdc++fs
-#     PUBLIC -std=c++17
-# )
-# target_link_options(Twisty
-#     PUBLIC -pthread
-#     PUBLIC -lstdc++fs
-# )
-# endif (WIN32)
+if (WIN32)
+else()
+target_compile_options(Twisty
+    PUBLIC -lstdc++fs
+    PUBLIC -std=c++17
+)
+target_link_options(Twisty
+    PUBLIC -pthread
+    PUBLIC -lstdc++fs
+)
+endif (WIN32)
 
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
