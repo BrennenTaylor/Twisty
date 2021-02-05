@@ -15,6 +15,7 @@
 #include <FMath/Matrix3x3.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
