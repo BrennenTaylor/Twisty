@@ -10,8 +10,8 @@ find_package(Boost)
 find_package(RapidJSON CONFIG REQUIRED)
 
 add_subdirectory(FMath)
-add_subdirectory(tinyexr)
 
+add_subdirectory(tinyexr)
 
 # find_package(FMath REQUIRED)
 # find_package(glm CONFIG REQUIRED )
