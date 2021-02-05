@@ -1,10 +1,6 @@
 #include "FullExperimentRunner.h"
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-#include "GpuFullExperimentRunnerGeneral.h"
-#endif
-
-#include "Geometry.h"
+#include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "Range.h"
@@ -18,33 +14,34 @@
 #include <iostream>
 #include <memory>
 
-const float toRadians = twisty::TwistyPi / 180.0f;
-const float toDegrees = 180.0f / twisty::TwistyPi;
+const float toRadians = TwistyPi / 180.0f;
+const float toDegrees = 180.0f / TwistyPi;
 
 using namespace twisty;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 13)
+    if (argc < 14)
     {
-        fmt::print("Call as: {} numPathsToGenerate numPathsToSkip experimentName numSegments minArclength maxArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed perturbSeed\n", argv[0]);
+        fmt::print("Call as: {} numPathsToGenerate numPathsToSkip experimentName experimentDir numSegments minArclength maxArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed perturbSeed\n", argv[0]);
         return 1;
     }
 
     const uint32_t numPathsToGenerate = std::stoi(argv[1]);
     const uint32_t numPathsToSkip = std::stoi(argv[2]);
     const std::string experimentName(argv[3]);
-    const uint32_t numExperimentSegments = std::stoi(argv[4]);
-    const float minTargetArclength = std::stof(argv[5]);
-    const float maxTargetArclength = std::stof(argv[6]);
+    const std::string experimentDirectoryPath(argv[4]);
+    const uint32_t numExperimentSegments = std::stoi(argv[5]);
+    const float minTargetArclength = std::stof(argv[6]);
+    const float maxTargetArclength = std::stof(argv[7]);
 
-    const float minDegree = std::stof(argv[7]);
-    const float maxDegree = std::stof(argv[8]);
-    const uint32_t numDegreeSteps = std::stoi(argv[9]);
+    const float minDegree = std::stof(argv[8]);
+    const float maxDegree = std::stof(argv[9]);
+    const uint32_t numDegreeSteps = std::stoi(argv[10]);
 
-    const bool useGpu = std::stoi(argv[10]);
-    const int boostrapperSeed = std::stoi(argv[11]);
-    const int perturbSeed = std::stoi(argv[12]);
+    const bool useGpu = std::stoi(argv[11]);
+    const int boostrapperSeed = std::stoi(argv[12]);
+    const int perturbSeed = std::stoi(argv[13]);
 
     std::cout << "Command line args: " << std::endl;
     std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
@@ -88,7 +85,7 @@ int main(int argc, char *argv[])
         Range tdsRange = {-1.0f, 1.0f};
 
         std::stringstream experimentDirSS;
-        experimentDirSS << experimentName;
+        experimentDirSS << experimentDirectoryPath;
         experimentDirSS << "/Degree_" << degreeIdx;
 
         ExperimentRunner::ExperimentParameters experimentParams;
@@ -96,7 +93,7 @@ int main(int argc, char *argv[])
         experimentParams.numPathsToSkip = numPathsToSkip;
         experimentParams.exportGeneratedCurves = true;
         experimentParams.experimentName = experimentName;
-        experimentParams.experimentDir = experimentDirSS.str();
+        experimentParams.experimentDirPath = experimentDirSS.str();
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
         experimentParams.maximumBootstrapCurveError = 0.5f;
         experimentParams.curvePerturbMethod = ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
@@ -118,19 +115,7 @@ int main(int argc, char *argv[])
 
         std::unique_ptr<ExperimentRunner> upExperimentRunner = nullptr;
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-        if (useGpu)
-        {
-            upExperimentRunner = std::make_unique<GpuFullExperimentRunnerGeneral>(experimentParams, bootstrapper, kdsRange, tdsRange);
-        }
-        else
-        {
-            // NOTE: This is tuned to maximize purturb kernel
-            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
-        }
-#else
         upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
-#endif
 
         bool result = upExperimentRunner->Setup();
         if (!result)

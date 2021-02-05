@@ -49,18 +49,18 @@ namespace twisty
         bool SetupKernelDispatchParameters(uint32_t numPathWeightsInShared, uint32_t& numGlobalPerturbThreads, uint32_t& perturbBlockSize, uint32_t& perturbGridSize);
         bool SetupCuRandStates(uint32_t numGlobalPerturbThreads);
         bool SetupCrossDispatchCurveData(uint32_t numGlobalPerturbThreads);
-        bool SetupWeightLookupTexture(const twisty::PathSpaceUtils::WeightLookupTableIntegral& lookupEvaluator);
+        bool SetupWeightLookupTexture(const twisty::PathWeighting::WeightLookupTableIntegral& lookupEvaluator);
 
         void WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread,
             float arclength, uint32_t numSegmentsPerCurve, const std::vector<double>& compressedWeights,
-            std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, twisty::BigFloat& threadWeight);
+            std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, boost::multiprecision::cpp_dec_float_100& threadWeight);
 
         void CleanupCudaMemory();
 
     private:
         std::mt19937 m_rng;
 
-        std::unique_ptr<PathSpaceUtils::RegularizedIntegral> m_upRegIntEvaluator;
+        std::unique_ptr<PathWeighting::RegularizedIntegral> m_upRegIntEvaluator;
 
         // Cuda Stuff
     private:

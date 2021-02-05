@@ -46,24 +46,11 @@ namespace twisty
         rapidjson::Value seedCurveFilenameValue(seedCurveSS.str().c_str(), allocator);
         m_pathBatchJsonIndex.AddMember("seed_curve", seedCurveFilenameValue, allocator);
 
-        std::ofstream seedCurveOutfile(seedCurvePath.string(), std::ios::binary);
-
         m_pathBatchLinks = rapidjson::Value(rapidjson::kArrayType);
 
-        // We need to output base curve information first
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_numSegments, sizeof(uint32_t));
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_arclength, sizeof(float));
-
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_basePos, sizeof(float) * 3);
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_baseTangent, sizeof(float) * 3);
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_targetPos, sizeof(float) * 3);
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_targetTangent, sizeof(float) * 3);
-
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_curvatures[0], sizeof(float) * m_upInitialCurve->m_numSegments);
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_positions[0], sizeof(Farlor::Vector3) * m_upInitialCurve->m_numSegments);
-        seedCurveOutfile.write((char*)&m_upInitialCurve->m_tangents[0], sizeof(Farlor::Vector3) * m_upInitialCurve->m_numSegments);
-
-        seedCurveOutfile.write((char*)&m_experimentParams.numPathsInExperiment, sizeof(uint32_t));
+        // TODO: Collapse this into one function?
+        std::ofstream seedCurveOutfile(seedCurvePath.string(), std::ios::binary);
+        twisty::Curve::WriteCurveToStream(seedCurveOutfile, *m_upInitialCurve);
 
         return true;
     }

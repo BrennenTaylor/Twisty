@@ -1,10 +1,11 @@
 #include "FullExperimentRunner.h"
+#include "FullExperimentRunner2.h"
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
 #include "GpuFullExperimentRunnerGeneral.h"
 #endif
 
-#include "Geometry.h"
+#include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "Range.h"
@@ -30,7 +31,7 @@ using namespace twisty;
 
 // Ok, we want to kick off an experiment per pixel.
 //const uint32_t numDirections = 15;
-//const uint32_t numArclengths = 15;
+const uint32_t numArclengths = 100;
 const float distanceFromPlane = 10.0f;
 //
 //Farlor::Vector3 UniformlySampleHemisphereFacingNegativeX(const float u, const float v)
@@ -182,7 +183,6 @@ int main(int argc, char *argv[])
 
                 // Start at somehting close to 1.05 times the minimum arclength and go to 1.5 times the arclength
 
-                const uint32_t numArclengths = 10;
                 const float minArclength = (recieverPos - emitterStart).Magnitude() * 1.05f;
                 const float maxArclength = (recieverPos - emitterStart).Magnitude() * 1.5f;
                 const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
                     ExperimentRunner::ExperimentParameters experimentParams;
                     experimentParams.numPathsInExperiment = numPathsToGenerate;
                     experimentParams.numPathsToSkip = numPathsToSkip;
-                    experimentParams.exportGeneratedCurves = true;
+                    experimentParams.exportGeneratedCurves = false;
                     experimentParams.experimentName = experimentName;
                     experimentParams.numSegmentsPerCurve = 200;
                     experimentParams.maximumBootstrapCurveError = 0.5f;
@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
                         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
                         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
-                        std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+                        std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper, kdsRange, tdsRange);
                         bool result = upExperimentRunner->Setup();
 
                         if (!result)
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
 
                         // NOTE: This is tuned to maximize purturb kernel
                         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
-                        std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+                        std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper, kdsRange, tdsRange);
                         bool result = upExperimentRunner->Setup();
                         if (!result)
                         {

@@ -20,7 +20,7 @@ int main()
         for (uint32_t i = 0; i < numSteps; ++i)
         {
             float p = minP + i * dp;
-            auto gaussianWeight = PathSpaceUtils::GaussianPhase(p, mu);
+            auto gaussianWeight = PathWeighting::GaussianPhase(p, mu);
             std::cout << p << ", " << gaussianWeight << std::endl;
         }
     }

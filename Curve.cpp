@@ -54,37 +54,43 @@ namespace twisty
         }
     }
 
-    //void Curve::ExportCurve(std::string name)
-    //{
-    //    // For now, lets output the path batches
-    //    std::ofstream outfile;
-    //    std::string filename;
-    //    filename = name;
-    //    filename += std::string(".csv");
+    // Must be an open, binary ofstream
+    void Curve::WriteCurveToStream(std::ofstream& outputStream, const twisty::Curve& seedCurve)
+    {
+        outputStream.write((char*)&seedCurve.m_numSegments, sizeof(uint32_t));
+        outputStream.write((char*)&seedCurve.m_arclength, sizeof(float));
 
-    //    std::string totalPath = std::experimental::filesystem::current_path().string();
-    //    totalPath += std::string("/") + filename;
-    //    outfile.open(totalPath.c_str());
+        outputStream.write((char*)&seedCurve.m_basePos, sizeof(float) * 3);
+        outputStream.write((char*)&seedCurve.m_baseTangent, sizeof(float) * 3);
+        outputStream.write((char*)&seedCurve.m_targetPos, sizeof(float) * 3);
+        outputStream.write((char*)&seedCurve.m_targetTangent, sizeof(float) * 3);
 
-    //    // Do the curve head information
-    //    outfile << "Curve Head\n";
-    //    outfile << "Num Segments," << m_numSegments << "\n";
-    //    outfile << "Arclength," << m_arclength << "\n";
+        outputStream.write((char*)&seedCurve.m_curvatures[0], sizeof(float) * seedCurve.m_numSegments);
+        outputStream.write((char*)&seedCurve.m_positions[0], sizeof(Farlor::Vector3) * (seedCurve.m_numSegments + 1));
+        outputStream.write((char*)&seedCurve.m_tangents[0], sizeof(Farlor::Vector3) * (seedCurve.m_numSegments + 1));
 
-    //    outfile << "Base Position and Frame" << std::endl;
-    //    outfile << "Base Position," << m_basePos.x << ", " << m_basePos.y << ", " << m_basePos.z << "\n";
-    //    outfile << "Base Tangent," << m_baseTangent.x << ", " << m_baseTangent.y << ", " << m_baseTangent.z << "\n";
+        // TODO: Depricate this: Expects number of paths to be written but not useful
+        uint32_t tempVal = 0;
+        outputStream.write((char*)&tempVal, sizeof(uint32_t));
+    }
 
-    //    outfile << "Segments\n";
-    //    for (uint32_t i = 0; i < m_numSegments; ++i)
-    //    {
-    //        outfile << "\nSegment " << i << "\n";
-    //        outfile << "Length," << m_segments[i].m_length << "\n";
-    //        outfile << "Position," << m_segments[i].m_position.x << ", " << m_segments[i].m_position.y << ", " << m_segments[i].m_position.z << "\n";
-    //        outfile << "Tangent," << m_segments[i].m_tangent.x << ", " << m_segments[i].m_tangent.y << ", " << m_segments[i].m_tangent.z << "\n";
-    //    }
+    std::unique_ptr<Curve> Curve::LoadCurveFromStream(std::ifstream& inputStream)
+    {
+        uint32_t numSegments = 0;
+        inputStream.read((char*)&numSegments, sizeof(uint32_t));
 
-    //    outfile << std::endl;
-    //    outfile.close();
-    //}
+        std::unique_ptr<Curve> upInitialCurve = std::make_unique<Curve>(numSegments);
+
+        inputStream.read((char*)&upInitialCurve->m_arclength, sizeof(float));
+        inputStream.read((char*)&upInitialCurve->m_basePos, sizeof(Farlor::Vector3));
+        inputStream.read((char*)&upInitialCurve->m_baseTangent, sizeof(Farlor::Vector3));
+        inputStream.read((char*)&upInitialCurve->m_targetPos, sizeof(Farlor::Vector3));
+        inputStream.read((char*)&upInitialCurve->m_targetTangent, sizeof(Farlor::Vector3));
+
+        inputStream.read((char*)&upInitialCurve->m_curvatures[0], sizeof(float) * upInitialCurve->m_numSegments);
+        inputStream.read((char*)&upInitialCurve->m_positions[0], sizeof(Farlor::Vector3) * (upInitialCurve->m_numSegments + 1));
+        inputStream.read((char*)&upInitialCurve->m_tangents[0], sizeof(Farlor::Vector3) * (upInitialCurve->m_numSegments + 1));
+
+        return upInitialCurve;
+    }
 }

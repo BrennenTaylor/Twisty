@@ -1,30 +1,31 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.18)
 
 project(Twisty CXX)
-
+if (WIN32)
+# find_package(CUDA REQUIRED)
+enable_language(CUDA)
+endif (WIN32)
 
 find_package(Boost)
-if (WIN32)
-find_package(CUDA REQUIRED)
-endif (WIN32)
+
 
 find_package(FMath REQUIRED)
 find_package(fmt REQUIRED)
 find_package(glm CONFIG REQUIRED )
 find_package(RapidJSON CONFIG REQUIRED)
 
-set(CMAKE_CXX_STANDARD 17)
+# set(CMAKE_CXX_STANDARD 17)
+
+# if (WIN32)
+# SET( CUDA_PROPAGATE_HOST_FLAGS ON)
+# SET(CUDA_SEPARABLE_COMPILATION ON)
+# SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+# set(CUDA_LIBRARIES PUBLIC ${CUDA_LIBRARIES})
+# set(CUDA_cudadevrt_LIBRARY PUBLIC ${CUDA_cudadevrt_LIBRARY})
+# endif (WIN32)
 
 if (WIN32)
-SET( CUDA_PROPAGATE_HOST_FLAGS ON)
-SET(CUDA_SEPARABLE_COMPILATION ON)
-SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-set(CUDA_LIBRARIES PUBLIC ${CUDA_LIBRARIES})
-set(CUDA_cudadevrt_LIBRARY PUBLIC ${CUDA_cudadevrt_LIBRARY})
-endif (WIN32)
-
-if (WIN32)
-cuda_add_library(Twisty
+add_library(Twisty
     BezierCurve.h
     BezierCurve.cpp
     Bootstrapper.h
@@ -42,24 +43,32 @@ cuda_add_library(Twisty
     DeviceCurve.h
     ExperimentRunner.cpp
     ExperimentRunner.h
-    # ExperimentRunnerCpu.cpp
-    # ExperimentRunnerCpu.h
-    # ExperimentRunnerGpu.cu
-    # ExperimentRunnerGpu.h
     FullExperimentRunner.cpp
     FullExperimentRunner.h
+    FullExperimentRunner2.cpp
+    FullExperimentRunner2.h
+
+    FullExperimentRunnerOptimalPerturb.cpp
+    FullExperimentRunnerOptimalPerturb.h
+    FullExperimentRunnerOptimalPerturbOptimized.cpp
+    FullExperimentRunnerOptimalPerturbOptimized.h
+
+    FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
+    FullExperimentRunnerOptimalPerturbOptimized_GPU.h
+
+    FullExperimentRunnerOldMethodBridge.cpp
+    FullExperimentRunnerOldMethodBridge.h
     Geometry.h
     Geometry.cpp
     GeometryBootstrapper.h
     GeometryBootstrapper.cpp
-    # GpuFullExperimentRunnerOptimized.cu
-    # GpuFullExperimentRunnerOptimized.h
-    GpuFullExperimentRunnerGeneral.cu
-    GpuFullExperimentRunnerGeneral.h
+
     Integrate.h
     MathConsts.h
     PathWeightUtils.h
     PathWeightUtils.cpp
+    PerturbUtils.h
+    PerturbUtils.cpp
     Range.h
     Sample.h
     Sample.cpp
@@ -91,12 +100,12 @@ add_library(Twisty
     DeviceCurve.h
     ExperimentRunner.cpp
     ExperimentRunner.h
-    # ExperimentRunnerCpu.cpp
-    # ExperimentRunnerCpu.h
-    # ExperimentRunnerGpu.cu
-    # ExperimentRunnerGpu.h
     FullExperimentRunner.cpp
     FullExperimentRunner.h
+    FullExperimentRunnerOptimalPerturb.cpp
+    FullExperimentRunnerOptimalPerturb.h
+    FullExperimentRunnerOptimalPerturbOptimized.cpp
+    FullExperimentRunnerOptimalPerturbOptimized.h
     Geometry.h
     Geometry.cpp
     GeometryBootstrapper.h
@@ -105,6 +114,8 @@ add_library(Twisty
     MathConsts.h
     PathWeightUtils.h
     PathWeightUtils.cpp
+    PerturbUtils.h
+    PerturbUtils.cpp
     Range.h
     Sample.h
     Sample.cpp
@@ -119,6 +130,11 @@ add_library(Twisty
 )
 endif (WIN32)
 
+set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+set_target_properties(Twisty PROPERTIES CUDA_STANDARD 20)
+set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES 0)
+
 target_include_directories(Twisty
     INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}
@@ -130,21 +146,25 @@ target_compile_features(Twisty
     PUBLIC cxx_std_17
 )
 
-if (WIN32)
 target_compile_options(Twisty
-    PRIVATE /openmp
-    PUBLIC /D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+    PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:MSVC>:/openmp>>
 )
-else()
-target_compile_options(Twisty
-    PUBLIC -lstdc++fs
-    PUBLIC -std=c++17
-)
-target_link_options(Twisty
-    PUBLIC -pthread
-    PUBLIC -lstdc++fs
-)
-endif (WIN32)
+
+# if (WIN32)
+# target_compile_options(Twisty
+#     PUBLIC /openmp
+#     PUBLIC /D_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+# )
+# else()
+# target_compile_options(Twisty
+#     PUBLIC -lstdc++fs
+#     PUBLIC -std=c++17
+# )
+# target_link_options(Twisty
+#     PUBLIC -pthread
+#     PUBLIC -lstdc++fs
+# )
+# endif (WIN32)
 
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
@@ -174,7 +194,7 @@ target_link_libraries(Twisty
 # )
 
 if (WIN32)
-cuda_add_executable(FullExperiment
+add_executable(FullExperiment
     FullExperiment.cpp
 )
 else()
@@ -205,13 +225,46 @@ target_link_options(FullExperiment
 )
 endif (WIN32)
 
-add_executable(FreezeFrameExperiment
-    FreezeFrameExperiment.cpp
-)
 
-target_compile_features(FreezeFrameExperiment
+# Combined initial curve full experiment
+if (WIN32)
+add_executable(FullExperiment_CombinedInitialCurves
+    FullExperiment_CombinedInitialCurves.cpp
+)
+else()
+add_executable(FullExperiment_CombinedInitialCurves
+    FullExperiment_CombinedInitialCurves.cpp
+)
+endif (WIN32)
+
+target_compile_features(FullExperiment_CombinedInitialCurves
     PUBLIC cxx_static_assert
     PUBLIC cxx_std_17
+)
+
+target_link_libraries(FullExperiment_CombinedInitialCurves
+    PUBLIC Twisty
+    PUBLIC glm
+)
+
+if (WIN32)
+else()
+target_compile_options(FullExperiment_CombinedInitialCurves
+    PUBLIC -lstdc++fs
+    PUBLIC -std=c++17
+)
+target_link_options(FullExperiment_CombinedInitialCurves
+    PUBLIC -pthread
+    PUBLIC -lstdc++fs
+)
+endif (WIN32)
+
+
+
+#  Freeze frame experiment
+
+add_executable(FreezeFrameExperiment
+    FreezeFrameExperiment.cpp
 )
 
 target_link_libraries(FreezeFrameExperiment
@@ -219,27 +272,37 @@ target_link_libraries(FreezeFrameExperiment
     PUBLIC glm
 )
 
-if (WIN32)
-else()
-target_compile_options(FreezeFrameExperiment
-    PUBLIC -lstdc++fs
-    PUBLIC -std=c++17
-)
-target_link_options(FreezeFrameExperiment
-    PUBLIC -pthread
-    PUBLIC -lstdc++fs
-)
-endif (WIN32)
 
+add_executable(FreezeFrameExperiment2
+    FreezeFrameExperiment2.cpp
+)
+
+target_link_libraries(FreezeFrameExperiment2
+    PUBLIC Twisty
+    PUBLIC glm
+)
+
+add_executable(NoisyCircleExperiment
+    NoisyCircleExperiment.cpp
+)
+
+target_link_libraries(NoisyCircleExperiment
+    PUBLIC Twisty
+    PUBLIC glm
+)
+
+add_executable(NoisyCircleExperimentHalf
+    NoisyCircleExperimentHalf.cpp
+)
+
+target_link_libraries(NoisyCircleExperimentHalf
+    PUBLIC Twisty
+    PUBLIC glm
+)
 
 
 add_executable(DifferentNormalSThetaExperiment
     DifferentNormalSThetaExperiment.cpp
-)
-
-target_compile_features(DifferentNormalSThetaExperiment
-    PUBLIC cxx_static_assert
-    PUBLIC cxx_std_17
 )
 
 target_link_libraries(DifferentNormalSThetaExperiment
@@ -247,25 +310,12 @@ target_link_libraries(DifferentNormalSThetaExperiment
     PUBLIC glm
 )
 
+
+
 if (WIN32)
-else()
-target_compile_options(DifferentNormalSThetaExperiment
-    PUBLIC -lstdc++fs
-    PUBLIC -std=c++17
-)
-target_link_options(DifferentNormalSThetaExperiment
-    PUBLIC -pthread
-    PUBLIC -lstdc++fs
-)
-endif (WIN32)
-
-
-
 # add_subdirectory(Experiments)
-if (WIN32)
 add_subdirectory(Tests)
 add_subdirectory(Tools)
 add_subdirectory(Viewer)
-add_subdirectory(ThirdParty)
 add_subdirectory(Utils)
 endif (WIN32)

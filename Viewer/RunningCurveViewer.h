@@ -104,11 +104,9 @@ private:
     int m_cachedX;
     int m_cachedY;
 
-    std::unique_ptr<twisty::PathSpaceUtils::WeightLookupTableIntegral> m_upLookupEvaluator;
     bool m_isInitialized;
 
 
-    twisty::BigFloat m_totalExperimentWeight;
     twisty::Curve m_curveToBend;
 
     std::mt19937 m_rng;

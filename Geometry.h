@@ -1,25 +1,42 @@
 #pragma once
 
-#include "GeometryBootstrapper.h"
+#include <FMath/FMath.h>
 
 namespace twisty
 {
-    class RayGeometry : public GeometryBootstrapper::Geometry
+    class Geometry
+    {
+    public:
+        struct SampleRay
+        {
+            Farlor::Vector3 m_pos;
+            Farlor::Vector3 m_dir;
+        };
+
+    public:
+        explicit Geometry()
+        {
+        }
+
+        virtual SampleRay GetSampleRay() const = 0;
+    };
+
+    class RayGeometry : public Geometry
     {
     public:
         explicit RayGeometry(Farlor::Vector3 start, Farlor::Vector3 dir);
-        virtual GeometryBootstrapper::Geometry::SampleRay GetSampleRay() const override;
+        virtual Geometry::SampleRay GetSampleRay() const override;
 
     private:
         Farlor::Vector3 m_pos;
         Farlor::Vector3 m_dir;
     };
 
-    class SphereGeometry : public GeometryBootstrapper::Geometry
+    class SphereGeometry : public Geometry
     {
     public:
         explicit SphereGeometry(Farlor::Vector3 pos, float radius, float fov);
-        virtual GeometryBootstrapper::Geometry::SampleRay GetSampleRay() const override;
+        virtual Geometry::SampleRay GetSampleRay() const override;
 
     private:
         Farlor::Vector3 m_pos;

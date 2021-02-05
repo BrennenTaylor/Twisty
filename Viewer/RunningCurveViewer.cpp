@@ -37,9 +37,7 @@ RunningCurveViewer::RunningCurveViewer(PathPerturbViewerWidget& pathPerturbViewe
     , m_zoom(0.0f)
     , m_cachedX(0)
     , m_cachedY(0)
-    , m_upLookupEvaluator(nullptr)
     , m_isInitialized(false)
-    , m_totalExperimentWeight(0.0f)
     , m_curveToBend()
     , m_rng()
 {
@@ -156,7 +154,7 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(co
     // 0 - 2 PI uniform distribution
     //std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi * 0.01f, TwistyPi * 0.01f);
     //std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi * 0.1f, TwistyPi * 0.1f);
-    std::uniform_real_distribution<float> zeroToTwoPiUniformDist( -twisty::TwistyPi,  twisty::TwistyPi);
+    std::uniform_real_distribution<float> zeroToTwoPiUniformDist( -TwistyPi,  TwistyPi);
 
     // End targets of purturbation
     Farlor::Vector3 targetN = m_upInitialCurve->m_targetTangent;
@@ -381,12 +379,6 @@ void RunningCurveViewer::paintGL()
         float ds = m_upInitialCurve->m_arclength / 200.0f;
         float scatter = 0.08f / ds;
 
-        //// Lets weight the curve
-        //twisty::BigFloat pathWeight = twisty::PathSpaceUtils::WeightPathBigFloat(m_curveToBend,
-        //    [](Farlor::Vector3 pos)->float {return 0.0f; }, [scatter](Farlor::Vector3 pos)->float {return scatter; }, *m_upLookupEvaluator);
-
-        //m_totalExperimentWeight += pathWeight;
-
         // Final increments
         m_curveCacheIdx = (m_curveCacheIdx + 1) % m_curveCacheSize;
     }
@@ -398,24 +390,6 @@ void RunningCurveViewer::InitializeExperiment()
     uint32_t numFailures = 0;
     uint32_t totalFailures = 0;
     uint32_t totalSuccess = 0;
-
-
-    // Say that we will start outputing the path batch output
-    const double mu = 0.1;
-    const uint32_t numStepsInt = 2000;
-    const double minBound = 0.0;
-    const double maxBound = 100.0;
-    const double eps = 0.5f;
-
-    float ds = m_upInitialCurve->m_arclength / 200.0f;
-    float scatter = 0.08f / ds;
-
-    double minCurvature = 0.0f;
-    double maxCurvature = (2.0f / (m_upInitialCurve->m_arclength / m_upInitialCurve->m_numSegments)) * 1.1f;
-    uint32_t numCurvatureSteps = 1000;
-
-    m_upLookupEvaluator = std::make_unique<twisty::PathSpaceUtils::WeightLookupTableIntegral>(ds, mu, numStepsInt, minBound, maxBound, eps,
-        minCurvature, maxCurvature, numCurvatureSteps, scatter);
 
     m_isInitialized = true;
 }

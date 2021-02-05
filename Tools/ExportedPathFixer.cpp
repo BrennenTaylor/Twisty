@@ -99,23 +99,8 @@ int main(int argc, char* argv[])
         return false;
     }
 
-    uint32_t numSegments = 0;
-    seedCurveFS.read((char*)&numSegments, sizeof(uint32_t));
-
     // We need to create an initial curve object
-    std::unique_ptr<twisty::Curve> upInitialCurve = std::make_unique<twisty::Curve>(numSegments);
-    seedCurveFS.read((char*)&upInitialCurve->m_arclength, sizeof(float));
-    seedCurveFS.read((char*)&upInitialCurve->m_basePos, sizeof(Farlor::Vector3));
-    seedCurveFS.read((char*)&upInitialCurve->m_baseTangent, sizeof(Farlor::Vector3));
-    seedCurveFS.read((char*)&upInitialCurve->m_targetPos, sizeof(Farlor::Vector3));
-    seedCurveFS.read((char*)&upInitialCurve->m_targetTangent, sizeof(Farlor::Vector3));
-
-    seedCurveFS.read((char*)&upInitialCurve->m_curvatures[0], sizeof(float) * upInitialCurve->m_numSegments);
-    seedCurveFS.read((char*)&upInitialCurve->m_positions[0], sizeof(Farlor::Vector3) * upInitialCurve->m_numSegments);
-    seedCurveFS.read((char*)&upInitialCurve->m_tangents[0], sizeof(Farlor::Vector3) * upInitialCurve->m_numSegments);
-
-    std::cout << "Initial Curve Base Pos: " << upInitialCurve->m_basePos << std::endl;
-    std::cout << "Initial Curve End Pos: " << upInitialCurve->m_targetPos << std::endl;
+    std::unique_ptr<twisty::Curve> upInitialCurve = twisty::Curve::LoadCurveFromStream(seedCurveFS);
 
     struct Metadata
     {
@@ -163,34 +148,17 @@ int main(int argc, char* argv[])
     std::cout << "Num paths read: " << numPathsReadMetadata << std::endl;
 
     // Num bytes per float * 3 floats per pos * (m + 1) pos per curve
-    const uint32_t bytesPerCurve = sizeof(Farlor::Vector3) * (numSegments + 1);
-    std::vector<Farlor::Vector3> tempStorage(numSegments + 1);
+    const uint32_t bytesPerCurve = sizeof(Farlor::Vector3) * (upInitialCurve->m_numSegments + 1);
+    std::vector<Farlor::Vector3> tempStorage(upInitialCurve->m_numSegments + 1);
     std::cout << "Bytes per curve: " << bytesPerCurve << std::endl;
 
-    //for (uint32_t pathIdx = 0; pathIdx < numPathsReadMetadata; ++pathIdx)
-    //{
-    //    rawBinaryFile.read((char*)tempStorage.data(), bytesPerCurve);
-    //    if (tempStorage[0] != upInitialCurve->m_basePos)
-    //    {
-    //        std::cout << "Path Failed: " << pathIdx << std::endl;
-    //        std::cout << "\tRead Start Pos: " << tempStorage[0] << std::endl;
-    //        std::cout << "\tActual Start Pos: " << upInitialCurve->m_basePos << std::endl;
-    //    }
-
-    //    if (tempStorage[numSegments] != upInitialCurve->m_targetPos)
-    //    {
-    //        std::cout << "Path Failed: " << pathIdx << std::endl;
-    //        std::cout << "\tRead Target Pos: " << tempStorage[numSegments] << std::endl;
-    //        std::cout << "\tActual Target Pos: " << upInitialCurve->m_targetPos << std::endl;
-    //    }
-    //}
 
     uint64_t numRead = 0;
     for (auto& entry : pathMetadata)
     {
         std::cout << "<" << entry.threadIdx << ", " << entry.pathBatchCount << ", " << entry.pathBatchCount << ", " << entry.indexIntoFile << ">" << std::endl;
 
-        uint64_t numPosInCurve = (numSegments + 1);
+        uint64_t numPosInCurve = (upInitialCurve->m_numSegments + 1);
         uint64_t numPosInEntry = entry.pathCount * numPosInCurve;
         uint64_t numBytesInEntry = numPosInEntry * sizeof(Farlor::Vector3);
 
@@ -203,71 +171,12 @@ int main(int argc, char* argv[])
 
         uint64_t seekLocation = entry.indexIntoFile;
         std::cout << "Seek location: " << seekLocation << std::endl;
-        //assert((seekLocation % (uint64_t)bytesPerCurve) == 0);
         assert((numBytesInEntry % (uint64_t)bytesPerCurve) == 0);
-
-        //// Seek the number of bytes
-        //if (seekLocation > 0)
-        //{
-        //    rawBinaryFile.seekg(bytesPerCurve, std::ios::beg);
-        //    for (uint32_t seekIdx = 1; seekIdx < seekLocation; ++seekIdx)
-        //    {
-        //        rawBinaryFile.seekg(bytesPerCurve, std::ios::cur);
-        //    }
-        //}
 
         uint64_t numIdxBytes = (uint64_t)(entry.indexIntoFile) * (uint64_t)(bytesPerCurve);
 
         rawBinaryFile.seekg(numIdxBytes, std::ios::beg);
         rawBinaryFile.read((char*)tempStorage.data(), numBytesInEntry);
-        //rawBinaryFile.seekg(0);
-
-        //// Lets do some verification
-        //bool badFound = false;
-        //for (uint32_t pathIdx = 0; pathIdx < entry.pathCount; ++pathIdx)
-        //{
-        //    if (tempStorage[pathIdx * numPosInCurve + 0] != upInitialCurve->m_basePos)
-        //    {
-        //        badFound = true;
-        //        std::cout << "Path Failed: " << pathIdx << std::endl;
-        //        std::cout << "\tThread Idx: " << entry.threadIdx << std::endl;
-        //        std::cout << "\tPath Batch Count: " << entry.pathBatchCount << std::endl;
-        //        std::cout << "\tNum paths in entry: " << entry.pathCount << std::endl;
-        //        std::cout << "\tRead Start Pos: " << tempStorage[pathIdx * numPosInCurve + 0] << std::endl;
-        //        std::cout << "\tActual Start Pos: " << upInitialCurve->m_basePos << std::endl;
-        //    }
-
-        //    if (tempStorage[pathIdx * numPosInCurve + numSegments] != upInitialCurve->m_targetPos)
-        //    {
-        //        badFound = true;
-        //        std::cout << "Path Failed: " << pathIdx << std::endl;
-        //        std::cout << "\tThread Idx: " << entry.threadIdx << std::endl;
-        //        std::cout << "\tPath Batch Count: " << entry.pathBatchCount << std::endl;
-        //        std::cout << "\tNum paths in entry: " << entry.pathCount << std::endl;
-        //        std::cout << "\tRead Target Pos: " << tempStorage[pathIdx * numPosInCurve + numSegments] << std::endl;
-        //        std::cout << "\tActual Target Pos: " << upInitialCurve->m_targetPos << std::endl;
-        //    }
-
-        //    if (badFound)
-        //    {
-        //        break;
-        //    }
-        //}
-
-        //if (badFound)
-        //{
-        //    for (uint32_t pathIdx = 0; pathIdx < entry.pathCount; ++pathIdx)
-        //    {
-        //        std::cout << "Path: " << pathIdx << std::endl;
-
-        //        for (uint32_t pointIdx = 0; pointIdx < numPosInCurve; ++pointIdx)
-        //        {
-        //            std::cout << "\t" << tempStorage[pathIdx * numPosInCurve + pointIdx] << std::endl;
-        //        }
-        //    }
-        //    return 1;
-        //}
-
         fixedBinaryFile.write((char*)tempStorage.data(), numBytesInEntry);
     }
 

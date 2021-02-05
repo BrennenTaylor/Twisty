@@ -7,6 +7,6 @@ namespace twisty
     class Sample
     {
     public:
-        static Farlor::Vector3 UniformSphere(const float rand0, const float rand1);
+        static Farlor::Vector3 SampleUnitSphere(const float rand0, const float rand1);
     };
 }

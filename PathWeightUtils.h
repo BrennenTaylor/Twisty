@@ -1,11 +1,14 @@
 #pragma once
 
 #include "Curve.h"
+#include "PerturbUtils.h"
 
 #include <boost/serialization/nvp.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
+#include <fstream>
 #include <functional>
+#include <map>
 #include <vector>
 
 // TODO: Track down why this was added and add a useful comment.
@@ -18,63 +21,50 @@
 
 namespace twisty
 {
-    using TwistyWeight = double;
-    // TODO: Try with cpp_dec_float_50
-    
-#ifdef BigFloatMultiprecision
-    using BigFloat = boost::multiprecision::cpp_dec_float_100;
-#else
-    using BigFloat = double;
-#endif
+    struct WeightingParameters
+    {
+        double mu = 0.1;
+        uint32_t numStepsInt = 2000;
+        double minBound = 0.0;
+        double maxBound = 100.0;
+        double eps = 0.01;
 
-    namespace PathSpaceUtils
+        double scatter = 0.0;
+        double absorbtion = 0.0;
+
+        uint32_t numCurvatureSteps = 10000;
+    };
+
+    namespace PathWeighting
     {
         class IntegralStrategy;
 
         double SimpleGaussianPhase(double evalLocation, double mu);
         double GaussianPhase(double evalLocation, double mu);
 
-        //BigFloat WeightPathBigFloat(const Curve& path
-        //    , std::function<double(Farlor::Vector3 pos)> absorbtionFunc
-        //    , std::function<double(Farlor::Vector3 pos)> scatteringFunc
-        //    , const IntegralStrategy& strategy);
-
-        //TwistyWeight WeightPathLogWeight(const Curve& path
-        //    , std::function<double(Farlor::Vector3 pos)> absorbtionFunc
-        //    , std::function<double(Farlor::Vector3 pos)> scatteringFunc
-        //    , const IntegralStrategy& strategy);
-
-        //TwistyWeight WeightSegment(float segmentCurvature
-        //    , const Farlor::Vector3& segmentPos
-        //    , const Farlor::Vector3& segmentTan
-        //    , std::function<double(Farlor::Vector3 pos)> absorbtionFunc
-        //    , std::function<double(Farlor::Vector3 pos)> scatteringFunc
-        //    , const IntegralStrategy& strategy
-        //    , double minClip = -FLT_MAX
-        //    , double maxClip = FLT_MAX);
-
         class IntegralStrategy
         {
         public:
-            IntegralStrategy(double ds);
+            IntegralStrategy(const WeightingParameters& weightingParams, double ds);
             virtual ~IntegralStrategy();
 
-            virtual TwistyWeight Eval(double density, double absorbtion, double curvature) const;
-            virtual TwistyWeight Integrate(double density, double curvature) const = 0;
+            virtual double Eval(double density, double absorbtion, double curvature) const;
+            virtual double Integrate(double density, double curvature) const = 0;
+
+            double GetDs() const
+            {
+                return m_ds;
+            }
+
+            const WeightingParameters& GetWeightingParams() const
+            {
+                return m_weightingParams;
+            }
 
         protected:
             double m_ds;
+            WeightingParameters m_weightingParams;
         };
-
-        //class LogIntegralStrategy : public IntegralStrategy
-        //{
-        //public:
-        //    LogIntegralStrategy(double ds);
-        //    virtual ~LogIntegralStrategy();
-
-        //    virtual TwistyWeight Eval(double density, double absorbtion, double curvature) const override final;
-        //    virtual TwistyWeight Integrate(double density, double curvature) const = 0;
-        //};
 
         /*
             Numerically evaluate path weight integral, introducing an epsilon term to
@@ -98,99 +88,122 @@ namespace twisty
         class RegularizedIntegral : public IntegralStrategy
         {
         public:
-            RegularizedIntegral(double ds, double mu, uint32_t numStepsInt, double minBound, double maxBound, double eps);
+            RegularizedIntegral(const WeightingParameters& weightParams, double ds);
             virtual ~RegularizedIntegral();
 
-            virtual TwistyWeight Integrate(double scattering, double curvature) const override;
-
-        private:
-            double m_mu;
-            uint32_t m_numStepsInt;
-            double m_minBound;
-            double m_maxBound;
-            double m_eps;
+            virtual double Integrate(double scattering, double curvature) const override;
         };
 
         class WeightLookupTableIntegral : public IntegralStrategy
         {
         public:
-            WeightLookupTableIntegral(double ds, double mu, uint32_t numStepsInt, double minBound, double maxBound, double eps,
-                double minCurvature, double maxCurvature, uint32_t numCurvatureSteps, double scattering);
+            WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds);
             virtual ~WeightLookupTableIntegral();
 
-            virtual TwistyWeight Integrate(double scattering, double curvature) const override;
+            virtual double Integrate(double scattering, double curvature) const override;
             
-            const std::vector<TwistyWeight>& AccessLookupTable() const {
+            const std::vector<double>& AccessLookupTable() const {
                 return m_lookupTable;
             }
 
-            TwistyWeight GetMinSegmentWeight() const
+            double GetMinSegmentWeight() const
             {
                 return m_minSegmentWeight;
             }
 
-            TwistyWeight GetMaxSegmentWeight() const
+            double GetMaxSegmentWeight() const
             {
                 return m_maxSegmentWeight;
             }
 
+            void ExportValues(std::string relativePath);
+
         private:
-            double m_mu;
-            uint32_t m_numStepsInt;
-            double m_minBound;
-            double m_maxBound;
-            double m_eps;
             double m_minCurvature;
             double m_maxCurvature;
-            uint32_t m_numCurvatureSteps;
             RegularizedIntegral m_regularizedIntegral;
 
-            TwistyWeight m_minSegmentWeight = 0.0;
-            TwistyWeight m_maxSegmentWeight = 0.0;
+            double m_minSegmentWeight = 0.0;
+            double m_maxSegmentWeight = 0.0;
 
             double m_curvatureStepSize;
-            std::vector<TwistyWeight> m_lookupTable;
+            std::vector<double> m_lookupTable;
         };
 
-        /*class LogWeightLookupTableIntegral : public LogIntegralStrategy
+        void CalcMinMaxCurvature(double& minCurvature, double& maxCurvature, double ds);
+
+        // Given a vector of curvatures, 1 per segement of a path, weight the path and return the long10 of the weight
+        // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
+        // Assumes that integral matches weighting params
+        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const WeightLookupTableIntegral& weightIntegral);
+
+        namespace NormalizerStuff
         {
-        public:
-            LogWeightLookupTableIntegral(double ds, double mu, uint32_t numStepsInt, double minBound, double maxBound, double eps,
-                double minCurvature, double maxCurvature, uint32_t numCurvatureSteps, double scattering);
-            virtual ~LogWeightLookupTableIntegral();
+            typedef boost::multiprecision::cpp_dec_float_100 NormalizerDoubleType;
 
-            virtual TwistyWeight Integrate(double scattering, double curvature) const override;
+            NormalizerDoubleType f2_formula(const double z);
 
-            const std::vector<TwistyWeight>& AccessLookupTable() const {
-                return m_lookupTable;
-            }
-
-            TwistyWeight GetMinSegmentWeight() const
+            class FN
             {
-                return m_minSegmentWeight;
-            }
+            public:
+                FN(int samples, int numIntegrationSamples, int orders, const double &rmn, const double &rmx)
+                    : nb_samples(samples)
+                    , nb_orders(orders)
+                    , rmin(rmn)
+                    , rmax(rmx)
+                {
+                    init(numIntegrationSamples);
+                }
 
-            TwistyWeight GetMaxSegmentWeight() const
-            {
-                return m_maxSegmentWeight;
-            }
+                FN(std::ifstream& inFile)
+                    : nb_samples(0)
+                    , nb_orders(0)
+                    , rmin(0)
+                    , rmax(0)
+                {
+                    init_fromFile(inFile);
+                }
 
-        private:
-            double m_mu;
-            uint32_t m_numStepsInt;
-            double m_minBound;
-            double m_maxBound;
-            double m_eps;
-            double m_minCurvature;
-            double m_maxCurvature;
-            uint32_t m_numCurvatureSteps;
-            RegularizedIntegral m_regularizedIntegral;
+                ~FN() {}
 
-            TwistyWeight m_minSegmentWeight = 0.0;
-            TwistyWeight m_maxSegmentWeight = 0.0;
+                NormalizerDoubleType eval(int order, double r) const;
 
-            double m_curvatureStepSize;
-            std::vector<TwistyWeight> m_lookupTable;
-        };*/
+                double minimum() const { return rmin; }
+                double maximum() const { return rmax; }
+                int samples() const { return nb_samples; }
+                int orders() const { return nb_orders; }
+
+                void WriteToFile(std::ofstream& outFile);
+
+            private:
+                int nb_samples;
+                int nb_orders;
+                double rmin;
+                double rmax;
+
+                std::map<int, std::vector<NormalizerDoubleType>> fNsets;
+                void init(int numIntegrationSamples);
+
+                void init_fromFile(std::ifstream& inFile);
+            };
+
+            Farlor::Vector3 makeVector(double a, double b, double c);
+
+            NormalizerDoubleType psd_one(const FN &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np, const Farlor::Vector3& beta);
+
+            NormalizerDoubleType Norm(const FN &fn, int M, double z, double s);
+
+            NormalizerDoubleType psd_n(const FN &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
+                const std::vector<Farlor::Vector3>& beta);
+
+            NormalizerDoubleType likelihood(const FN &fn, int numSegments, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
+                const Farlor::Vector3& N, const Farlor::Vector3& Np, const std::vector<Farlor::Vector3> &beta0, const std::vector<Farlor::Vector3> &betastar);
+
+            NormalizerDoubleType CalculateLikelihood(const FN& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+                std::vector<Farlor::Vector3>& oldTangents, std::vector<Farlor::Vector3>& newTangents);
+
+
+            std::unique_ptr<PathWeighting::NormalizerStuff::FN> GetNormalizer(uint32_t numSegments);
+        }
     }
 }

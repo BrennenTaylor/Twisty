@@ -25,60 +25,11 @@ target_link_libraries(GaussianFunctionTest
     Twisty
 )
 
-add_executable(PathSetGen
-    PathSetGen.cpp
+
+add_executable(WeightSamplingIndependenceTest
+    WeightSamplingIndependenceTest.cpp
 )
 
-target_link_libraries(PathSetGen
+target_link_libraries(WeightSamplingIndependenceTest
     Twisty
 )
-
-# Curve Error Tests
-add_executable(CurveErrorFunctionTest
-    CurveErrorFunctionTest.cpp
-)
-
-target_link_libraries(CurveErrorFunctionTest
-    Twisty
-)
-
-add_executable(CurveCurvatureTest
-CurveCurvatureTest.cpp
-)
-
-target_link_libraries(CurveCurvatureTest
-    Twisty
-)
-
-add_executable(CurveTorsionTest
-CurveTorsionTest.cpp
-)
-
-target_link_libraries(CurveTorsionTest
-    Twisty
-)
-
-add_executable(CurvatureTorsionFrameTest
-    CurvatureTorsionFrameTest.cpp
-)
-
-target_link_libraries(CurvatureTorsionFrameTest
-    Twisty
-)
-
-add_executable(RootSolveTest
-    RootSolveTest.cpp
-)
-
-target_link_libraries(RootSolveTest
-    Twisty
-    cminpack
-)
-
-# cuda_add_executable(RootSolveTestCuda
-#     RootSolveTestCuda.cu
-# )
-
-# target_link_libraries(RootSolveTestCuda
-#     cminpack
-# )

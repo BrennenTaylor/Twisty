@@ -40,6 +40,48 @@ target_link_libraries(LogifyGridOfData
     PRIVATE fmt::fmt-header-only
 )
 
+add_executable(MinMaxGivenVals
+    MinMaxGivenVals.cpp
+)
+
+target_include_directories(MinMaxGivenVals
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(MinMaxGivenVals
+    PRIVATE FMath::FMath
+    PRIVATE fmt::fmt
+    PRIVATE fmt::fmt-header-only
+)
+
+add_executable(GenerateFFDistances
+    GenerateFFDistances.cpp
+)
+
+target_include_directories(GenerateFFDistances
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(GenerateFFDistances
+    PRIVATE FMath::FMath
+    PRIVATE fmt::fmt
+    PRIVATE fmt::fmt-header-only
+)
+
+add_executable(GenerateFFDistancesHalf
+    GenerateFFDistancesHalf.cpp
+)
+
+target_include_directories(GenerateFFDistancesHalf
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(GenerateFFDistancesHalf
+    PRIVATE FMath::FMath
+    PRIVATE fmt::fmt
+    PRIVATE fmt::fmt-header-only
+)
+
 add_executable(WeightSliceExperiment
     WeightSliceExperiment.cpp
 )
@@ -63,6 +105,20 @@ target_include_directories(ConvergenceExperiment
 )
 
 target_link_libraries(ConvergenceExperiment
+    PRIVATE FMath::FMath
+    PRIVATE fmt::fmt
+    PRIVATE fmt::fmt-header-only
+)
+
+add_executable(HighestWeightPathExperiment
+    HighestWeightPathExperiment.cpp
+)
+
+target_include_directories(HighestWeightPathExperiment
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(HighestWeightPathExperiment
     PRIVATE FMath::FMath
     PRIVATE fmt::fmt
     PRIVATE fmt::fmt-header-only
@@ -130,14 +186,62 @@ target_link_libraries(SolidAngleExperiment
     PUBLIC Twisty
 )
 
-add_executable(PathHeatmap
-    PathHeatmap.cpp
+add_executable(CurvatureHistogramExperiment
+    CurvatureHistogramExperiment.cpp
 )
 
-target_include_directories(PathHeatmap
+target_include_directories(CurvatureHistogramExperiment
     PUBLIC ${Boost_INCLUDE_DIR}
 )
 
-target_link_libraries(PathHeatmap
+target_link_libraries(CurvatureHistogramExperiment
+    PUBLIC Twisty
+)
+
+add_executable(Sandbox
+    Sandbox.cpp
+)
+
+target_include_directories(Sandbox
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(Sandbox
+    PUBLIC Twisty
+)
+
+add_executable(Sandbox2
+    Sandbox2.cpp
+)
+
+target_include_directories(Sandbox2
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(Sandbox2
+    PUBLIC Twisty
+)
+
+add_executable(InitialCurveGenerator
+    InitialCurveGenerator.cpp
+)
+
+target_include_directories(InitialCurveGenerator
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(InitialCurveGenerator
+    PUBLIC Twisty
+)
+
+add_executable(CurveWeightor
+    CurveWeightor.cpp
+)
+
+target_include_directories(CurveWeightor
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(CurveWeightor
     PUBLIC Twisty
 )

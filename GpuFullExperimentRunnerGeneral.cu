@@ -30,6 +30,9 @@ struct GpuVec3
     float z;
 };
 
+#define HardcodedSegments
+#define HardcodedRotation
+
 //#define DetailedPurturb
 //#define SingleThreadDebugMode
 
@@ -254,8 +257,15 @@ namespace twisty
                     //int32_t leftPointIndex = 2;
                     //int32_t rightPointIndex = 4;
 
+
+#ifdef HardcodedSegments
+                    int32_t leftPointIndex = 25;
+                    int32_t rightPointIndex = 75;
+#else
                     unsigned int leftPointIndex = floorf(leftPtRand * ((numSegmentsPerCurve - 3) - 1) + 1);
                     unsigned int rightPointIndex = floorf(leftPtRand * ((numSegmentsPerCurve - 1) - (leftPointIndex + 2)) + (leftPointIndex + 2));
+#endif
+
 
 #if defined(SingleThreadDebugMode)
                     {
@@ -302,8 +312,11 @@ namespace twisty
                     //    );
                     //}
 
-                    //float randomAngle = 1.38f;
+#ifdef HardcodedRotation
+                    float randomAngle = 1.38f;
+#else
                     float randomAngle = (curand_uniform(&pRandStates[globalThreadIdx]) * 360.0f) - 180.0f;
+#endif
 
 #if defined(SingleThreadDebugMode)
                     {
@@ -844,7 +857,7 @@ namespace twisty
         cudaFree(m_pPerGlobalThreadRandStates);
     }
 
-    bool GpuFullExperimentRunnerGeneral::SetupWeightLookupTexture(const twisty::PathSpaceUtils::WeightLookupTableIntegral& lookupEvaluator)
+    bool GpuFullExperimentRunnerGeneral::SetupWeightLookupTexture(const twisty::PathWeighting::WeightLookupTableIntegral& lookupEvaluator)
     {
         auto& weightValues = lookupEvaluator.AccessLookupTable();
 
@@ -863,7 +876,7 @@ namespace twisty
 
     void GpuFullExperimentRunnerGeneral::WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread,
         float arclength, uint32_t numSegmentsPerCurve, const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights,
-        twisty::BigFloat& threadWeight)
+        boost::multiprecision::cpp_dec_float_100& threadWeight)
     {
         // Hardcoded value from Jerry analysis.
         boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
@@ -872,6 +885,8 @@ namespace twisty
         {
             segmentNormalizer = segmentNormalizer * singleSegmentNormalizer;
         }
+
+        segmentNormalizer = 1.0;
 
         // Full path normalization term
         boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
@@ -887,22 +902,12 @@ namespace twisty
                 break;
             }
 
-            twisty::BigFloat bigfloatCompressed = compressedWeights[idx];
-
-            /*if (threadIdx == 0)
-            {
-                std::cout << "Big float compressed weight: " << bigfloatCompressed << std::endl;
-            }*/
-
-#ifdef BigFloatMultiprecision
+            boost::multiprecision::cpp_dec_float_100 bigfloatCompressed = compressedWeights[idx];
             boost::multiprecision::cpp_dec_float_100 decompressed = boost::multiprecision::exp(bigfloatCompressed);
             // Pulled from Jerry analysis
             decompressed = decompressed * pathNormalizer;
             bigFloatWeights[idx] = decompressed;
             threadWeight += decompressed;
-#else
-            //threadWeight += std::exp(bigfloatCompressed);
-#endif
         }
     }
 
@@ -954,11 +959,8 @@ namespace twisty
         double minCurvature = 0.0;
         double maxCurvature = (3.47 / ds) * 2.0;
 
-        twisty::PathSpaceUtils::WeightLookupTableIntegral lookupEvaluator(ds, m_experimentParams.weightingParameters.mu, m_experimentParams.weightingParameters.numStepsInt,
-            m_experimentParams.weightingParameters.minBound, m_experimentParams.weightingParameters.maxBound, m_experimentParams.weightingParameters.eps,
-            minCurvature, maxCurvature, m_experimentParams.weightingParameters.numCurvatureSteps, m_experimentParams.weightingParameters.scatter);
+        twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
         const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
-
 
 
         // Do non dispatch specific setup
@@ -983,12 +985,12 @@ namespace twisty
 
 
 
-        const uint32_t numDispatches = (m_experimentParams.numPathsInExperiment + m_experimentParams.numPathsPerBatch - 1) / m_experimentParams.numPathsPerBatch;
+        const uint64_t numDispatches = (m_experimentParams.numPathsInExperiment + m_experimentParams.numPathsPerBatch - 1) / m_experimentParams.numPathsPerBatch;
         std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
         std::cout << "numPathsPerBatch: " << m_experimentParams.numPathsPerBatch << std::endl;
         std::cout << "Num dispatches required: " << numDispatches << std::endl;
-        uint32_t numPathsLeft = m_experimentParams.numPathsInExperiment;
-        uint32_t numPathsGenerated = 0;
+        uint64_t numPathsLeft = m_experimentParams.numPathsInExperiment;
+        uint64_t numPathsGenerated = 0;
 
         // We need to calculate the absorbtion/scattering piece
         boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
@@ -997,9 +999,9 @@ namespace twisty
         long long perturbTimeCount = 0;
         long long weightCopyTimeCount = 0;
         long long weightCalcTimeCount = 0;
-        for (uint32_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
+        for (uint64_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
         {
-            uint32_t pathsInDispatch = std::min(m_experimentParams.numPathsPerBatch, numPathsLeft);
+            uint64_t pathsInDispatch = std::min(m_experimentParams.numPathsPerBatch, numPathsLeft);
             std::cout << "Paths in dispatch " << dispatchIdx << ": " << pathsInDispatch << std::endl;
 
             auto perturbPhaseTimeStart = std::chrono::high_resolution_clock::now();
@@ -1094,7 +1096,7 @@ namespace twisty
             /* ---------------------------- */
             auto weightingTimeStart = std::chrono::high_resolution_clock::now();
             
-            twisty::BigFloat totalDispatchWeight = 0.0f;
+            boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0f;
 
             std::vector<boost::multiprecision::cpp_dec_float_100> bigFloatWeights(pathsInDispatch);
             // Create threads and dispatch them
@@ -1102,7 +1104,7 @@ namespace twisty
             uint32_t numWeightsPerThread = (pathsInDispatch + numHardwareThreads - 1) / numHardwareThreads;
 
             std::vector<std::thread> threads(numHardwareThreads);
-            std::vector<twisty::BigFloat> threadWeights(numHardwareThreads);
+            std::vector<boost::multiprecision::cpp_dec_float_100> threadWeights(numHardwareThreads);
             for (uint32_t threadIdx = 0; threadIdx < numHardwareThreads; ++threadIdx)
             {
                 threadWeights[threadIdx] = 0.0;

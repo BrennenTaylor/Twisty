@@ -59,6 +59,8 @@ namespace twisty
          */
         virtual void Reset();
 
+        uint32_t GetBootstrapSeed() const;
+
         /**
          * @brief Get the Start Position object
          *
@@ -149,5 +151,7 @@ namespace twisty
         std::unique_ptr<BezierCurve5> m_upCachedBezier;
         Range m_arclengthRange;
         std::mt19937_64 m_gen;
+
+        uint32_t m_bootstrapSeed = 0;
     };
 }

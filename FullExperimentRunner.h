@@ -12,6 +12,7 @@
 #include "ExperimentRunner.h"
 #include "Range.h"
 #include "PathWeightUtils.h"
+#include "PerturbUtils.h"
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
@@ -42,87 +43,81 @@ namespace twisty
         virtual void Shutdown() override;
 
     private:
-        ExperimentResults RunExperimentLogWeightTable();
-
-    private:
         /*
 
         flag parameter is set to 0 for no errors.
         If the root solve fails, its set to 1
         If the root solve succeeds, but we dont accept the path due to calculated path error, we set to 2
         */
-        //std::unique_ptr<Curve> PurturbCurve(const Curve& curve, uint32_t& flag);
 
-        //std::unique_ptr<Curve> SimpleGeometryCurvePerturb(const Curve& curve, uint32_t& flag);
-
-        void LogWeightThreadFunction(
-            uint32_t threadIdx,
-            int32_t numExperimentPaths,
-            int32_t numPathsPerThread,
-            int32_t numPathsToSkipPerThread,
-            int32_t numSegmentsPerCurve,
-            std::vector<std::mt19937>& rngGenerators,
+        void GeometryPerturb(
+            int64_t threadIdx,
+            int64_t numExperimentPaths,
+            int64_t numPathsPerThread,
+            int64_t numPathsToSkipPerThread,
+            int64_t numSegmentsPerCurve,
+            std::vector<std::mt19937_64>& rngGenerators,
             std::vector<Farlor::Vector3>& globalPos,
             std::vector<Farlor::Vector3>& globalTans,
             std::vector<float>& globalCurvatures,
+            std::vector<Farlor::Vector3>& scratchPositionSpace,
+            std::vector<Farlor::Vector3>& scratchTangentSpace,
+            std::vector<float>& scratchCurvatureSpace,
             std::vector<double>& globalPathWeights,
             std::vector<double>& cachedSegmentWeights,
             float segmentLength,
-            float scattering,
-            float absorbtion,
-            const std::vector<double>& lookupTable,
-            float minCurvature,
-            float maxCurvature,
-            float curvatureStepSize
+            const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
+            const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            const PathWeighting::NormalizerStuff::FN& fn
         );
 
-        void SpringBasedPerturb(
-            uint32_t threadIdx,
-            int32_t numExperimentPaths,
-            int32_t numPathsPerThread,
-            int32_t numPathsToSkipPerThread,
-            int32_t numSegmentsPerCurve,
-            std::vector<std::mt19937>& rngGenerators,
-            std::vector<Farlor::Vector3>& globalPos,
-            std::vector<Farlor::Vector3>& globalTans,
-            std::vector<float>& globalCurvatures,
-            std::vector<double>& globalPathWeights,
-            std::vector<double>& cachedSegmentWeights,
-            float segmentLength,
-            float scattering,
-            float absorbtion,
-            const std::vector<double>& lookupTable,
-            float minCurvature,
-            float maxCurvature,
-            float curvatureStepSize
-        );
+        //void SpringBasedPerturb(
+        //    int64_t threadIdx,
+        //    int64_t numExperimentPaths,
+        //    int64_t numPathsPerThread,
+        //    int64_t numPathsToSkipPerThread,
+        //    int64_t numSegmentsPerCurve,
+        //    std::vector<std::mt19937_64>& rngGenerators,
+        //    std::vector<Farlor::Vector3>& globalPos,
+        //    std::vector<Farlor::Vector3>& globalTans,
+        //    std::vector<float>& globalCurvatures,
+        //    std::vector<double>& globalPathWeights,
+        //    std::vector<double>& cachedSegmentWeights,
+        //    float segmentLength,
+        //    float scattering,
+        //    float absorbtion,
+        //    const std::vector<double>& lookupTable,
+        //    float minCurvature,
+        //    float maxCurvature,
+        //    float curvatureStepSize
+        //);
 
-        void HybridMethod(
-            uint32_t threadIdx,
-            int32_t numExperimentPaths,
-            int32_t numPathsPerThread,
-            int32_t numPathsToSkipPerThread,
-            int32_t numSegmentsPerCurve,
-            std::vector<std::mt19937>& rngGenerators,
-            std::vector<Farlor::Vector3>& globalPos,
-            std::vector<Farlor::Vector3>& globalTans,
-            std::vector<float>& globalCurvatures,
-            std::vector<double>& globalPathWeights,
-            std::vector<double>& cachedSegmentWeights,
-            float segmentLength,
-            float scattering,
-            float absorbtion,
-            const std::vector<double>& lookupTable,
-            float minCurvature,
-            float maxCurvature,
-            float curvatureStepSize
-        );
+        //void HybridMethod(
+        //    int64_t threadIdx,
+        //    int64_t numExperimentPaths,
+        //    int64_t numPathsPerThread,
+        //    int64_t numPathsToSkipPerThread,
+        //    int64_t numSegmentsPerCurve,
+        //    std::vector<std::mt19937>& rngGenerators,
+        //    std::vector<Farlor::Vector3>& globalPos,
+        //    std::vector<Farlor::Vector3>& globalTans,
+        //    std::vector<float>& globalCurvatures,
+        //    std::vector<double>& globalPathWeights,
+        //    std::vector<double>& cachedSegmentWeights,
+        //    float segmentLength,
+        //    float scattering,
+        //    float absorbtion,
+        //    const std::vector<double>& lookupTable,
+        //    float minCurvature,
+        //    float maxCurvature,
+        //    float curvatureStepSize
+        //);
 
-        void WeightCombineThreadKernel(const uint32_t threadIdx, uint32_t numWeights, uint32_t numWeightsPerThread, float arclength, uint32_t numSegmentsPerCurve,
-            const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeights, twisty::BigFloat& threadWeight,
-            std::vector<boost::multiprecision::cpp_dec_float_100>& minimums, std::vector<boost::multiprecision::cpp_dec_float_100>& maximums);
+        void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread, float arclength, int64_t numSegmentsPerCurve,
+            const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeightsLog10,
+            boost::multiprecision::cpp_dec_float_100& threadWeight, boost::multiprecision::cpp_dec_float_100 pathNormalizer);
 
     private:
-        std::unique_ptr<PathSpaceUtils::RegularizedIntegral> m_upRegIntEvaluator;
+        std::unique_ptr<PathWeighting::RegularizedIntegral> m_upRegIntEvaluator;
     };
 }

@@ -43,38 +43,42 @@ int main(int argc, char* argv[])
     //experimentParams.weightingParameters.scatter = 0.2;
 
     const uint32_t numSegments = 200;
-    const double mu = std::stod(argv[1]);
-    const double eps = std::stod(argv[2]);
+
+    twisty::WeightingParameters weightParams;
+
+    weightParams.mu = std::stod(argv[1]);
+    weightParams.eps = std::stod(argv[2]);
     const double bds = std::stod(argv[3]);
     const double maxKds = std::stod(argv[4]);
     const double pathLength = std::stod(argv[5]);
     const double ds = pathLength / numSegments;
-    const uint32_t numStepsInt = 2000;
-    const double minBound = 0.0;
-    const double maxBound = 10.0 / eps;
+    weightParams.numStepsInt = 2000;
+    weightParams.minBound = 0.0;
+    weightParams.maxBound = 10.0 / weightParams.eps;
     const double minCurvature = 0.0;
     const double maxCurvature = (maxKds / ds);
-    const uint32_t numCurvatureSteps = 10000;
-    const double absorbtion = 0.05f;
-    const double scattering = bds / ds;
+    weightParams.numCurvatureSteps = 10000;
+    weightParams.absorbtion = 0.05f;
+    weightParams.scatter = bds / ds;
 
     std::cout << "ds: " << ds << std::endl;
-    std::cout << "Scattering: " << scattering << std::endl;
-    std::cout << "Absorbtion: " << absorbtion << std::endl;
+    std::cout << "Scattering: " << weightParams.scatter << std::endl;
+    std::cout << "Absorbtion: " << weightParams.absorbtion << std::endl;
+
 
     /*
         double ds, double mu, uint32_t numStepsInt, double minBound, double maxBound, double eps,
         double minCurvature, double maxCurvature, uint32_t numCurvatureSteps, double scattering
     */
-    twisty::PathSpaceUtils::WeightLookupTableIntegral weightTableIntegral(ds, mu, numStepsInt, minBound, maxBound, eps, minCurvature, maxCurvature, numCurvatureSteps, scattering);
+    twisty::PathWeighting::WeightLookupTableIntegral weightTableIntegral(weightParams, ds);
 
     {
         std::stringstream outFilename;
-        outFilename << "PathWeightTest_Out_" << mu;
-        outFilename << "_" << eps;
+        outFilename << "PathWeightTest_Out_" << weightParams.mu;
+        outFilename << "_" << weightParams.eps;
         outFilename << "_" << bds;
         outFilename << "_" << maxKds;
-        outFilename << "_" << numStepsInt;
+        outFilename << "_" << weightParams.numStepsInt;
         outFilename << ".pwt";
 
         std::ofstream outFile(outFilename.str());
@@ -102,7 +106,7 @@ int main(int argc, char* argv[])
 
             // Currently, this should probably be the start (or end) position of the segment.
 
-            twisty::TwistyWeight segWeight = weightTableIntegral.Eval(scattering, absorbtion, currentCurvature);
+            double segWeight = weightTableIntegral.Eval(weightParams.scatter, weightParams.absorbtion, currentCurvature);
 
             outFile << segWeight << std::endl;
         }

@@ -6,7 +6,7 @@ namespace twisty
      * @brief Constant defining pi value used in all twisty code
      * 
      */
-    static const float TwistyPi = 3.141592653589793f;
+    #define TwistyPi 3.141592653589793f
 
     inline float DegreeFromRadian(float radian)
     {

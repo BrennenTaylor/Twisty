@@ -1,5 +1,8 @@
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
+//typedef boost::multiprecision::number < boost::multiprecision::cpp_dec_float<1000>> cpp_dec_float_custom;
+typedef boost::multiprecision::cpp_dec_float_100 cpp_dec_float_custom;
+
 #include <fmt/format.h>
 
 #include <chrono>
@@ -14,7 +17,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 5)
     {
-        fmt::print("Call as: {} exportRate dataFilename outputFilename seed", argv[0]);
+        fmt::print("Call as: {} exportRate dataFilename outputFilename compressedWeightsLog10", argv[0]);
         return false;
     }
 
@@ -22,12 +25,10 @@ int main(int argc, char* argv[])
 
     std::string dataFilename = argv[2];
     std::string outFilename = argv[3];
-    uint32_t seed = std::stoi(argv[4]);
-    if (seed == 0)
-    {
-        seed = time(0);
-    }
     dataFilename += ".txt";
+
+    bool compressedWeightsLog10 = (std::stoi(argv[4]) == 0) ? false : true;
+    std::cout << "Compressed weights: " << compressedWeightsLog10 << std::endl;
 
     std::ifstream inDataFile(dataFilename);
     uint32_t numWeightValues = 0;
@@ -38,7 +39,7 @@ int main(int argc, char* argv[])
 
 
 
-    const uint32_t numSplits = 10;
+    const uint32_t numSplits = 1;
     std::vector<std::ofstream> outFilesBasic(numSplits);
     std::vector<std::ofstream> outFilesLn(numSplits);
     for (uint32_t i = 0; i < numSplits; ++i)
@@ -86,39 +87,56 @@ int main(int argc, char* argv[])
         outFilesBasic[splitIdx] << "Path Weights" << std::endl;
         outFilesLn[splitIdx] << "Ln Path Weights" << std::endl;
 
+        cpp_dec_float_custom weightMin = 0.0;
+        cpp_dec_float_custom weightMax = 0.0;
 
         // Read em all in
-        boost::multiprecision::cpp_dec_float_100 runningPathSum = 0.0;
-
-        boost::multiprecision::cpp_dec_float_100 previousVal = 0.0;
-        boost::multiprecision::cpp_dec_float_100 previousAvg = 1.0;
-
+        cpp_dec_float_custom runningPathSum = 0.0;
         for (uint32_t weightIdx = 0; weightIdx < numPathsPerSplit; ++weightIdx)
         {
-            boost::multiprecision::cpp_dec_float_100 currentVal = 0.0;
+            // Read in the current value
+            double currentVal = 0.0;
             inDataFile >> currentVal;
 
-            runningPathSum += currentVal;
-            boost::multiprecision::cpp_dec_float_100 avg = runningPathSum / (boost::multiprecision::cpp_dec_float_100)(weightIdx + 1);
+            if (weightIdx == 0)
+            {
+                weightMin = currentVal;
+                weightMax = currentVal;
+            }
+            else
+            {
+                if (currentVal < weightMin)
+                {
+                    weightMin = currentVal;
+                }
 
-            //double threshold = 1.2;
-            //if ((avg / previousAvg) > threshold)
-            //{
-            //    std::cout << "i: " << i << std::endl;
-            //    std::cout << "Previous Avg: " << previousAvg << std::endl;
-            //    std::cout << "Current Avg: " << avg << std::endl;
-            //    std::cout << "Previous Val: " << previousVal << std::endl;
-            //    std::cout << "Current Val: " << currentVal << std::endl;
-            //}
+                if (currentVal > weightMax)
+                {
+                    weightMax = currentVal;
+                }
+            }
 
-            previousVal = currentVal;
-            previousAvg = avg;
+            // Convert to big float
+            cpp_dec_float_custom currentValBigFloat = currentVal;
+
+            // If they are stored as big floats, we want to expand it out
+            if (compressedWeightsLog10)
+            {
+                currentValBigFloat = boost::multiprecision::pow(10.0, currentValBigFloat);
+            }
+
+            // Keep adding in the value
+            runningPathSum += currentValBigFloat;
+            cpp_dec_float_custom avg = runningPathSum / (cpp_dec_float_custom)(weightIdx + 1);
 
             if ((weightIdx % exportRate) == 0)
             {
                 outFilesBasic[splitIdx] << avg << std::endl;
-                outFilesLn[splitIdx] << boost::multiprecision::log(avg) << std::endl;
+                outFilesLn[splitIdx] << boost::multiprecision::log10(avg) << std::endl;
             }
         }
+        outFilesLn[splitIdx] << "Min, Max" << std::endl;
+        outFilesLn[splitIdx] << weightMin << std::endl;
+        outFilesLn[splitIdx] << weightMax << std::endl;
     }
 }

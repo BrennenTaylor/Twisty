@@ -7,7 +7,7 @@
 #include <ctime>
 #include <random>
 
-//#define DetailedCurveGen
+#define DetailedCurveGen
 
 namespace twisty
 {
@@ -25,15 +25,18 @@ namespace twisty
         , m_upCachedBezier(nullptr)
         , m_arclengthRange(arclengthRange)
         , m_gen()
+        , m_bootstrapSeed(randomSeed)
     {
         if (randomSeed != 0)
         {
-            m_gen = std::mt19937_64(randomSeed);
+            m_bootstrapSeed = randomSeed;
         }
         else
         {
-            m_gen = std::mt19937_64(static_cast<uint64_t>(time(0)));
+            m_bootstrapSeed = static_cast<uint64_t>(time(0));
         }
+
+        m_gen = std::mt19937_64(m_bootstrapSeed);
     }
 
     Bootstrapper::~Bootstrapper()
@@ -53,6 +56,11 @@ namespace twisty
         m_upCachedBezier = nullptr;
 
         EndReset();
+    }
+
+    uint32_t Bootstrapper::GetBootstrapSeed() const
+    {
+        return m_bootstrapSeed;
     }
 
     Farlor::Vector3 Bootstrapper::GetStartPosition() const
@@ -111,7 +119,10 @@ namespace twisty
         std::cout << "\tInitial Arclength Before Moving cp2: " << initialArclength << std::endl;
 #endif
 
-        Farlor::Vector3 n2 = Sample::UniformSphere(0.5f/*static_cast<float>(dist(m_gen))*/, 0.5f/*static_cast<float>(dist(m_gen))*/).Normalized();
+        std::uniform_real_distribution<float> uniformZeroToOne(0.0f, 1.0f);
+        const float e0 = uniformZeroToOne(m_gen);
+        const float e1 = uniformZeroToOne(m_gen);
+        Farlor::Vector3 n2 = Sample::SampleUnitSphere(e0, e1);
         
 #if defined(DetailedCurveGen)
         std::cout << "\tn2: " << n2 << std::endl;
@@ -287,11 +298,15 @@ namespace twisty
         }
         // Second position, fixed by construction
         {
-            m_upCachedCurve->m_positions[0] = m_startPos + m_startDir * m_upCachedCurve->m_segmentLength;
+            m_upCachedCurve->m_positions[1] = m_startPos + m_startDir * m_upCachedCurve->m_segmentLength;
+        }
+        // Last position, defined by problem
+        {
+            m_upCachedCurve->m_positions[numSegments] = m_endPos;
         }
 
         // All other segments than first one
-        for (uint32_t i = 1; i < numSegments; ++i)
+        for (uint32_t i = 2; i < numSegments; ++i)
         {
             // Target Arclength
             float targetArclength = (i) * ds * 0.9999f;
@@ -356,20 +371,19 @@ namespace twisty
         }
 
         // Caclulate the cached tangents here
-        for (uint32_t i = 0; i < m_upCachedCurve->m_numSegments - 1; ++i)
+        for (uint32_t i = 0; i < m_upCachedCurve->m_numSegments; ++i)
         {
             Farlor::Vector3 diff = (m_upCachedCurve->m_positions[i + 1] - m_upCachedCurve->m_positions[i]);
             m_upCachedCurve->m_tangents[i] = diff.Normalized();
         }
 
-        // Calculate final tangent here
+        // Write final tangent here
         {
-            Farlor::Vector3 diff = (m_upCachedCurve->m_targetPos - m_upCachedCurve->m_positions[m_upCachedCurve->m_numSegments - 1]);
-            m_upCachedCurve->m_tangents[m_upCachedCurve->m_numSegments - 1] = diff.Normalized();
+            m_upCachedCurve->m_tangents[numSegments] = m_endDir.Normalized();
         }
 
         // All but the last segment. We do that one manually
-        for (uint32_t i = 0; i < numSegments - 1; ++i)
+        for (uint32_t i = 0; i < numSegments; ++i)
         {
             auto& tanLeft = m_upCachedCurve->m_tangents[i];
             auto& tanRight = m_upCachedCurve->m_tangents[i + 1];
@@ -377,17 +391,6 @@ namespace twisty
             {
                 float curvature = ((tanRight - tanLeft) * (1.0f / ds)).Magnitude();
                 m_upCachedCurve->m_curvatures[i] = curvature;
-            }
-        }
-
-        // Handle the last segment
-        {
-            auto& tanLeft = m_upCachedCurve->m_tangents[m_upCachedCurve->m_numSegments - 1];
-            auto& tanRight = m_upCachedCurve->m_targetTangent;
-
-            {
-                float curvature = ((tanRight - tanLeft) * (1.0f / ds)).Magnitude();
-                m_upCachedCurve->m_curvatures[m_upCachedCurve->m_numSegments - 1] = curvature;
             }
         }
 

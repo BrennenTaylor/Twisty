@@ -12,7 +12,7 @@ namespace twisty
     {
     }
 
-    GeometryBootstrapper::Geometry::SampleRay RayGeometry::GetSampleRay() const
+    Geometry::SampleRay RayGeometry::GetSampleRay() const
     {
         return SampleRay{ m_pos, m_dir };
     }
@@ -24,14 +24,14 @@ namespace twisty
     {
     }
 
-    GeometryBootstrapper::Geometry::SampleRay SphereGeometry::GetSampleRay() const
+    Geometry::SampleRay SphereGeometry::GetSampleRay() const
     {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dist(0.0f, 1.0f);
         float rand0 = static_cast<float>(dist(gen));
         float rand1 = static_cast<float>(dist(gen));
-        Farlor::Vector3 sphereSample = Sample::UniformSphere(rand0, rand1);
+        Farlor::Vector3 sphereSample = Sample::SampleUnitSphere(rand0, rand1);
         return SampleRay{ m_pos, sphereSample.Normalized() };
     }
 }
