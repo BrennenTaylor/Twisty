@@ -8,11 +8,12 @@ endif (WIN32)
 
 find_package(Boost)
 
+add_subdirectory(glm)
+add_subdirectory(FMath)
+add_subdirectory(tinyexr)
 
-find_package(FMath REQUIRED)
-find_package(fmt REQUIRED)
-find_package(glm CONFIG REQUIRED )
-find_package(RapidJSON CONFIG REQUIRED)
+# find_package(FMath REQUIRED)
+# find_package(glm CONFIG REQUIRED )
 
 # set(CMAKE_CXX_STANDARD 17)
 
@@ -138,7 +139,6 @@ set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES 0)
 target_include_directories(Twisty
     INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}
-    PRIVATE ${RAPIDJSON_INCLUDE_DIRS}
 )
 
 target_compile_features(Twisty
@@ -168,7 +168,6 @@ target_compile_options(Twisty
 
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
-    PUBLIC fmt::fmt
     PUBLIC glm
 )
 

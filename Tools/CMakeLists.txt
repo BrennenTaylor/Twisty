@@ -2,11 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-find_package(boost)
-find_package(FMath)
-find_package(fmt CONFIG REQUIRED)
-find_package(OpenEXR)
-
 add_executable(FFEImageGen
     FFE_ImageGen.cpp
 )
@@ -18,8 +13,6 @@ target_include_directories(FFEImageGen
 target_link_libraries(FFEImageGen
     PRIVATE FMath::FMath
     PRIVATE ${OpenEXR_LIBRARIES}
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 target_compile_definitions(FFEImageGen
@@ -36,8 +29,6 @@ target_include_directories(LogifyGridOfData
 
 target_link_libraries(LogifyGridOfData
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(MinMaxGivenVals
@@ -50,8 +41,6 @@ target_include_directories(MinMaxGivenVals
 
 target_link_libraries(MinMaxGivenVals
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(GenerateFFDistances
@@ -64,8 +53,6 @@ target_include_directories(GenerateFFDistances
 
 target_link_libraries(GenerateFFDistances
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(GenerateFFDistancesHalf
@@ -78,8 +65,6 @@ target_include_directories(GenerateFFDistancesHalf
 
 target_link_libraries(GenerateFFDistancesHalf
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(WeightSliceExperiment
@@ -92,8 +77,6 @@ target_include_directories(WeightSliceExperiment
 
 target_link_libraries(WeightSliceExperiment
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(ConvergenceExperiment
@@ -106,8 +89,6 @@ target_include_directories(ConvergenceExperiment
 
 target_link_libraries(ConvergenceExperiment
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(HighestWeightPathExperiment
@@ -120,8 +101,6 @@ target_include_directories(HighestWeightPathExperiment
 
 target_link_libraries(HighestWeightPathExperiment
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(ZeroToOneNormalization
@@ -134,8 +113,6 @@ target_include_directories(ZeroToOneNormalization
 
 target_link_libraries(ZeroToOneNormalization
     PRIVATE FMath::FMath
-    PRIVATE fmt::fmt
-    PRIVATE fmt::fmt-header-only
 )
 
 add_executable(ExportedPathFixer
