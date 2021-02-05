@@ -7,10 +7,11 @@ enable_language(CUDA)
 endif (WIN32)
 
 find_package(Boost)
+find_package(RapidJSON CONFIG REQUIRED)
 
-add_subdirectory(rapidjson)
 add_subdirectory(FMath)
 add_subdirectory(tinyexr)
+
 
 # find_package(FMath REQUIRED)
 # find_package(glm CONFIG REQUIRED )
@@ -139,6 +140,7 @@ set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES 0)
 target_include_directories(Twisty
     INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}
+    PRIVATE ${RAPIDJSON_INCLUDE_DIRS}
 )
 
 target_compile_features(Twisty
