@@ -1,6 +1,6 @@
 #include "FullExperimentRunner.h"
 #include "FullExperimentRunner2.h"
-#include "FullExperimentRunnerOldMethodBridge.h"
+// #include "FullExperimentRunnerOldMethodBridge.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
@@ -21,6 +21,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <thread>
 
 using namespace twisty;
 
@@ -108,7 +109,7 @@ int main(int argc, char *argv[])
 
         std::cout << "Runner version: " << runnerVersion << std::endl;
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+// #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
         switch (runnerVersion)
         {
         case 0:
@@ -134,19 +135,22 @@ int main(int argc, char *argv[])
         //} break;
 
         // Debug modes
-        case 66:
-        {
-            upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
-        } break;
+        // case 66:
+        // {
+        //     upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
+        // } break;
         default:
         {
             std::cout << "Invalid experiment runner method selected" << std::endl;
             exit(1);
         }
         }
-#else
-        upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
-#endif
+// #else
+        // upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+// #endif
+
+        std::cout << "Spot 1 - Num hardware threads: " << std::thread::hardware_concurrency() << std::endl;
+
 
         bool result = upExperimentRunner->Setup();
         if (!result)
@@ -155,7 +159,6 @@ int main(int argc, char *argv[])
             std::cout << "Failed to setup experiment runner." << std::endl;
             return 1;
         }
-
         auto start = std::chrono::high_resolution_clock::now();
         twisty::ExperimentRunner::ExperimentResults results = upExperimentRunner->RunExperiment();
         auto end = std::chrono::high_resolution_clock::now();

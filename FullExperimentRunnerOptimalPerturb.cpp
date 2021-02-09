@@ -4,7 +4,6 @@
 #include "CurveUtils.h"
 #include "MathConsts.h"
 
-#include <omp.h>
 
 #include <assert.h>
 #include <ctime>
@@ -90,6 +89,8 @@ namespace twisty
 
     bool FullExperimentRunnerOptimalPerturb::Setup()
     {
+        std::cout << "Spot 2 - Num hardware threads: " << std::thread::hardware_concurrency() << std::endl;
+
         std::cout << "Random Seeds: " << std::endl;
         std::cout << "\tBootstrap seed: " << m_bootstrapper.GetBootstrapSeed() << std::endl;
         std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
@@ -1678,15 +1679,15 @@ namespace twisty
         auto experimentTimeStart = std::chrono::high_resolution_clock::now();
 
         // Create threads and dispatch them
-#ifdef SINGLE_THREAD_PERTURB_MODE
-        int64_t numPurturbThreads = 1;
-#else
-#ifdef HardcodedNumPurturbThreads
-        int64_t numPurturbThreads = 3;
-#else
+// #ifdef SINGLE_THREAD_PERTURB_MODE
+//         int64_t numPurturbThreads = 1;
+// #else
+// #ifdef HardcodedNumPurturbThreads
+//         int64_t numPurturbThreads = 3;
+// #else
         int64_t numPurturbThreads = std::thread::hardware_concurrency();
-#endif
-#endif
+// #endif
+// #endif
         std::cout << "We have " << numPurturbThreads << " avalible for purturbation." << std::endl;
 
         // Setup rng stuff
