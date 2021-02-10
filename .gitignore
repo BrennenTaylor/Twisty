@@ -2,7 +2,6 @@
 !CMakeLists.txt
 build/
 doxygen_output/
-FFE_*/
 Geom_*/
 Geometry_*/
 Hybrid_*/
