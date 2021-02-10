@@ -289,6 +289,14 @@ target_link_libraries(DifferentNormalSThetaExperiment
 )
 
 
+add_executable(Benchmark_5_1
+    Benchmark_5_1.cpp
+)
+
+target_link_libraries(Benchmark_5_1
+    PUBLIC Twisty
+    PUBLIC glm
+)
 
 if (WIN32)
 # add_subdirectory(Experiments)

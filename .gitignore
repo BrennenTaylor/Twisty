@@ -18,3 +18,11 @@ NormalTest_Arclength_50/
 Test_Cpu_Fix_FFE/
 Test_Normals/
 unitweights/
+!FFE*.cpp
+Optimal*
+*.csv
+CachedPython/
+*.fnd
+*.zip
+python_sandbox/
+*.xlsx
