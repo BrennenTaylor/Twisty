@@ -11,15 +11,15 @@ target_link_libraries(FFEImageGen
     PRIVATE tinyexr
 )
 
-add_executable(LogifyGridOfData
-    LogifyGridOfData.cpp
+add_executable(LogifyAndMinMaxData
+    LogifyAndMinMaxData.cpp
 )
 
-target_include_directories(LogifyGridOfData
+target_include_directories(LogifyAndMinMaxData
     PUBLIC ${Boost_INCLUDE_DIR}
 )
 
-target_link_libraries(LogifyGridOfData
+target_link_libraries(LogifyAndMinMaxData
     PRIVATE FMath::FMath
 )
 
