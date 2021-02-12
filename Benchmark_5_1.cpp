@@ -166,18 +166,17 @@ int main(int argc, char* argv[])
                 experimentParams.curvePurturbSeed = perCurveSeed;
                 experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-                experimentParams.weightingParameters.mu = 0.1;
+                // Use a big mu value
+                experimentParams.weightingParameters.mu = 99.0;
                 experimentParams.weightingParameters.eps = 0.1;
                 experimentParams.weightingParameters.numStepsInt = 2000;
                 experimentParams.weightingParameters.minBound = 0.0;
                 experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
                 experimentParams.weightingParameters.numCurvatureSteps = 10000;
-                // Lets give some absorbtion as well
-                // Absorbtion 1/20 off the time
-                experimentParams.weightingParameters.absorbtion = 0.05;
-                // 1/5 scatter means one event every 5 units, thus 2 scattering events in the shortest
-                // or 5 in the longest 100 unit path
-                experimentParams.weightingParameters.scatter = 0.2;
+
+
+                experimentParams.weightingParameters.absorbtion = 0.01;
+                experimentParams.weightingParameters.scatter = 0.99;
 
 
                 experimentParams.rotateInitialSeedCurveRadians = 0.0f;
