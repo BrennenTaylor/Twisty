@@ -11,7 +11,9 @@ find_package(RapidJSON CONFIG REQUIRED)
 
 add_subdirectory(FMath)
 
+IF (WIN32)
 add_subdirectory(tinyexr)
+ENDIF()
 
 # find_package(FMath REQUIRED)
 # find_package(glm CONFIG REQUIRED )

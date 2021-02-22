@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+IF (WIN32)
 add_executable(FFEImageGen
     FFE_ImageGen.cpp
 )
@@ -10,7 +11,7 @@ target_link_libraries(FFEImageGen
     PRIVATE FMath::FMath
     PRIVATE tinyexr
 )
-
+ENDIF()
 add_executable(LogifyAndMinMaxData
     LogifyAndMinMaxData.cpp
 )
