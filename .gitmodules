@@ -1,6 +1,6 @@
 [submodule "FMath"]
 	path = FMath
-	url = https://github.tamu.edu/GreatWall1001/FMath
+	url = https://github.com/BrennenTaylor/FMath
 [submodule "tinyexr"]
 	path = tinyexr
 	url = https://github.com/syoyo/tinyexr
