@@ -23,11 +23,20 @@ const double zMax = 10.0;
 
 const double ringRadius = 1.75;
 
+Farlor::Vector3 UniformlySampleHemisphereFacingNegativeX(const float u, const float v)
+{
+    float z = u;
+    float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
+    float phi = 2.0f * TwistyPi * v;
+
+    return Farlor::Vector3(-1.0 * r * std::sin(phi), r * std::cos(phi), z).Normalized();
+}
+
 int main(int argc, char* argv[])
 {
-    if (argc < 8)
+    if (argc < 10)
     {
-        std::cout << "Call as: " << argv[0] << " numZValues experimentName experimentOutputPath bootstrapperSeed perturbSeed numInitialCurves numPerInitialCurve" << std::endl;
+        std::cout << "Call as: " << argv[0] << " numZValues experimentName experimentOutputPath bootstrapperSeed perturbSeed numInitialCurves numPerInitialCurve numNormals normalSeed" << std::endl;
         return 1;
     }
 
@@ -38,6 +47,8 @@ int main(int argc, char* argv[])
     int perturbSeed = std::stoi(argv[5]);
     const uint32_t numInitialCurves = std::stoi(argv[6]);
     const uint32_t numPerInitialCurve = std::stoi(argv[7]);
+    const uint32_t numNormals = std::stoi(argv[8]);
+    int normalSeed = std::stoi(argv[9]);
 
     std::filesystem::path outputDirectoryPath = std::filesystem::path(experimentOutputPath);
     std::cout << "Output Directory Path: " << outputDirectoryPath << std::endl;
@@ -113,7 +124,7 @@ int main(int argc, char* argv[])
         geometryExportStream << "    " << recieverDir.x << " " << recieverDir.y << " " << recieverDir.z << std::endl;
 #endif
 
-        twisty::RayGeometry rayReciever(recieverPos, recieverDir);
+        //twisty::RayGeometry rayReciever(recieverPos, recieverDir);
 
 
         // Start at somehting close to 1.05 times the minimum arclength and go to 1.5 times the arclength
@@ -134,78 +145,89 @@ int main(int argc, char* argv[])
 
         boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
 
-        std::mt19937 initialCurveGen(bootstrapperSeed);
-        for (uint32_t initialCurveIdx = 0; initialCurveIdx < numInitialCurves; ++initialCurveIdx)
+
+        std::mt19937 normalGen(normalSeed);
+        for (uint32_t normalIdx = 0; normalIdx < numNormals; ++normalIdx)
         {
+            std::uniform_real_distribution<float> uniformFloats(0.0f, 1.0f);
 
-            int initialCurveSeed = initialCurveGen();
-            while (initialCurveSeed == 0)
+            Farlor::Vector3 targetNormal = UniformlySampleHemisphereFacingNegativeX(uniformFloats(normalGen), uniformFloats(normalGen));
+            std::cout << "\tTarget normal " << normalIdx << ": " << targetNormal << std::endl;
+
+            std::mt19937 initialCurveGen(bootstrapperSeed);
+            for (uint32_t initialCurveIdx = 0; initialCurveIdx < numInitialCurves; ++initialCurveIdx)
             {
-                initialCurveSeed = initialCurveGen();
-            }
 
-            boost::multiprecision::cpp_dec_float_100 maxResult = 0.0;
-
-            std::mt19937 perCurveGen(perturbSeed);
-            for (uint32_t perInitialCurveIdx = 0; perInitialCurveIdx < numPerInitialCurve; ++perInitialCurveIdx)
-            {
-                int perCurveSeed = perCurveGen();
-                while (perCurveSeed == 0)
+                int initialCurveSeed = initialCurveGen();
+                while (initialCurveSeed == 0)
                 {
-                    perCurveSeed = perCurveGen();
+                    initialCurveSeed = initialCurveGen();
                 }
 
-                twisty::ExperimentRunner::ExperimentParameters experimentParams;
-                experimentParams.numPathsInExperiment = numPathsPerInternal;
-                experimentParams.numPathsToSkip = numPathsSkipPerInternal;
-                experimentParams.exportGeneratedCurves = false;
-                experimentParams.experimentName = experimentName;
-                experimentParams.numSegmentsPerCurve = 200;
-                experimentParams.maximumBootstrapCurveError = 0.5f;
-                experimentParams.curvePerturbMethod = twisty::ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
-                experimentParams.curvePurturbSeed = perCurveSeed;
-                experimentParams.rotateInitialSeedCurveRadians = 0.0f;
+                boost::multiprecision::cpp_dec_float_100 maxResult = 0.0;
 
-                // Use a big mu value
-                experimentParams.weightingParameters.mu = 99.0;
-                experimentParams.weightingParameters.eps = 0.1;
-                experimentParams.weightingParameters.numStepsInt = 2000;
-                experimentParams.weightingParameters.minBound = 0.0;
-                experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
-                experimentParams.weightingParameters.numCurvatureSteps = 10000;
-
-
-                experimentParams.weightingParameters.absorbtion = 0.01;
-                experimentParams.weightingParameters.scatter = 0.99;
-
-
-                experimentParams.rotateInitialSeedCurveRadians = 0.0f;
-
-                twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, initialCurveSeed);
-                std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper, kdsRange, tdsRange);
-                bool result = upExperimentRunner->Setup();
-
-                if (!result)
+                std::mt19937 perCurveGen(perturbSeed);
+                for (uint32_t perInitialCurveIdx = 0; perInitialCurveIdx < numPerInitialCurve; ++perInitialCurveIdx)
                 {
-                    upExperimentRunner->Shutdown();
-                    std::cout << "Failed to setup experiment runner." << std::endl;
-                    return 1;
-                }
+                    int perCurveSeed = perCurveGen();
+                    while (perCurveSeed == 0)
+                    {
+                        perCurveSeed = perCurveGen();
+                    }
+
+                    twisty::ExperimentRunner::ExperimentParameters experimentParams;
+                    experimentParams.numPathsInExperiment = numPathsPerInternal;
+                    experimentParams.numPathsToSkip = numPathsSkipPerInternal;
+                    experimentParams.exportGeneratedCurves = false;
+                    experimentParams.experimentName = experimentName;
+                    experimentParams.numSegmentsPerCurve = 200;
+                    experimentParams.maximumBootstrapCurveError = 0.5f;
+                    experimentParams.curvePerturbMethod = twisty::ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
+                    experimentParams.curvePurturbSeed = perCurveSeed;
+                    experimentParams.rotateInitialSeedCurveRadians = 0.0f;
+
+                    // Use a big mu value
+                    experimentParams.weightingParameters.mu = 99.0;
+                    experimentParams.weightingParameters.eps = 0.1;
+                    experimentParams.weightingParameters.numStepsInt = 2000;
+                    experimentParams.weightingParameters.minBound = 0.0;
+                    experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
+                    experimentParams.weightingParameters.numCurvatureSteps = 10000;
+
+
+                    experimentParams.weightingParameters.absorbtion = 0.9;
+                    experimentParams.weightingParameters.scatter = 0.1;
+
+
+                    experimentParams.rotateInitialSeedCurveRadians = 0.0f;
+
+                    twisty::RayGeometry rayReciever(recieverPos, targetNormal);
+                    twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, initialCurveSeed);
+                    std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper, kdsRange, tdsRange);
+                    bool result = upExperimentRunner->Setup();
+
+                    if (!result)
+                    {
+                        upExperimentRunner->Shutdown();
+                        std::cout << "Failed to setup experiment runner." << std::endl;
+                        return 1;
+                    }
 
 #if defined(ExportGeometryInfo) && defined(ExportArclengths)
-                twisty::Curve* pCurve = upExperimentRunner->GetInitialCurvePtr();
-                float arclength = pCurve->m_arclength;
-                geometryExportStream << "        " << arclength << std::endl;
+                    twisty::Curve* pCurve = upExperimentRunner->GetInitialCurvePtr();
+                    float arclength = pCurve->m_arclength;
+                    geometryExportStream << "        " << arclength << std::endl;
 #endif
-                twisty::ExperimentRunner::ExperimentResults results = upExperimentRunner->RunExperiment();
-                if (results.experimentWeight > maxResult)
-                {
-                    maxResult = results.experimentWeight;
+                    twisty::ExperimentRunner::ExperimentResults results = upExperimentRunner->RunExperiment();
+                    if (results.experimentWeight > maxResult)
+                    {
+                        maxResult = results.experimentWeight;
+                    }
+                    upExperimentRunner->Shutdown();
                 }
-                upExperimentRunner->Shutdown();
-            }
 
-            averagedResult += (maxResult * (1.0 / numInitialCurves));
+                averagedResult += (maxResult * (1.0 / (numInitialCurves * numNormals)));
+            }
         }
 
         measuredZValues[z] += averagedResult;
