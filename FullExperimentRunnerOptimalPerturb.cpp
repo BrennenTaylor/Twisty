@@ -103,8 +103,15 @@ namespace twisty
             m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve);
             if (!m_upInitialCurve)
             {
-                printf("Failed to create bootstrap curve.\n");
-                return false;
+                printf("Failed to create bootstrap curve with bezier method. Trying again with geometric\n");
+
+                m_bootstrapper.Reset();
+                m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve);
+                if (!m_upInitialCurve)
+                {
+                    printf("Both bootstrap versions failed, now we have to error out.\n");
+                    return false;
+                }
             }
 
             // Lets also get the error of the initial curve, just to know

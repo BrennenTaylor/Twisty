@@ -1,5 +1,6 @@
 #include "Bootstrapper.h"
 
+#include "PerturbUtils.h"
 #include "Sample.h"
 
 #include <assert.h>
@@ -80,6 +81,101 @@ namespace twisty
         return m_endDir;
     }
 
+    std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(uint32_t numSegments)
+    {
+        std::cout << "\nBegin generating curve" << std::endl;
+
+        const double arclength = m_arclengthRange.m_min;
+        const double ds = arclength / numSegments;
+        const Farlor::Vector3 x_s = m_startPos + ds * m_startDir;
+        const Farlor::Vector3 x_e = m_endPos -= ds * m_endDir;
+        const Farlor::Vector3 x_p = (x_s + x_e) * 0.5;
+        const Farlor::Vector3 lineUnitDir = (x_e - x_s).Normalized();
+        
+        Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
+        if (lineUnitDir == otherCrossVec)
+        {
+            otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
+        }
+        
+        const Farlor::Vector3 normalToLine = lineUnitDir.Cross(otherCrossVec).Normalized();
+        const double hypot = (numSegments - 2) * 0.5 * ds;
+        const double D_2 = (x_e - x_s).Magnitude() / 2.0;
+        const double distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
+        const Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
+
+        m_upCachedCurve = std::make_unique<Curve>(numSegments);
+        m_upCachedCurve->m_arclength = arclength;
+        m_upCachedCurve->m_numSegments = numSegments;
+        m_upCachedCurve->m_segmentLength = ds;
+        m_upCachedCurve->m_basePos = GetStartPosition();
+        m_upCachedCurve->m_baseTangent = GetStartNormal();
+        m_upCachedCurve->m_targetPos = GetTargetPosition();
+        m_upCachedCurve->m_targetTangent = GetTargetNormal();
+        
+        // First 2 positions
+        // Defines first segment
+        {
+            m_upCachedCurve->m_positions[0] = m_startPos;
+            m_upCachedCurve->m_positions[1] = x_s;
+        }
+        
+
+        // Last 2 positions
+        // Defines last segment
+        {
+            m_upCachedCurve->m_positions[numSegments - 1] = x_e;
+            m_upCachedCurve->m_positions[numSegments] = m_endPos;
+        }
+
+        // Calculate the left side
+        const uint32_t numLeft = (((numSegments + 1) - 4) / 2) + 1;
+        const uint32_t numRight = numLeft - 1;
+        
+        const Farlor::Vector3 leftDir = (x_t - x_s).Normalized();
+        for (uint32_t i = 1; i <= numLeft; ++i)
+        {
+            m_upCachedCurve->m_positions[1 + i] = x_s + i * ds * leftDir;
+        }
+
+        const Farlor::Vector3 rightDir = (x_e - x_t).Normalized();
+        for (uint32_t i = 1; i <= numRight; ++i)
+        {
+            m_upCachedCurve->m_positions[numLeft + i] = x_t + i * ds * rightDir;
+        }
+        
+        twisty::PerturbUtils::BoundrayConditions boundaryConditions;
+        boundaryConditions.arclength = m_upCachedCurve->m_arclength;
+        boundaryConditions.m_startPos = m_upCachedCurve->m_basePos;
+        boundaryConditions.m_startDir = m_upCachedCurve->m_baseTangent;
+        boundaryConditions.m_endPos = m_upCachedCurve->m_targetPos;
+        boundaryConditions.m_endDir = m_upCachedCurve->m_targetTangent;
+        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(m_upCachedCurve->m_positions.data(), m_upCachedCurve->m_tangents.data(),
+            m_upCachedCurve->m_curvatures.data(), m_upCachedCurve->m_numSegments, boundaryConditions);
+
+
+        float totalDistance = 0.0f;
+        // Calculate the actual length of the segment based curve
+        for (uint32_t i = 0; i < m_upCachedCurve->m_numSegments - 1; ++i)
+        {
+            totalDistance += (m_upCachedCurve->m_positions[i + 1] - m_upCachedCurve->m_positions[i]).Magnitude();
+        }
+        // And handle last segment
+        {
+            totalDistance += (m_upCachedCurve->m_targetPos - m_upCachedCurve->m_positions[m_upCachedCurve->m_numSegments - 1]).Magnitude();
+        }
+        std::cout << "\tSegment Curve Distance: " << totalDistance << std::endl;
+        std::cout << "\tTarget Arclength: " << m_upCachedCurve->m_arclength << std::endl;
+
+        // We need to return a copy
+        m_isCached = true;
+
+        auto upReturnCurve = std::make_unique<Curve>(m_upCachedCurve->m_numSegments);
+        *upReturnCurve = *m_upCachedCurve;
+        return upReturnCurve;
+    }
+
+    
     std::unique_ptr<Curve> Bootstrapper::CreateCurve(uint32_t numSegments)
     {
         std::cout << "\nBegin generating curve" << std::endl;
@@ -242,6 +338,7 @@ namespace twisty
 
         return ToDiscreteFSCurve(numSegments, *m_upCachedBezier);
     }
+    
 
     std::unique_ptr<Curve> Bootstrapper::GetCachedCurve()
     {

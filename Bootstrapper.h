@@ -107,6 +107,8 @@ namespace twisty
          * @return std::unique_ptr<Curve> Generated discrete curve
          */
         virtual std::unique_ptr<Curve> CreateCurve(uint32_t numSegments);
+
+        virtual std::unique_ptr<Curve> CreateCurveGeometricSafe(uint32_t numSegments);
         /**
          * @brief Return positions spaced ds apart on the curve
          *
