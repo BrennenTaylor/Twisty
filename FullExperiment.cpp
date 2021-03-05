@@ -61,15 +61,29 @@ int main(int argc, char *argv[])
         // Bootstrap method
         const Range defaultBounds = { -1.0f, 1.0f };
         const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
-        const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
+        const Farlor::Vector3 emitterDir = Farlor::Vector3(0.0f, 0.0f, 1.0f).Normalized();
         RayGeometry rayEmitter(emitterStart, emitterDir);
 
-        const Farlor::Vector3 recieverPos{ 10.0f, 0.0f, 0.0f };
-        const Farlor::Vector3 recieverDir{ 1.0, 0.0f, 0.0f };
+
+        const double zMin = 0.0;
+        const double zMax = 10.0;
+
+        const uint32_t numZValues = 10;
+        const double deltaZ = (zMax - zMin) / (numZValues - 1);
+        const uint32_t zIdx = 2;
+        const double receiverZ = zMin + deltaZ * zIdx;
+        const double ringRadius = 1.75;
+
+        const Farlor::Vector3 recieverPos = Farlor::Vector3(ringRadius, 0.0f, receiverZ);
+
+        const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
 
         RayGeometry rayReciever(recieverPos, recieverDir);
 
-        const Range arclengthRange = { minTargetArclength, maxTargetArclength };
+        float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
+        targetArclength = std::max(targetArclength, 3.0f);
+
+        const Range arclengthRange = { targetArclength, targetArclength };
 
         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, boostrapperSeed);
 

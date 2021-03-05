@@ -180,11 +180,21 @@ namespace twisty
     {
         std::cout << "\nBegin generating curve" << std::endl;
 
-        float minL2 = 0.0f;
+        std::cout << "\tBoundary conditions: " << std::endl;
+        std::cout << "\tStart Pos: " << m_startPos << std::endl;
+        std::cout << "\tStart Dir: " << m_startDir << std::endl;
+        std::cout << "\tEnd Pos: " << m_endPos << std::endl;
+        std::cout << "\tEnd Dir: " << m_endDir << std::endl;
+        std::cout << "\tMin Arclength Range: " << m_arclengthRange.m_min << std::endl;
+        std::cout << "\tMax Arclength Range: " << m_arclengthRange.m_max << std::endl;
+
+        const float requestedArclength = m_arclengthRange.m_min;
+
+        const float minL2 = 0.0f;
         const float maxL2 = pow(10.0f, 5);
 
-        Farlor::Vector3 x1x0 = m_endPos - m_startPos;
-        float length = x1x0.Magnitude();
+        const Farlor::Vector3 x1x0 = m_endPos - m_startPos;
+        const float length = x1x0.Magnitude();
 
 #if defined(DetailedCurveGen)
         std::cout << "\tDistance btw start, end pts: " << length << std::endl;
@@ -209,11 +219,14 @@ namespace twisty
         m_upCachedBezier->m_controlPts[3] = m_endPos - l1 * m_endDir;
         m_upCachedBezier->m_controlPts[4] = m_endPos;
         
-        float initialArclength = m_upCachedBezier->CalculateArclength(0.0f, 1.0f);
+        // This is the actual smallest arclength that we are able to generate
+        const float shortestArclengthPossible = m_upCachedBezier->CalculateArclength(0.0f, 1.0f);
+
 
 #if defined(DetailedCurveGen)
-        std::cout << "\tInitial Arclength Before Moving cp2: " << initialArclength << std::endl;
+        std::cout << "\tShortest Arclength Before Moving cp2: " << shortestArclengthPossible << std::endl;
 #endif
+
 
         std::uniform_real_distribution<float> uniformZeroToOne(0.0f, 1.0f);
         const float e0 = uniformZeroToOne(m_gen);
@@ -227,34 +240,44 @@ namespace twisty
         // Captures by references, so the actual bezier curve is temporarily modified
         auto TestL2Arclength = [&](float testL2) -> float
         {
-            auto previous = m_upCachedBezier->m_controlPts[2];
+            const Farlor::Vector3 previous = m_upCachedBezier->m_controlPts[2];
             m_upCachedBezier->m_controlPts[2] = previous + n2 * testL2;
 
             const float minVal = 0.0f;
             const float maxVal = 1.0f;
-            float arclength = m_upCachedBezier->CalculateArclength(minVal, maxVal);
+            const float arclength = m_upCachedBezier->CalculateArclength(minVal, maxVal);
             m_upCachedBezier->m_controlPts[2] = previous;
             return arclength;
         };
 
+        // Ok, so we hand an arclength to the bootstrapper. We want to have the closest minimum arclenghth that matches.
+
         // TODO: Figure out if we need to flip the normal here?
         // We want basically the arc length to never shrink as we move along the normal.
         // If we get this case, we have a problem.
-        float minL2ArcLength = TestL2Arclength(minL2);
-        float maxL2ArcLength = TestL2Arclength(maxL2);
 
-#if defined(DetailedCurveGen)
-        std::cout << "\tminL2ArcLength: " << minL2ArcLength << std::endl;
-        std::cout << "\tmaxL2ArcLength: " << maxL2ArcLength << std::endl;
-#endif
+        
+        //        float minL2ArcLength = TestL2Arclength(minL2);
+//        float maxL2ArcLength = TestL2Arclength(maxL2);
+//
+//#if defined(DetailedCurveGen)
+//        std::cout << "\tminL2ArcLength: " << minL2ArcLength << std::endl;
+//        std::cout << "\tmaxL2ArcLength: " << maxL2ArcLength << std::endl;
+//#endif
+//
 
-        float minArclength = std::max(static_cast<float>(m_arclengthRange.m_min), minL2ArcLength);
-        float maxArclength = std::min(static_cast<float>(m_arclengthRange.m_max), maxL2ArcLength);
+        const float maxL2ArcLength = TestL2Arclength(maxL2);
 
+        float minArclength = std::max(static_cast<float>(m_arclengthRange.m_min), shortestArclengthPossible);
+        // Require at least a minimum arclength
+        float maxArclength = std::max(static_cast<float>(m_arclengthRange.m_max), minArclength);
+        maxArclength = std::min(maxArclength, maxL2ArcLength);
+//
         assert(minArclength <= maxArclength);
-
+//
         std::uniform_real_distribution<float> arclengthDist(minArclength, maxArclength);
-        float targetArcLength = static_cast<float>(arclengthDist(m_gen));
+        const float targetArclength = static_cast<float>(arclengthDist(m_gen)) * 1.01;
+        std::cout << "Selected arclength to target: " << targetArclength << std::endl;
 
         // Ok, we want to find target_l2 such that
         // TestL2ArcLength(target_l2) - targetArcLength is minimized.
@@ -267,8 +290,8 @@ namespace twisty
 
         const float errorThresh = 1e-8f;
         const float distThresh = 1e-10f;
-        float minF = TestL2Arclength(a) - targetArcLength;
-        float maxF = TestL2Arclength(b) - targetArcLength;
+        float minF = TestL2Arclength(a) - targetArclength;
+        float maxF = TestL2Arclength(b) - targetArclength;
 
         if ((minF * maxF) > 0.0f)
         {
@@ -284,10 +307,10 @@ namespace twisty
         float guessVal = (a + b) / 2.0f;
         while (currentIterationCount < maxNumberOfIterations)
         {
-            float aVal = TestL2Arclength(a) - targetArcLength;
-            float bVal = TestL2Arclength(b) - targetArcLength;
+            float aVal = TestL2Arclength(a) - targetArclength;
+            float bVal = TestL2Arclength(b) - targetArclength;
             float guessArclength = TestL2Arclength(guessVal);
-            float guessError = guessArclength - targetArcLength;
+            float guessError = guessArclength - targetArclength;
             //std::cout << "\t\tGuess: " << guessVal << std::endl;
             //std::cout << "\t\tGuess Arclength: " << guessArclength << std::endl;
             //std::cout << "\t\tGuess Error: " << guessError << std::endl;
@@ -324,8 +347,8 @@ namespace twisty
 
 #if defined(DetailedCurveGen)
         std::cout << "\tFinal arc length: " << finalArclength << std::endl;
-        std::cout << "\tTarget arc length: " << targetArcLength<< std::endl;
-        std::cout << "\tFinal bezier error: " << std::abs(finalArclength - targetArcLength) << std::endl;
+        std::cout << "\tTarget arc length: " << targetArclength << std::endl;
+        std::cout << "\tFinal bezier error: " << std::abs(finalArclength - targetArclength) << std::endl;
 #endif
 
         // Cached that bezier info for retrieval later
@@ -357,15 +380,16 @@ namespace twisty
 
         const float minT = 0.0f;
         const float maxT = 1.0f;
-        const float fullCurveArcLength = bezierCurve.CalculateArclength(minT, maxT);
+        const float initialArclength = bezierCurve.CalculateArclength(minT, maxT);
+        std::cout << "Initial Curve Length: " << initialArclength << std::endl;
         // ds is going to be in arclength parameterization
-        const float ds = fullCurveArcLength / numSegments;
+        const float ds = initialArclength / numSegments;
 
         // printf("\tFull curve arclength: %f\n", fullCurveArcLength);
         // printf("\tds: %f\n", ds);
 
         m_upCachedCurve = std::make_unique<Curve>(numSegments);
-        m_upCachedCurve->m_arclength = fullCurveArcLength;
+        m_upCachedCurve->m_arclength = initialArclength;
         m_upCachedCurve->m_numSegments = numSegments;
         m_upCachedCurve->m_basePos = GetStartPosition();
         m_upCachedCurve->m_baseTangent = GetStartNormal();
