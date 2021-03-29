@@ -53,11 +53,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    std::vector< boost::multiprecision::cpp_dec_float_100> logdataValues(numValues);
     for (uint32_t idx = 0; idx < numValues; ++idx)
     {
-        minMaxDatastream << (dataValues[idx] - minVal) / (maxVal - minVal) << std::endl;
-        logDatastream << boost::multiprecision::log(dataValues[idx]) << std::endl;
+        minMaxDatastream << (dataValues[idx] - minVal) / (maxVal - minVal) * 100.0 << std::endl;
+        logDatastream << boost::multiprecision::log10(dataValues[idx]) << std::endl;
     }
 
     // boost::multiprecision::cpp_dec_float_100 minLogVal = logdataValues[0];

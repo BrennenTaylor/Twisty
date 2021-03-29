@@ -23,11 +23,27 @@ const double zMax = 10.0;
 
 const double ringRadius = 1.75;
 
-Farlor::Vector3 UniformlySampleHemisphereFacingNegativeX(const float u, const float v)
+const uint32_t NumSegmentsPerCurve = 200;
+
+Farlor::Vector3 UniformlySampleHemisphereFacingNegativeZ(const float u, const float v)
 {
     float z = u;
     float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
     float phi = 2.0f * TwistyPi * v;
+
+    return Farlor::Vector3(-1.0 * r * std::sin(phi), r * std::cos(phi), z).Normalized();
+}
+
+Farlor::Vector3 UniformlySampleSphereZAxis(const float u, const float v, bool flip)
+{
+    float z = u;
+    float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
+    float phi = 2.0f * TwistyPi * v;
+
+    if (flip)
+    {
+        z = -z;
+    }
 
     return Farlor::Vector3(-1.0 * r * std::sin(phi), r * std::cos(phi), z).Normalized();
 }
@@ -94,7 +110,7 @@ int main(int argc, char* argv[])
 #endif
 
     const double deltaZ = (zMax - zMin) / (numZValues - 1);
-    for (uint32_t z = 0; z < numZValues; ++z)
+    for (uint32_t z = 0; z < 4; ++z)
     {
         const double receiverZ = zMin + deltaZ * z;
         const Farlor::Vector3 recieverPos = Farlor::Vector3(ringRadius, 0.0f, receiverZ);
@@ -129,8 +145,12 @@ int main(int argc, char* argv[])
 
 
         // Start at somehting close to 1.05 times the minimum arclength and go to 1.5 times the arclength
-        float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
-        targetArclength = std::max(targetArclength, 3.0f);
+        /*float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
+        targetArclength = std::max(targetArclength, 3.0f);*/
+
+        // Lets change this to be the target arclength + a shifted amount based on the initial segments
+        float targetArclength = (recieverPos - emitterStart).Magnitude();
+        targetArclength += (targetArclength / NumSegmentsPerCurve) * 2.0;
 
         std::stringstream innerBlockSS;
         innerBlockSS << "<Z Value - " << z << ">";
@@ -150,11 +170,12 @@ int main(int argc, char* argv[])
         {
             std::uniform_real_distribution<float> uniformFloats(0.0f, 1.0f);
 
-            Farlor::Vector3 targetNormal = UniformlySampleHemisphereFacingNegativeX(uniformFloats(normalGen), uniformFloats(normalGen));
+            Farlor::Vector3 targetNormal = UniformlySampleSphereZAxis(uniformFloats(normalGen), uniformFloats(normalGen), (uniformFloats(normalGen) < 0.5f));
             std::cout << "\tTarget normal " << normalIdx << ": " << targetNormal << std::endl;
 
             const float minArclength = targetArclength;
-            const float maxArclength = distanceFromPlane * 2.0;
+            const float maxArclength = std::min(distanceFromPlane * 2.0, targetArclength * 2.0);
+
             const float deltaArclength = (maxArclength - minArclength) / (numArclengths - 1);
 
             for (uint32_t arclengthIdx = 0; arclengthIdx < numArclengths; ++arclengthIdx)
@@ -188,7 +209,7 @@ int main(int argc, char* argv[])
                         experimentParams.numPathsToSkip = numPathsSkipPerInternal;
                         experimentParams.exportGeneratedCurves = false;
                         experimentParams.experimentName = experimentName;
-                        experimentParams.numSegmentsPerCurve = 200;
+                        experimentParams.numSegmentsPerCurve = NumSegmentsPerCurve;
                         experimentParams.maximumBootstrapCurveError = 0.5f;
                         experimentParams.curvePerturbMethod = twisty::ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
                         experimentParams.curvePurturbSeed = perCurveSeed;
