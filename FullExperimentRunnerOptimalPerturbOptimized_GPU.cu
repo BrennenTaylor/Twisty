@@ -1,5 +1,7 @@
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 
+#include <boost\multiprecision\cpp_dec_float.hpp>
+
 #include "CurvePerturbUtils.h"
 #include "CurveUtils.h"
 #include "MathConsts.h"

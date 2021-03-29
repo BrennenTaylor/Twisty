@@ -1,7 +1,7 @@
 #include "FullExperimentRunner.h"
 #include "FullExperimentRunner2.h"
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+#if defined(USE_CUDA)
 #include "GpuFullExperimentRunnerGeneral.h"
 #endif
 

@@ -1,6 +1,6 @@
 #include "FullExperimentRunner.h"
 #include "FullExperimentRunner2.h"
-#include "FullExperimentRunnerOldMethodBridge.h"
+//#include "FullExperimentRunnerOldMethodBridge.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
@@ -148,10 +148,10 @@ int main(int argc, char *argv[])
             } break;
 
             // Debug modes
-            case 66:
-            {
-                upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
-            } break;
+            //case 66:
+            //{
+            //    upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
+            //} break;
             default:
             {
                 std::cout << "Invalid experiment runner method selected" << std::endl;

@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(Twisty CXX)
-if (WIN32)
+if (USE_CUDA)
 # find_package(CUDA REQUIRED)
 enable_language(CUDA)
-endif (WIN32)
+endif (USE_CUDA)
 
 find_package(Boost)
 find_package(RapidJSON CONFIG REQUIRED)
@@ -20,15 +20,15 @@ ENDIF()
 
 # set(CMAKE_CXX_STANDARD 17)
 
-# if (WIN32)
+# if (USE_CUDA)
 # SET( CUDA_PROPAGATE_HOST_FLAGS ON)
 # SET(CUDA_SEPARABLE_COMPILATION ON)
 # SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 # set(CUDA_LIBRARIES PUBLIC ${CUDA_LIBRARIES})
 # set(CUDA_cudadevrt_LIBRARY PUBLIC ${CUDA_cudadevrt_LIBRARY})
-# endif (WIN32)
+# endif (USE_CUDA)
 
-if (WIN32)
+if (USE_CUDA)
 add_library(Twisty
     BezierCurve.h
     BezierCurve.cpp
@@ -132,7 +132,7 @@ add_library(Twisty
     Twisty_Cuda_Helpers.cu
     Twisty_Cuda_Helpers.h
 )
-endif (WIN32)
+endif (USE_CUDA)
 
 set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)

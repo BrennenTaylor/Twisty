@@ -12,9 +12,6 @@
 #include <vector>
 
 // TODO: Track down why this was added and add a useful comment.
-#ifdef __CUDACC__
-#define BOOST_PP_VARIADICS 0
-#endif
 //#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #define BigFloatMultiprecision

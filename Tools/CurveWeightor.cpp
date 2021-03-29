@@ -5,8 +5,6 @@
 #include "Range.h"
 #include "ExperimentRunner.h"
 
-#include <fmt/format.h>
-
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/prettywriter.h>

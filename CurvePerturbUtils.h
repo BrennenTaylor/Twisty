@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+#if defined(USE_CUDA)
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
 #include <cuda_occupancy.h>
