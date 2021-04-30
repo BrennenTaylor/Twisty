@@ -75,7 +75,7 @@ bool SaveEXR(const float* rgb, int width, int height, const char* outfilename)
 	free(header.channels);
 	free(header.pixel_types);
 	free(header.requested_pixel_types);
-
+	return true;
 }
 
 int main(int argc, char* argv[])
