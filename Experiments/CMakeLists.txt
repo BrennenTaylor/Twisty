@@ -1,7 +1,7 @@
-add_executable(TangentRotationCurvatureExperiment
-    TangentRotationCurvatureExperiment.cpp
+add_executable(SmallSegmentExperiment
+    SmallSegmentExperiment.cpp
 )
 
-target_link_libraries(TangentRotationCurvatureExperiment
+target_link_libraries(SmallSegmentExperiment
     Twisty
 )

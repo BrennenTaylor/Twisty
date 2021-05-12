@@ -301,7 +301,7 @@ target_link_libraries(Benchmark_5_1
 )
 
 if (WIN32)
-# add_subdirectory(Experiments)
+add_subdirectory(Experiments)
 add_subdirectory(Tests)
 add_subdirectory(Tools)
 add_subdirectory(Viewer)
