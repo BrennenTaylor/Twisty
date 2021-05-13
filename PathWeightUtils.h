@@ -140,7 +140,24 @@ namespace twisty
 
             NormalizerDoubleType f2_formula(const double z);
 
-            class FN
+            class BaseNormalizer
+            {
+            public:
+                BaseNormalizer()
+                {
+                }
+
+                virtual ~BaseNormalizer()
+                {
+                }
+
+                virtual NormalizerDoubleType eval(int order, double r) const
+                {
+                    return 1.0;
+                }
+            };
+
+            class FN : public BaseNormalizer
             {
             public:
                 FN(int samples, int numIntegrationSamples, int orders, const double &rmn, const double &rmx)
@@ -163,7 +180,7 @@ namespace twisty
 
                 ~FN() {}
 
-                NormalizerDoubleType eval(int order, double r) const;
+                virtual NormalizerDoubleType eval(int order, double r) const override;
 
                 double minimum() const { return rmin; }
                 double maximum() const { return rmax; }
@@ -186,21 +203,21 @@ namespace twisty
 
             Farlor::Vector3 makeVector(double a, double b, double c);
 
-            NormalizerDoubleType psd_one(const FN &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np, const Farlor::Vector3& beta);
+            NormalizerDoubleType psd_one(const BaseNormalizer &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np, const Farlor::Vector3& beta);
 
-            NormalizerDoubleType Norm(const FN &fn, int M, double z, double s);
+            NormalizerDoubleType Norm(const BaseNormalizer &fn, int M, double z, double s);
 
-            NormalizerDoubleType psd_n(const FN &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
+            NormalizerDoubleType psd_n(const BaseNormalizer&fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
                 const std::vector<Farlor::Vector3>& beta);
 
-            NormalizerDoubleType likelihood(const FN &fn, int numSegments, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
+            NormalizerDoubleType likelihood(const BaseNormalizer&fn, int numSegments, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
                 const Farlor::Vector3& N, const Farlor::Vector3& Np, const std::vector<Farlor::Vector3> &beta0, const std::vector<Farlor::Vector3> &betastar);
 
-            NormalizerDoubleType CalculateLikelihood(const FN& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
                 std::vector<Farlor::Vector3>& oldTangents, std::vector<Farlor::Vector3>& newTangents);
 
 
-            std::unique_ptr<PathWeighting::NormalizerStuff::FN> GetNormalizer(uint32_t numSegments);
+            std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(uint32_t numSegments);
         }
     }
 }
