@@ -157,7 +157,7 @@ namespace twisty
         float segmentLength,
         const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
         const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
-        const PathWeighting::NormalizerStuff::FN& fn
+        const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
     )
     {
         uint32_t numPathsAccepted = 0;
@@ -907,6 +907,7 @@ namespace twisty
         }
         PathWeighting::NormalizerStuff::FN& fn = *upFN;
 
+        // Why the 1/(delta s) = (M+2)/s?
         Farlor::Vector3 Z = (boundaryConditions.m_endPos - boundaryConditions.m_startPos) * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
             - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
         std::cout << "Z: " << Z << std::endl;
@@ -914,20 +915,6 @@ namespace twisty
 
         PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = PathWeighting::NormalizerStuff::Norm(fn, m_upInitialCurve->m_numSegments,
             Z.Magnitude(), boundaryConditions.arclength);
-
-
-        //const boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
-        //boost::multiprecision::cpp_dec_float_100 segmentNormalizer = 1.0;
-        //for (int64_t segIdx = 0; segIdx < (m_experimentParams.numSegmentsPerCurve - 1); ++segIdx)
-        //{
-        //    segmentNormalizer = segmentNormalizer * singleSegmentNormalizer;
-        //}
-
-        //boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
-        //pathNormalizer = pathNormalizer * boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(static_cast<float>(m_experimentParams.numSegmentsPerCurve)
-        //    / m_upInitialCurve->m_arclength), 3.0);
-        //pathNormalizer = pathNormalizer * segmentNormalizer;
-        //pathNormalizer = pathNormalizer * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
 
         const boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10 = boost::multiprecision::log10(pathNormalizer);
 

@@ -71,7 +71,7 @@ namespace twisty
             float segmentLength,
             const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
             const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
-            const PathWeighting::NormalizerStuff::FN& fn
+            const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
         );
 
         //void SpringBasedPerturb(

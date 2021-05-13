@@ -459,7 +459,7 @@ namespace twisty
                 return data[ii] * (1.0 - weight) + data[iii] * weight;
             }
 
-            NormalizerDoubleType psd_one(const FN& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
+            NormalizerDoubleType psd_one(const BaseNormalizer& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
                 const Farlor::Vector3& beta)
             {
                 Farlor::Vector3 Z = X * (M + 1) * (1.0 / s) - N - Np;
@@ -478,7 +478,7 @@ namespace twisty
                 return result;
             }
 
-            NormalizerDoubleType Norm(const FN& fn, int M, double z, double s)
+            NormalizerDoubleType Norm(const BaseNormalizer& fn, int M, double z, double s)
             {
                 std::cout << "M: " << M << std::endl;
                 std::cout << "z: " << z << std::endl;
@@ -514,7 +514,7 @@ namespace twisty
                 return result;
             }
 
-            NormalizerDoubleType psd_n(const FN& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N,
+            NormalizerDoubleType psd_n(const BaseNormalizer& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N,
                 const Farlor::Vector3& Np, const std::vector<Farlor::Vector3>& beta)
             {
                 Farlor::Vector3 Zm = X * (M + 1) * (1 / s) - N - Np;
@@ -532,7 +532,7 @@ namespace twisty
                 return result;
             }
 
-            NormalizerDoubleType likelihood(const FN& fn, int M, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
+            NormalizerDoubleType likelihood(const BaseNormalizer& fn, int M, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
                 const Farlor::Vector3& N, const Farlor::Vector3& Np, const std::vector<Farlor::Vector3>& oldBetas, const std::vector < Farlor::Vector3> & newBetas)
             {
                 Farlor::Vector3 Z0 = (endPosition - startPosition) * (M + 1) * (1.0 / arclength);
@@ -574,7 +574,7 @@ namespace twisty
                 return Farlor::Vector3(a, b, c);
             }
 
-            NormalizerDoubleType CalculateLikelihood(const FN& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
                 std::vector<Farlor::Vector3>& oldBetas, std::vector<Farlor::Vector3>& newBetas)
             {
                 // We store 1 tangent per segement plus an addition one for end.
@@ -585,7 +585,7 @@ namespace twisty
                     boundaryConditions.m_endDir, boundaryConditions.m_startDir, oldBetas, newBetas);
             }
 
-            std::unique_ptr<PathWeighting::NormalizerStuff::FN> GetNormalizer(uint32_t numSegments)
+            std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(uint32_t numSegments)
             {
                 const std::string fnFilename = "SavedFN.fnd";
                 const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilename;
