@@ -161,30 +161,6 @@ namespace twisty
             If the root solve succeeds, but we dont accept the path due to calculated path error, we set to 2
         */
 
-        void GeometryPerturb(
-            int64_t threadIdx,
-            int64_t numCombinedWeightValuesTotal,
-            int64_t numCombinedWeightValuesPerThread,
-            int64_t numPathsToSkipPerThread,
-            int64_t numSegmentsPerCurve,
-            std::vector<std::mt19937_64>& rngGenerators,
-            std::vector<Farlor::Vector3>& globalPos,
-            std::vector<Farlor::Vector3>& globalTans,
-            std::vector<float>& globalCurvatures,
-            std::vector<Farlor::Vector3>& scratchPositionSpaceLeft,
-            std::vector<Farlor::Vector3>& scratchTangentSpaceLeft,
-            std::vector<float>& scratchCurvatureSpaceLeft,
-            std::vector<Farlor::Vector3>& scratchPositionSpaceRight,
-            std::vector<Farlor::Vector3>& scratchTangentSpaceRight,
-            std::vector<float>& scratchCurvatureSpaceRight,
-            std::vector<CombinedWeightValues>& combinedWeightValues,
-            std::vector<double>& cachedSegmentWeights,
-            float segmentLength,
-            const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
-            const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
-            const PathWeighting::NormalizerStuff::FN& fn
-        );
-
     private:
         bool SetupCudaDevice();
         void CleanupCudaDevice();
