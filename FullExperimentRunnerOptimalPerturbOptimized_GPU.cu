@@ -212,8 +212,8 @@ namespace twisty
         const int64_t NumCurvaturePerCurve = (m_upInitialCurve->m_numSegments);
 
 
-        std::unique_ptr<PathWeighting::NormalizerStuff::FN> upFN = PathWeighting::NormalizerStuff::GetNormalizer(m_experimentParams.numSegmentsPerCurve);
-        PathWeighting::NormalizerStuff::FN& fn = *upFN;
+        std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = PathWeighting::NormalizerStuff::GetNormalizer(m_experimentParams.numSegmentsPerCurve);
+        PathWeighting::NormalizerStuff::BaseNormalizer& fn = *upFN;
 
         Farlor::Vector3 Z = (boundaryConditions.m_endPos - boundaryConditions.m_startPos) * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
             - boundaryConditions.m_endDir - boundaryConditions.m_startDir;

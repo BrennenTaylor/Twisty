@@ -74,48 +74,6 @@ namespace twisty
             const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
         );
 
-        //void SpringBasedPerturb(
-        //    int64_t threadIdx,
-        //    int64_t numExperimentPaths,
-        //    int64_t numPathsPerThread,
-        //    int64_t numPathsToSkipPerThread,
-        //    int64_t numSegmentsPerCurve,
-        //    std::vector<std::mt19937_64>& rngGenerators,
-        //    std::vector<Farlor::Vector3>& globalPos,
-        //    std::vector<Farlor::Vector3>& globalTans,
-        //    std::vector<float>& globalCurvatures,
-        //    std::vector<double>& globalPathWeights,
-        //    std::vector<double>& cachedSegmentWeights,
-        //    float segmentLength,
-        //    float scattering,
-        //    float absorbtion,
-        //    const std::vector<double>& lookupTable,
-        //    float minCurvature,
-        //    float maxCurvature,
-        //    float curvatureStepSize
-        //);
-
-        //void HybridMethod(
-        //    int64_t threadIdx,
-        //    int64_t numExperimentPaths,
-        //    int64_t numPathsPerThread,
-        //    int64_t numPathsToSkipPerThread,
-        //    int64_t numSegmentsPerCurve,
-        //    std::vector<std::mt19937>& rngGenerators,
-        //    std::vector<Farlor::Vector3>& globalPos,
-        //    std::vector<Farlor::Vector3>& globalTans,
-        //    std::vector<float>& globalCurvatures,
-        //    std::vector<double>& globalPathWeights,
-        //    std::vector<double>& cachedSegmentWeights,
-        //    float segmentLength,
-        //    float scattering,
-        //    float absorbtion,
-        //    const std::vector<double>& lookupTable,
-        //    float minCurvature,
-        //    float maxCurvature,
-        //    float curvatureStepSize
-        //);
-
         void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread, float arclength, int64_t numSegmentsPerCurve,
             const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeightsLog10,
             boost::multiprecision::cpp_dec_float_100& threadWeight, boost::multiprecision::cpp_dec_float_100 pathNormalizer);

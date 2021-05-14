@@ -267,8 +267,7 @@ namespace twisty
 #if defined(HardcodedDifference)
                 int64_t diff = 20;
 #else
-                // Diff can range from 2 to 10
-                std::uniform_int_distribution<int> diffDist(2, 4); // uniform, unbiased
+                std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 2), 25)); // uniform, unbiased
                 int64_t diff = diffDist(rngGenerators[threadIdx]);
 #endif
 
@@ -342,21 +341,6 @@ namespace twisty
                     {
                         leftRotationAngle = -1.0 * (TwistyPi - angle);
                     }
-
-                    //std::cout << "Perturb: " << std::endl;
-                    //std::cout << "\tN: " << N << std::endl;
-                    //std::cout << "\tXss1: " << Xss1 << std::endl;
-                    //std::cout << "\tXs: " << Xs << std::endl;
-                    //std::cout << "\tXsp1: " << Xsp1 << std::endl;
-                    //std::cout << "\tPL: " << PL << std::endl;
-                    //std::cout << "\tZL: " << ZL << std::endl;
-
-                    //std::cout << "\tNL: " << NL << std::endl;
-                    //std::cout << "\tXsp1PLnorm: " << Xsp1PLnorm << std::endl;
-                    //std::cout << "\tsideDistL: " << sideDistL << std::endl;
-                    //std::cout << "\tcosAngle: " << cosAngle << std::endl;
-                    //std::cout << "\tangle: " << angle << std::endl;
-                    //std::cout << "\tleftRotationAngle: " << leftRotationAngle << std::endl;
                 }
 
 
@@ -407,21 +391,6 @@ namespace twisty
                     {
                         rightRotationAngle = -1.0 * (TwistyPi - angle);
                     }
-
-                    //std::cout << "Perturb: " << std::endl;
-                    //std::cout << "\tN: " << N << std::endl;
-                    //std::cout << "\tXes1: " << Xes1 << std::endl;
-                    //std::cout << "\tXe: " << Xe << std::endl;
-                    //std::cout << "\tXep1: " << Xep1 << std::endl;
-                    //std::cout << "\tPR: " << PR << std::endl;
-                    //std::cout << "\tZR: " << ZR << std::endl;
-
-                    //std::cout << "\tNR: " << NR << std::endl;
-                    //std::cout << "\tXes1PLnorm: " << Xes1PLnorm << std::endl;
-                    //std::cout << "\tcosAngle: " << cosAngle << std::endl;
-                    //std::cout << "\tangle: " << angle << std::endl;
-                    //std::cout << "\tsideDistR: " << sideDistR << std::endl;
-                    //std::cout << "\trightRotationAngle: " << rightRotationAngle << std::endl;
                 }
                 
                 // Overwrite angle
@@ -521,151 +490,101 @@ namespace twisty
 
                 // Now we have a candidate path
                 // We perform metropolis and see if we want to accept the path, i.e. copy the scratch space values to the actual curve values, or reroll a new curve
-                bool accepted = false;
-                {
-                    std::uniform_real_distribution<double> uniformRandomZeroOne(0.0, 1.0);
+                std::uniform_real_distribution<double> uniformRandomZeroOne(0.0, 1.0);
                     
-                    double acceptanceProb = uniformRandomZeroOne(rngGenerators[threadIdx]);
+                double acceptanceProb = uniformRandomZeroOne(rngGenerators[threadIdx]);
 
-                    // Calculate likeness
-                    // TODO: We only need to cache the old one
-                    twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType likelihood =
-                        twisty::PathWeighting::NormalizerStuff::CalculateLikelihood(fn, numSegmentsPerCurve, boundaryConditions,
-                            oldBetas, newBetas);
+                // For now, we always accept a path
+                // This is not using the metropolis sampling at all
+                double oldPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                    numSegmentsPerCurve, weightingIntegral);
 
-#ifdef SINGLE_THREAD_PERTURB_MODE
-                    //std::cout << "Acceptance Prob: " << acceptanceProb << std::endl;
-                    //std::cout << "Likelihood: " << likelihood << std::endl;
-#endif
-
-                    // TODO: Uncomment
-                    if (true)
-                    //if (acceptanceProb <= likelihood)
-                    {
-
-                        double oldPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
-                            numSegmentsPerCurve, weightingIntegral);
-
-                        double newPathWeightLog10 = 0.0;
+                double newPathWeightLog10 = 0.0;
                         
-                        if (useLeftRotation)
-                        {
-                            newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
-                                numSegmentsPerCurve, weightingIntegral);
-                        }
-                        else
-                        {
-                            newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
-                                numSegmentsPerCurve, weightingIntegral);
-                        }
-                        
-                        double lambdaLog10 = newPathWeightLog10 - oldPathWeightLog10;
-
-                        double weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
-                        while (weightAcceptance == 0)
-                        {
-                            weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
-                        }
-
-                        double weightAcceptanceLog10 = std::log10(weightAcceptance);
-
-                        // TODO: Uncomment
-                        if (true)
-                        //if (lambdaLog10 >= weightAcceptanceLog10)
-                        {
-                            accepted = true;
-                            for (uint32_t i = 0; i <= numSegmentsPerCurve; i++)
-                            {
-                                if (useLeftRotation)
-                                {
-                                    globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + i];
-                                }
-                                else
-                                {
-                                    globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceRight[CurrentThreadPosStartIdx + i];
-                                }
-                            }
-
-                            twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&globalPos[CurrentThreadPosStartIdx],
-                                &globalTans[CurrentThreadTanStartIdx], &globalCurvatures[CurrentThreadCurvatureStartIdx],
-                                numSegmentsPerCurve, boundaryConditions);
-                        }
-                        else
-                        {
-                            //std::cout << "Lambda log 10: " << lambdaLog10 << std::endl;
-                            //std::cout << "weightAcceptance log 10: " << weightAcceptanceLog10 << std::endl;
-                            //std::cout << "Failed curvature metropolis" << std::endl;
-                            numPathsUnacceptedCurvaturePdf++;
-                            accepted = false;
-                        }
-                    }
-                    else
-                    {
-                        numPathsUnacceptedTangentPdf++;
-                        //std::cout << "Failed tangent metropolis" << std::endl;
-                        // We reject
-                        accepted = false;
-                    }
-                }
-
-                if (accepted)
+                if (useLeftRotation)
                 {
-                    numPathsAccepted++;
-
-                    double pathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
                         numSegmentsPerCurve, weightingIntegral);
-
-                    if (pathCount < numPathsToSkipPerThread)
-                    {
-                        // Skip
-                    }
-                    else
-                    {
-                        // Else, contribute to the paths
-                        int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
-                        assert(currentPathIdx >= numPathsPerThread * threadIdx);
-                        globalPathWeights[currentPathIdx] = pathWeightLog10;
-
-#if defined(ExportPathBatches)
-
-                        //std::cout << "Accepted curve: " << std::endl;
-                        //for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                        //{
-                        //    std::cout << "\t" << globalPos[CurrentThreadPosStartIdx + pointIdx] << std::endl;
-                        //}
-
-                        // Add the path to the path batch
-                        for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                        {
-                            Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
-                            pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
-                        }
-                        numCurvesInBatch++;
-
-                        if (numCurvesInBatch == ExportPathBatchCacheSize)
-                        {
-                            ExportPathBatchesMutex.lock();
-
-                            curvesMetadataFile << threadIdx << " ";
-                            curvesMetadataFile << outputIdx << " ";
-                            curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                            curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                            numCurvesInBatch = 0;
-                            outputIdx++;
-
-                            ExportPathBatchesMutex.unlock();
-                        }
-#endif
-                    }
                 }
                 else
                 {
-                    // Go back one path as we are redoing
-                    pathCount--;
-                    countCurrentMethod--;
+                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
+                        numSegmentsPerCurve, weightingIntegral);
+                }
+                        
+                double lambdaLog10 = newPathWeightLog10 - oldPathWeightLog10;
 
-                    numPathsUnaccepted++;
+                double weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
+                while (weightAcceptance == 0)
+                {
+                    weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
+                }
+
+                double weightAcceptanceLog10 = std::log10(weightAcceptance);
+
+                for (uint32_t i = 0; i <= numSegmentsPerCurve; i++)
+                {
+                    if (useLeftRotation)
+                    {
+                        globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + i];
+                    }
+                    else
+                    {
+                        globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceRight[CurrentThreadPosStartIdx + i];
+                    }
+                }
+
+                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&globalPos[CurrentThreadPosStartIdx],
+                    &globalTans[CurrentThreadTanStartIdx], &globalCurvatures[CurrentThreadCurvatureStartIdx],
+                    numSegmentsPerCurve, boundaryConditions);
+
+                numPathsAccepted++;
+
+                double pathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                    numSegmentsPerCurve, weightingIntegral);
+
+                if (pathCount < numPathsToSkipPerThread)
+                {
+                    // Skip
+                }
+                else
+                {
+                    // Else, contribute to the paths
+                    int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+                    assert(currentPathIdx >= numPathsPerThread * threadIdx);
+                    globalPathWeights[currentPathIdx] = pathWeightLog10;
+
+#if defined(ExportPathBatches)
+
+                    //std::cout << "Accepted curve: " << std::endl;
+                    //for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+                    //{
+                    //    std::cout << "\t" << globalPos[CurrentThreadPosStartIdx + pointIdx] << std::endl;
+                    //}
+
+                    // Add the path to the path batch
+                    for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+                    {
+                        Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                        pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
+                    }
+                    numCurvesInBatch++;
+
+                    if (numCurvesInBatch == ExportPathBatchCacheSize)
+                    {
+                        ExportPathBatchesMutex.lock();
+
+                        curvesMetadataFile << threadIdx << " ";
+                        curvesMetadataFile << outputIdx << " ";
+                        curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                        numCurvesInBatch = 0;
+                        outputIdx++;
+
+                        ExportPathBatchesMutex.unlock();
+                    }
+#endif
                 }
             }
 
@@ -875,37 +794,44 @@ namespace twisty
         fnFilenameSS << m_experimentParams.numSegmentsPerCurve;
         fnFilenameSS << ".fnd";
         const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilenameSS.str();
-        std::unique_ptr<PathWeighting::NormalizerStuff::FN> upFN = nullptr;
+        std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = nullptr;
 
-        // If we can load the fn data, load it
-        if (std::filesystem::exists(fnFilePath))
+        if (m_experimentParams.pathNormalizerType == PathNormalizerType::Default)
         {
-            std::cout << "Using cached fd file at: " << fnFilePath << std::endl;
-            std::ifstream inFile(fnFilePath);
-            upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(inFile);
-            inFile.close();
+            upFN = std::make_unique<PathWeighting::NormalizerStuff::BaseNormalizer>();
         }
-        // We need to generate it this time and save it off to use next time
         else
         {
-            // This is the max M value
-            const int maxorder = m_upInitialCurve->m_numSegments;
+            // If we can load the fn data, load it
+            if (std::filesystem::exists(fnFilePath))
+            {
+                std::cout << "Using cached fd file at: " << fnFilePath << std::endl;
+                std::ifstream inFile(fnFilePath);
+                upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(inFile);
+                inFile.close();
+            }
+            // We need to generate it this time and save it off to use next time
+            else
+            {
+                // This is the max M value
+                const int maxorder = m_upInitialCurve->m_numSegments;
 
-            // Generate the fn data table
-            const int numZSamples = 5000;
-            const int numIntegrationSamples = 5000;
+                // Generate the fn data table
+                const int numZSamples = 5000;
+                const int numIntegrationSamples = 5000;
 
-            // Arbitrarily set min and max |r_vec| values.
-            // Why this specific max bound, I do not know
-            const double rMin = 0.0;
-            const double rMax = 200.0;
-            upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(numZSamples, numIntegrationSamples, maxorder, rMin, rMax);
+                // Arbitrarily set min and max |r_vec| values.
+                // Why this specific max bound, I do not know
+                const double rMin = 0.0;
+                const double rMax = 200.0;
+                upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(numZSamples, numIntegrationSamples, maxorder, rMin, rMax);
 
-            std::ofstream outFile(fnFilePath);
-            upFN->WriteToFile(outFile);
-            outFile.close();
+                std::ofstream outFile(fnFilePath);
+                dynamic_cast<PathWeighting::NormalizerStuff::FN*>(upFN.get())->WriteToFile(outFile);
+                outFile.close();
+            }
         }
-        PathWeighting::NormalizerStuff::FN& fn = *upFN;
+        PathWeighting::NormalizerStuff::BaseNormalizer& fn = (*upFN);
 
         // Why the 1/(delta s) = (M+2)/s?
         Farlor::Vector3 Z = (boundaryConditions.m_endPos - boundaryConditions.m_startPos) * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
