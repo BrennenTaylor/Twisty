@@ -484,14 +484,6 @@ namespace twisty
                 std::cout << "z: " << z << std::endl;
                 std::cout << "s: " << s << std::endl;
 
-                //NormalizerDoubleType result = fn.eval(M, z);
-
-                //std::cout << "result: " << result << std::endl;
-
-                //result *= std::pow(2.0 * 3.14150265, M - 1);
-                //result /= z;
-                //result *= std::pow((M + 2) / s, 3);
-
                 NormalizerDoubleType fneval = fn.eval(M, z);
                 NormalizerDoubleType piPower = boost::multiprecision::pow(
                     boost::multiprecision::cpp_dec_float_100(2.0) * boost::multiprecision::cpp_dec_float_100(3.14150265),
