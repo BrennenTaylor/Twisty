@@ -75,7 +75,7 @@ namespace twisty
             CurvePerturbMethod curvePerturbMethod = CurvePerturbMethod::SimpleGeometry;
             twisty::WeightingParameters weightingParameters;
             float rotateInitialSeedCurveRadians = 0.0f;
-            PathNormalizerType pathNormalizerType = PathNormalizerType::Default;
+            PathNormalizerType pathNormalizerType = PathNormalizerType::PDF;
         };
 
         struct ExperimentResults
