@@ -799,11 +799,12 @@ namespace twisty
         const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilenameSS.str();
         std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = nullptr;
 
-        if (m_experimentParams.pathNormalizerType == PathNormalizerType::Default)
-        {
-            upFN = std::make_unique<PathWeighting::NormalizerStuff::BaseNormalizer>();
-        }
-        else
+        //if (m_experimentParams.pathNormalizerType == PathNormalizerType::Default)
+        //{
+        //    upFN = std::make_unique<PathWeighting::NormalizerStuff::BaseNormalizer>();
+        //}
+        //else
+        // We dont need this actually, so we can just load the default one
         {
             // If we can load the fn data, load it
             if (std::filesystem::exists(fnFilePath))
