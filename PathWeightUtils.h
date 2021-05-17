@@ -91,14 +91,14 @@ namespace twisty
             virtual double Integrate(double scattering, double curvature) const override;
         };
 
-        class WeightLookupTableIntegral : public IntegralStrategy
+        class BaseWeightLookupTable : public IntegralStrategy
         {
         public:
-            WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds);
-            virtual ~WeightLookupTableIntegral();
+            BaseWeightLookupTable(const WeightingParameters& weightingParams, double ds);
+            virtual ~BaseWeightLookupTable();
 
             virtual double Integrate(double scattering, double curvature) const override;
-            
+
             const std::vector<double>& AccessLookupTable() const {
                 return m_lookupTable;
             }
@@ -115,10 +115,9 @@ namespace twisty
 
             void ExportValues(std::string relativePath);
 
-        private:
+        protected:
             double m_minCurvature;
             double m_maxCurvature;
-            RegularizedIntegral m_regularizedIntegral;
 
             double m_minSegmentWeight = 0.0;
             double m_maxSegmentWeight = 0.0;
@@ -127,12 +126,29 @@ namespace twisty
             std::vector<double> m_lookupTable;
         };
 
+        class WeightLookupTableIntegral : public BaseWeightLookupTable
+        {
+        public:
+            WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds);
+            virtual ~WeightLookupTableIntegral();
+
+            RegularizedIntegral m_regularizedIntegral;
+        };
+
+        // The ICTT27 Weighting function integral
+        class SimpleWeightLookupTable : public BaseWeightLookupTable
+        {
+        public:
+            SimpleWeightLookupTable(const WeightingParameters& weightingParams, double ds);
+            virtual ~SimpleWeightLookupTable();
+        };
+
         void CalcMinMaxCurvature(double& minCurvature, double& maxCurvature, double ds);
 
         // Given a vector of curvatures, 1 per segement of a path, weight the path and return the long10 of the weight
         // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
         // Assumes that integral matches weighting params
-        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const WeightLookupTableIntegral& weightIntegral);
+        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
 
         namespace NormalizerStuff
         {

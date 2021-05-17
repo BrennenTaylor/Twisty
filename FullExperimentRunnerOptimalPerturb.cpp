@@ -155,7 +155,7 @@ namespace twisty
         std::vector<double>& globalPathWeights,
         std::vector<double>& cachedSegmentWeights,
         float segmentLength,
-        const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
+        const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
         const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
         const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
     )
@@ -655,7 +655,10 @@ namespace twisty
 
         // Say that we will start outputing the path batch output
         const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
-        twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
+        /*twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);*/
+
+        // TODO: Commented out for the new experiment stuff.
+        twisty::PathWeighting::SimpleWeightLookupTable lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
         twisty::PerturbUtils::BoundrayConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
@@ -796,11 +799,12 @@ namespace twisty
         const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilenameSS.str();
         std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = nullptr;
 
-        if (m_experimentParams.pathNormalizerType == PathNormalizerType::Default)
-        {
-            upFN = std::make_unique<PathWeighting::NormalizerStuff::BaseNormalizer>();
-        }
-        else
+        //if (m_experimentParams.pathNormalizerType == PathNormalizerType::Default)
+        //{
+        //    upFN = std::make_unique<PathWeighting::NormalizerStuff::BaseNormalizer>();
+        //}
+        //else
+        // We dont need this actually, so we can just load the default one
         {
             // If we can load the fn data, load it
             if (std::filesystem::exists(fnFilePath))
