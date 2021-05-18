@@ -1,0 +1,1 @@
+add_subdirectory(GroundTruth_ICTT27)
