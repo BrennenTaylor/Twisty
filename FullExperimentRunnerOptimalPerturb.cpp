@@ -1063,7 +1063,7 @@ namespace twisty
 
             const boost::multiprecision::cpp_dec_float_100 bigfloatCompressed = compressedWeights[idx];
             const boost::multiprecision::cpp_dec_float_100 decompressed = boost::multiprecision::pow(10.0, bigfloatCompressed);
-            const boost::multiprecision::cpp_dec_float_100 pathWeight = decompressed * pathNormalizer;
+            const boost::multiprecision::cpp_dec_float_100 pathWeight = decompressed;// *pathNormalizer;
             
             
             // Pulled from Jerry analysis
