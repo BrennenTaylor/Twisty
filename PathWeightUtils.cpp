@@ -151,14 +151,9 @@ namespace twisty
             return interpolatedResult;
         }
 
-        void BaseWeightLookupTable::ExportValues(std::string relativePath)
+        void BaseWeightLookupTable::ExportValues(std::string path)
         {
-            const std::filesystem::path currentPath = std::filesystem::current_path();
-            const std::filesystem::path exprDirectory = currentPath / relativePath;
-            const std::string TableValuesFilename = "WeightLookuptableIntegralValues.csv";
-            const std::filesystem::path outputFilePath = exprDirectory / TableValuesFilename;
-
-            std::ofstream outputFile(outputFilePath.string());
+            std::ofstream outputFile(path);
             for (uint32_t i = 0; i <= m_weightingParams.numCurvatureSteps; ++i)
             {
                 const double curvatureEval = m_minCurvature + i * m_curvatureStepSize;

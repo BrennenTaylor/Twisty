@@ -36,6 +36,8 @@ const double AmountOfFullRotation = 1.0;
 
 //#define ExportPathBatches
 
+#define DisablePathNormalizer
+
 #if defined(ExportPathBatches)
 
 const static int64_t ExportPathBatchCacheSize = 100000;
@@ -659,6 +661,12 @@ namespace twisty
 
         // TODO: Commented out for the new experiment stuff.
         twisty::PathWeighting::SimpleWeightLookupTable lookupEvaluator(m_experimentParams.weightingParameters, ds);
+//#ifdef ExportWeightLookupTable
+        {
+            std::string lookupWeightsFilepath = m_experimentParams.experimentDirPath + "LookupWeights.dat";
+            lookupEvaluator.ExportValues(lookupWeightsFilepath);
+        }
+//#endif
         
         twisty::PerturbUtils::BoundrayConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
@@ -1063,7 +1071,12 @@ namespace twisty
 
             const boost::multiprecision::cpp_dec_float_100 bigfloatCompressed = compressedWeights[idx];
             const boost::multiprecision::cpp_dec_float_100 decompressed = boost::multiprecision::pow(10.0, bigfloatCompressed);
-            const boost::multiprecision::cpp_dec_float_100 pathWeight = decompressed;// *pathNormalizer;
+            boost::multiprecision::cpp_dec_float_100 pathWeight = decompressed;
+#ifdef DisablePathNormalizer
+            // Dont use normalizering term
+#else
+            pathWeight *= pathNormalizer;
+#endif
             
             
             // Pulled from Jerry analysis

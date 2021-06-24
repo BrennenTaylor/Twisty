@@ -132,12 +132,12 @@ int main()
 
 
    // Here we do the loop
-   const uint32_t numThetaSteps = 5;
+   const uint32_t numThetaSteps = 2;
    const double thetaMin = 0.0;
    const double thetaMax = 2.0 * M_PI;
    const double thetaStepSize = (thetaMax - thetaMin) / (numThetaSteps - 1);
 
-   const uint32_t numSSteps = 5;
+   const uint32_t numSSteps = 10;
    const double sMin = -1.0;
    const double sMax = 1.0;
    const double sStepSize = (sMax - sMin) / (numSSteps - 1);
