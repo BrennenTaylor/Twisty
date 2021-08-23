@@ -90,17 +90,19 @@ int main(int argc, char *argv[])
         emitterDir.Normalize();
         const RayGeometry rayEmitter(emitterStart, emitterDir);
 
-        const double zMin = 0.0;
-        const double zMax = 10.0;
+        const double zMin = experimentConfig.lookup("experiment.ring.zMin");
+        const double zMax = experimentConfig.lookup("experiment.ring.zMax");
+        const double ringRadius = experimentConfig.lookup("experiment.ring.ringRadius");
 
-        const uint32_t numZValues = 10;
+        const uint32_t numZValues = experimentConfig.lookup("experiment.ring.numZValues");
         const double deltaZ = (zMax - zMin) / (numZValues - 1);
-        const uint32_t zIdx = 2;
+
+        // TODO: This likely should be a for loop
+        const uint32_t zIdx = numZValues - 1;
         const double receiverZ = zMin + deltaZ * zIdx;
-        const double ringRadius = 1.75;
 
+        // The reciever is located along the z-axis from the emitter, and off the axis by a length of ringRadius
         const Farlor::Vector3 recieverPos = Farlor::Vector3(ringRadius, 0.0f, receiverZ);
-
         const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
 
         RayGeometry rayReciever(recieverPos, recieverDir);
@@ -122,7 +124,7 @@ int main(int argc, char *argv[])
         ExperimentRunner::ExperimentParameters experimentParams;
         experimentParams.numPathsInExperiment = numPathsToGenerate;
         experimentParams.numPathsToSkip = numPathsToSkip;
-        experimentParams.exportGeneratedCurves = true;
+        experimentParams.exportGeneratedCurves = false;
         experimentParams.experimentName = experimentName;
         experimentParams.experimentDirPath = experimentDirPath;
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
@@ -137,15 +139,10 @@ int main(int argc, char *argv[])
         experimentParams.weightingParameters.minBound = 0.0;
         experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
         experimentParams.weightingParameters.numCurvatureSteps =  experimentConfig.lookup("experiment.weighting.numCurvatureSteps");;
-        // Lets give some absorbtion as well
-        // Absorbtion 1/20 off the time
         experimentParams.weightingParameters.absorbtion = experimentConfig.lookup("experiment.weighting.absorbtion");
-        // 1/5 scatter means one event every 5 units, thus 2 scattering events in the shortest
-        // or 5 in the longest 100 unit path
         experimentParams.weightingParameters.scatter = experimentConfig.lookup("experiment.weighting.scatter");
 
         std::unique_ptr<ExperimentRunner> upExperimentRunner = nullptr;
-
         std::cout << "Runner version: " << runnerVersion << std::endl;
 
 // #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)

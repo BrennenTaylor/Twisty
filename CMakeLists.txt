@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(Twisty CXX)
+set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
 if (USE_CUDA)
 # find_package(CUDA REQUIRED)
 enable_language(CUDA)
@@ -10,6 +13,7 @@ find_package(Boost)
 find_package(RapidJSON CONFIG REQUIRED)
 
 add_subdirectory(FMath)
+add_subdirectory(libconfig)
 
 IF (WIN32)
 add_subdirectory(tinyexr)
@@ -169,6 +173,8 @@ endif (WIN32)
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
     PUBLIC glm
+    PUBLIC libconfig++
+    PUBLIC shlwapi
 )
 
 
@@ -191,6 +197,8 @@ target_compile_features(FullExperiment
 target_link_libraries(FullExperiment
     PUBLIC Twisty
     PUBLIC glm
+    PUBLIC libconfig++
+    PUBLIC shlwapi
 )
 
 if (WIN32)
@@ -200,6 +208,41 @@ target_compile_options(FullExperiment
     PUBLIC -std=c++17
 )
 target_link_options(FullExperiment
+    PUBLIC -pthread
+    PUBLIC -lstdc++fs
+)
+endif (WIN32)
+
+
+if (WIN32)
+add_executable(RingBenchmark
+    RingBenchmark.cpp
+)
+else()
+add_executable(RingBenchmark
+    RingBenchmark.cpp
+)
+endif (WIN32)
+
+target_compile_features(RingBenchmark
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+target_link_libraries(RingBenchmark
+    PUBLIC Twisty
+    PUBLIC glm
+    PUBLIC libconfig++
+    PUBLIC shlwapi
+)
+
+if (WIN32)
+else()
+target_compile_options(RingBenchmark
+    PUBLIC -lstdc++fs
+    PUBLIC -std=c++17
+)
+target_link_options(RingBenchmark
     PUBLIC -pthread
     PUBLIC -lstdc++fs
 )
