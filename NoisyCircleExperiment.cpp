@@ -9,7 +9,6 @@
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -205,13 +204,6 @@ int main(int argc, char *argv[])
                     // Forces stratified arclength ranges
                     //double arclength = (recieverPos - emitterStart).Magnitude() * 1.25;
                     double targetArclength = minArclength + arclengthStepSize * arclengthIdx;
-                    const twisty::Range arclengthRange = { targetArclength, targetArclength };
-
-                    // This is the range we want to meet
-                    // The range of actual curvature/torsion * ds is below
-                    twisty::Range kdsRange = { 0.0f, 2.0f };
-                    twisty::Range tdsRange = { -1.0f, 1.0f };
-
                     
                     boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
 
@@ -263,8 +255,8 @@ int main(int argc, char *argv[])
                             
                             experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-                            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, initialCurveSeed);
-                            std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper, kdsRange, tdsRange);
+                            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, initialCurveSeed);
+                            std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
                             bool result = upExperimentRunner->Setup();
 
                             if (!result)

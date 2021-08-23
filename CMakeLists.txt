@@ -40,8 +40,6 @@ add_library(Twisty
     Bootstrapper.cpp
     Curve.h
     Curve.cpp
-    CurvePurturber.h
-    CurvePurturber.cpp
     CurvePerturbUtils.h
     CurvePerturbUtils.cu
     CurveUtils.h
@@ -53,8 +51,8 @@ add_library(Twisty
     ExperimentRunner.h
     FullExperimentRunner.cpp
     FullExperimentRunner.h
-    FullExperimentRunner2.cpp
-    FullExperimentRunner2.h
+    # FullExperimentRunner2.cpp
+    # FullExperimentRunner2.h
 
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
@@ -77,15 +75,14 @@ add_library(Twisty
     PathWeightUtils.cpp
     PerturbUtils.h
     PerturbUtils.cpp
-    Range.h
     Sample.h
     Sample.cpp
-    SpecifiedCurveParamBootstrapper.h
-    SpecifiedCurveParamBootstrapper.cpp
-    StartEndBootstrapper.h
-    StartEndBootstrapper.cpp
-    TestBootstrappers.h
-    TestBootstrappers.cpp
+    # SpecifiedCurveParamBootstrapper.h
+    # SpecifiedCurveParamBootstrapper.cpp
+    # StartEndBootstrapper.h
+    # StartEndBootstrapper.cpp
+    # TestBootstrappers.h
+    # TestBootstrappers.cpp
     Twisty_Cuda_Helpers.cu
     Twisty_Cuda_Helpers.h
 )
@@ -97,8 +94,6 @@ add_library(Twisty
     Bootstrapper.cpp
     Curve.h
     Curve.cpp
-    CurvePurturber.h
-    CurvePurturber.cpp
     CurvePerturbUtils.h
     CurvePerturbUtils_linux.cpp
     CurveUtils.h
@@ -124,15 +119,14 @@ add_library(Twisty
     PathWeightUtils.cpp
     PerturbUtils.h
     PerturbUtils.cpp
-    Range.h
     Sample.h
     Sample.cpp
-    SpecifiedCurveParamBootstrapper.h
-    SpecifiedCurveParamBootstrapper.cpp
-    StartEndBootstrapper.h
-    StartEndBootstrapper.cpp
-    TestBootstrappers.h
-    TestBootstrappers.cpp
+    # SpecifiedCurveParamBootstrapper.h
+    # SpecifiedCurveParamBootstrapper.cpp
+    # StartEndBootstrapper.h
+    # StartEndBootstrapper.cpp
+    # TestBootstrappers.h
+    # TestBootstrappers.cpp
     Twisty_Cuda_Helpers.cu
     Twisty_Cuda_Helpers.h
 )
@@ -286,24 +280,24 @@ endif (WIN32)
 
 #  Freeze frame experiment
 
-add_executable(FreezeFrameExperiment
-    FreezeFrameExperiment.cpp
-)
+# add_executable(FreezeFrameExperiment
+#     FreezeFrameExperiment.cpp
+# )
 
-target_link_libraries(FreezeFrameExperiment
-    PUBLIC Twisty
-    PUBLIC glm
-)
+# target_link_libraries(FreezeFrameExperiment
+#     PUBLIC Twisty
+#     PUBLIC glm
+# )
 
 
-add_executable(FreezeFrameExperiment2
-    FreezeFrameExperiment2.cpp
-)
+# add_executable(FreezeFrameExperiment2
+#     FreezeFrameExperiment2.cpp
+# )
 
-target_link_libraries(FreezeFrameExperiment2
-    PUBLIC Twisty
-    PUBLIC glm
-)
+# target_link_libraries(FreezeFrameExperiment2
+#     PUBLIC Twisty
+#     PUBLIC glm
+# )
 
 add_executable(NoisyCircleExperiment
     NoisyCircleExperiment.cpp
@@ -345,10 +339,9 @@ target_link_libraries(Benchmark_5_1
 
 if (WIN32)
 add_subdirectory(Experiments)
-add_subdirectory(Tests)
 add_subdirectory(Tools)
 add_subdirectory(Viewer)
 add_subdirectory(unitweights)
-add_subdirectory(Utils)
+# add_subdirectory(Utils)
 add_subdirectory(RelatedWork/Fred_2017/)
 endif (WIN32)

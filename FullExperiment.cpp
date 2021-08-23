@@ -1,6 +1,4 @@
 #include "FullExperimentRunner.h"
-#include "FullExperimentRunner2.h"
-// #include "FullExperimentRunnerOldMethodBridge.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
@@ -16,7 +14,6 @@
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -24,8 +21,6 @@
 #include <iostream>
 #include <memory>
 #include <thread>
-
-using namespace twisty;
 
 int main(int argc, char *argv[])
 {
@@ -88,7 +83,7 @@ int main(int argc, char *argv[])
         emitterDir.y = experimentConfig.lookup("experiment.geometry.startDir.y");
         emitterDir.z = experimentConfig.lookup("experiment.geometry.startDir.z");
         emitterDir.Normalize();
-        const RayGeometry rayEmitter(emitterStart, emitterDir);
+        const twisty::RayGeometry rayEmitter(emitterStart, emitterDir);
 
         const double zMin = 0.0;
         const double zMax = 10.0;
@@ -103,23 +98,16 @@ int main(int argc, char *argv[])
 
         const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
 
-        RayGeometry rayReciever(recieverPos, recieverDir);
+        twisty::RayGeometry rayReciever(recieverPos, recieverDir);
 
         float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
         targetArclength = std::max(targetArclength, 3.0f);
 
-        const Range arclengthRange = { targetArclength, targetArclength };
-
-        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, boostrapperSeed);
+        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, boostrapperSeed);
 
         std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
 
-        // This is the range we want to meet
-        // The range of actual curvature/torsion * ds is below
-        Range kdsRange = { 0.0f, 2.0f };
-        Range tdsRange = { -1.0f, 1.0f };
-
-        ExperimentRunner::ExperimentParameters experimentParams;
+        twisty::ExperimentRunner::ExperimentParameters experimentParams;
         experimentParams.numPathsInExperiment = numPathsToGenerate;
         experimentParams.numPathsToSkip = numPathsToSkip;
         experimentParams.exportGeneratedCurves = true;
@@ -127,7 +115,7 @@ int main(int argc, char *argv[])
         experimentParams.experimentDirPath = experimentDirPath;
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
         experimentParams.maximumBootstrapCurveError = 0.5f;
-        experimentParams.curvePerturbMethod = ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
+        experimentParams.curvePerturbMethod = twisty::ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
         experimentParams.curvePurturbSeed = perturbSeed;
         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
@@ -144,7 +132,7 @@ int main(int argc, char *argv[])
         // or 5 in the longest 100 unit path
         experimentParams.weightingParameters.scatter = experimentConfig.lookup("experiment.weighting.scatter");
 
-        std::unique_ptr<ExperimentRunner> upExperimentRunner = nullptr;
+        std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
 
         std::cout << "Runner version: " << runnerVersion << std::endl;
 
@@ -154,17 +142,17 @@ int main(int argc, char *argv[])
         case 0:
         {
             std::cout << "Selected Runner Method: FullExperimentRunner" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+            upExperimentRunner = std::make_unique<twisty::FullExperimentRunner>(experimentParams, bootstrapper);
         } break;
         case 1:
         {
             std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper, kdsRange, tdsRange);
+            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
         } break;
         case 2:
         {
             std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
+            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
         } break;
 
         //case 3:

@@ -14,7 +14,6 @@
 #include "Curve.h"
 
 #include "BezierCurve.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -46,7 +45,7 @@ namespace twisty
          *
          * @param arclengthRange Range of allowed arclength values
          */
-        Bootstrapper(Range arclengthRange, uint32_t randomSeed);
+        Bootstrapper(float targetArclength, uint32_t randomSeed);
         /**
          * @brief Destroy the Bootstrapper object
          *
@@ -142,6 +141,7 @@ namespace twisty
         Farlor::Vector3 m_startDir;
         Farlor::Vector3 m_endPos;
         Farlor::Vector3 m_endDir;
+        float m_targetArclength;
 
         bool m_isCached;
 
@@ -151,9 +151,7 @@ namespace twisty
         std::vector<Farlor::Vector3> m_cachedSegmentFrames;
         std::unique_ptr<BezierInfo> m_upCachedBezierInfo;
         std::unique_ptr<BezierCurve5> m_upCachedBezier;
-        Range m_arclengthRange;
         std::mt19937_64 m_gen;
-
         uint32_t m_bootstrapSeed = 0;
     };
 }

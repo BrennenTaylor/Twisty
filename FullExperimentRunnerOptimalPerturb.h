@@ -10,7 +10,6 @@
  */
 
 #include "ExperimentRunner.h"
-#include "Range.h"
 #include "PathWeightUtils.h"
 #include "PerturbUtils.h"
 
@@ -32,10 +31,8 @@ namespace twisty
          * @brief Construct a new Experiment Runner Cpu object
          *
          * @param bootstrapper Bootstrapper object responsible for generating an initial curve given the experiment constraints
-         * @param kdsRange Range of allowed curvature * ds values
-         * @param tdsRange Range of allowed torsion * ds values
          */
-        FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper, Range kdsRange, Range tdsRange);
+        FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunnerOptimalPerturb();
 
         virtual bool Setup() override;

@@ -7,9 +7,6 @@
 #include "Geometry.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
-#include "Range.h"
-
-#include "TestBootstrappers.h"
 
 #include <QApplication>
 #include <QSurfaceFormat>

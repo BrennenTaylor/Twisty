@@ -10,7 +10,6 @@
  */
 
 #include "ExperimentRunner.h"
-#include "Range.h"
 #include "PathWeightUtils.h"
 #include "PerturbUtils.h"
 
@@ -35,7 +34,7 @@ namespace twisty
          * @param kdsRange Range of allowed curvature * ds values
          * @param tdsRange Range of allowed torsion * ds values
          */
-        FullExperimentRunner(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper, Range kdsRange, Range tdsRange);
+        FullExperimentRunner(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunner();
 
         virtual bool Setup() override;

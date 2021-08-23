@@ -1,5 +1,4 @@
 #include "FullExperimentRunner.h"
-#include "FullExperimentRunner2.h"
 // #include "FullExperimentRunnerOldMethodBridge.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
@@ -16,7 +15,6 @@
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -110,16 +108,9 @@ int main(int argc, char *argv[])
         float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
         targetArclength = std::max(targetArclength, 3.0f);
 
-        const Range arclengthRange = { targetArclength, targetArclength };
-
-        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, boostrapperSeed);
+        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, boostrapperSeed);
 
         std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
-
-        // This is the range we want to meet
-        // The range of actual curvature/torsion * ds is below
-        Range kdsRange = { 0.0f, 2.0f };
-        Range tdsRange = { -1.0f, 1.0f };
 
         ExperimentRunner::ExperimentParameters experimentParams;
         experimentParams.numPathsInExperiment = numPathsToGenerate;
@@ -151,12 +142,12 @@ int main(int argc, char *argv[])
         case 0:
         {
             std::cout << "Selected Runner Method: FullExperimentRunner" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
         } break;
         case 1:
         {
             std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper, kdsRange, tdsRange);
+            upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
         } break;
         case 2:
         {
@@ -173,7 +164,7 @@ int main(int argc, char *argv[])
         // Debug modes
         // case 66:
         // {
-        //     upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
+        //     upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper);
         // } break;
         default:
         {
@@ -182,7 +173,7 @@ int main(int argc, char *argv[])
         }
         }
 // #else
-        // upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+        // upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
 // #endif
 
         std::cout << "Spot 1 - Num hardware threads: " << std::thread::hardware_concurrency() << std::endl;

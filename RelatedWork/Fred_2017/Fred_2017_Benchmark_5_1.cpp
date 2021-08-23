@@ -117,13 +117,6 @@ int main(int argc, char* argv[])
         innerBlockSS << "<Z Value - " << z << ">";
         std::cout << innerBlockSS.str() << std::endl;
 
-        const twisty::Range arclengthRange = { targetArclength, targetArclength };
-
-        // This is the range we want to meet
-        // The range of actual curvature/torsion * ds is below
-        twisty::Range kdsRange = { 0.0f, 2.0f };
-        twisty::Range tdsRange = { -1.0f, 1.0f };
-
         const float minArclength = targetArclength;
         const float maxArclength = distanceFromPlane * 2.0;
         const float deltaArclength = (maxArclength - minArclength) / (numArclengths - 1);

@@ -1,5 +1,4 @@
 #include "FullExperimentRunner.h"
-#include "FullExperimentRunner2.h"
 //#include "FullExperimentRunnerOldMethodBridge.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
@@ -12,7 +11,6 @@
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -24,9 +22,9 @@ using namespace twisty;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 13)
+    if (argc < 12)
     {
-        std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentPath numSegments minArclength maxArclength runnerVersion numInitialCurves numRunsPerInitialCurve bootstrapperSeed perturbSeed" << std::endl;
+        std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentPath numSegments targetArclength runnerVersion numInitialCurves numRunsPerInitialCurve bootstrapperSeed perturbSeed" << std::endl;
         return 1;
     }
 
@@ -35,13 +33,12 @@ int main(int argc, char *argv[])
     const std::string experimentName(argv[3]);
     const std::string experimentDirPath(argv[4]);
     const uint32_t numExperimentSegments = std::stoi(argv[5]);
-    const float minTargetArclength = std::stof(argv[6]);
-    const float maxTargetArclength = std::stof(argv[7]);
-    const uint32_t runnerVersion = std::stoi(argv[8]);
-    const uint32_t numInitialCurves = std::stoi(argv[9]);
-    const uint32_t numRunsPerInitialCurve = std::stoi(argv[10]);
-    const uint32_t bootstrapperSeed = std::stoi(argv[11]);
-    const uint32_t perturbSeed = std::stoi(argv[12]);
+    const float targetArclength = std::stof(argv[6]);
+    const uint32_t runnerVersion = std::stoi(argv[7]);
+    const uint32_t numInitialCurves = std::stoi(argv[8]);
+    const uint32_t numRunsPerInitialCurve = std::stoi(argv[9]);
+    const uint32_t bootstrapperSeed = std::stoi(argv[10]);
+    const uint32_t perturbSeed = std::stoi(argv[11]);
 
     std::cout << "Command line args: " << std::endl;
     std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
@@ -78,7 +75,6 @@ int main(int argc, char *argv[])
 
 
             // Bootstrap method
-            const Range defaultBounds = { -1.0f, 1.0f };
             const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
             const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
             RayGeometry rayEmitter(emitterStart, emitterDir);
@@ -88,16 +84,9 @@ int main(int argc, char *argv[])
 
             RayGeometry rayReciever(recieverPos, recieverDir);
 
-            const Range arclengthRange = { minTargetArclength, maxTargetArclength };
-
-            GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, initialCurveSeed);
+            GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, initialCurveSeed);
 
             std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
-
-            // This is the range we want to meet
-            // The range of actual curvature/torsion * ds is below
-            Range kdsRange = { 0.0f, 2.0f };
-            Range tdsRange = { -1.0f, 1.0f };
 
             ExperimentRunner::ExperimentParameters experimentParams;
             experimentParams.numPathsInExperiment = numPathsToGenerate;
@@ -134,12 +123,12 @@ int main(int argc, char *argv[])
             case 0:
             {
                 std::cout << "\tSelected Runner Method: FullExperimentRunner" << std::endl;
-                upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+                upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
             } break;
             case 1:
             {
                 std::cout << "\tSelected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-                upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper, kdsRange, tdsRange);
+                upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
             } break;
             case 2:
             {

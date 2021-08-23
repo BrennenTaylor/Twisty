@@ -1,4 +1,5 @@
 *.txt
+*.cfg
 !CMakeLists.txt
 build/
 doxygen_output/

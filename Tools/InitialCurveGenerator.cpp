@@ -37,7 +37,6 @@ int main(int argc, char* argv[])
     const Farlor::Vector3 recieverPos{ 10.0f, 0.0f, 0.0f };
     const Farlor::Vector3 recieverDir{ 1.0, 0.0f, 0.0f };
     twisty::RayGeometry rayReciever(recieverPos, recieverDir);
-    const twisty::Range arclengthRange = { arclength, arclength };
 
     std::filesystem::path currentPath = std::filesystem::current_path();
     std::filesystem::path outputDirectoryPath = currentPath / directoryName;
@@ -56,7 +55,7 @@ int main(int argc, char* argv[])
     {
         const uint32_t bootstrapperSeed = std::stoi(argv[numInitialArguments + curveIdx]);
 
-        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, bootstrapperSeed);
+        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclength, bootstrapperSeed);
 
         std::unique_ptr<twisty::Curve> upInitialCurve = nullptr;
         bool successfulGen = false;

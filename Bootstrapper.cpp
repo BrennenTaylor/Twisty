@@ -12,11 +12,12 @@
 
 namespace twisty
 {
-    Bootstrapper::Bootstrapper(Range arclengthRange, uint32_t randomSeed)
+    Bootstrapper::Bootstrapper(float targetArclength, uint32_t randomSeed)
         : m_startPos(0.0f, 0.0f, 0.0f)
         , m_startDir(0.0f, 0.0f, 0.0f)
         , m_endPos(0.0f, 0.0f, 0.0f)
         , m_endDir(0.0f, 0.0f, 0.0f)
+        , m_targetArclength(targetArclength)
         , m_isCached(false)
         , m_upCachedCurve(nullptr)
         , m_cachedTValues()
@@ -24,7 +25,6 @@ namespace twisty
         , m_cachedSegmentFrames()
         , m_upCachedBezierInfo(nullptr)
         , m_upCachedBezier(nullptr)
-        , m_arclengthRange(arclengthRange)
         , m_gen()
         , m_bootstrapSeed(randomSeed)
     {
@@ -85,7 +85,7 @@ namespace twisty
     {
         std::cout << "\nBegin generating curve" << std::endl;
 
-        const double arclength = m_arclengthRange.m_min;
+        const double arclength = m_targetArclength;
         const double ds = arclength / numSegments;
         const Farlor::Vector3 x_s = m_startPos + ds * m_startDir;
         const Farlor::Vector3 x_e = m_endPos -= ds * m_endDir;
@@ -185,10 +185,9 @@ namespace twisty
         std::cout << "\tStart Dir: " << m_startDir << std::endl;
         std::cout << "\tEnd Pos: " << m_endPos << std::endl;
         std::cout << "\tEnd Dir: " << m_endDir << std::endl;
-        std::cout << "\tMin Arclength Range: " << m_arclengthRange.m_min << std::endl;
-        std::cout << "\tMax Arclength Range: " << m_arclengthRange.m_max << std::endl;
+        std::cout << "\tTarget Arclength: " << m_targetArclength << std::endl;
 
-        const float requestedArclength = m_arclengthRange.m_min;
+        const float requestedArclength = m_targetArclength;
 
         const float minL2 = 0.0f;
         const float maxL2 = pow(10.0f, 5);
@@ -268,15 +267,8 @@ namespace twisty
 
         const float maxL2ArcLength = TestL2Arclength(maxL2);
 
-        float minArclength = std::max(static_cast<float>(m_arclengthRange.m_min), shortestArclengthPossible);
-        // Require at least a minimum arclength
-        float maxArclength = std::max(static_cast<float>(m_arclengthRange.m_max), minArclength);
-        maxArclength = std::min(maxArclength, maxL2ArcLength);
-//
-        assert(minArclength <= maxArclength);
-//
-        std::uniform_real_distribution<float> arclengthDist(minArclength, maxArclength);
-        const float targetArclength = static_cast<float>(arclengthDist(m_gen)) * 1.01;
+        const float minArclengthScaleFactor = 1.01f;
+        float targetArclength = std::max(static_cast<float>(m_targetArclength), shortestArclengthPossible) * minArclengthScaleFactor;
         std::cout << "Selected arclength to target: " << targetArclength << std::endl;
 
         // Ok, we want to find target_l2 such that

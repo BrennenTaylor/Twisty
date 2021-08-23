@@ -78,7 +78,7 @@ static Farlor::Matrix3x3 RotationMatrixAroundAxis(float angle, Farlor::Vector3 a
 namespace twisty
 {
     FullExperimentRunnerOptimalPerturb::FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams,
-        Bootstrapper& bootstrapper, Range kdsRange, Range tdsRange)
+        Bootstrapper& bootstrapper)
         : ExperimentRunner(experimentParams, bootstrapper)
     {
     }

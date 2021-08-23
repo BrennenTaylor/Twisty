@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Bootstrapper.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -21,7 +20,7 @@ namespace twisty
          * @brief
          *
          */
-        SpecifiedCurveParamBootstrapper(float initialCurvature, float initialTorsion, const Range& arclengthRange, uint32_t randomSeed);
+        SpecifiedCurveParamBootstrapper(float initialCurvature, float initialTorsion, uint32_t randomSeed);
 
         /**
          * @brief Create a Curve object

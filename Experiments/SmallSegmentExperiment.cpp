@@ -1,10 +1,17 @@
+/*
+
+    This experiment executes the monte carlo feynman path integral with a specified number of segments.
+    The target number of segments should be small as the specified weight function for this corresponds to the
+    simplified weighting function derived by Jerry.
+
+*/
+
 #include "FullExperimentRunner.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -69,13 +76,6 @@ int main(int argc, char *argv[])
     innerBlockSS << "<Converged Value>";
     std::cout << innerBlockSS.str() << std::endl;
 
-    const twisty::Range arclengthRange = {targetArclength, targetArclength};
-
-    // This is the range we want to meet
-    // The range of actual curvature/torsion * ds is below
-    twisty::Range kdsRange = {0.0f, 2.0f};
-    twisty::Range tdsRange = {-1.0f, 1.0f};
-
     boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
 
     std::mt19937 initialCurveGen(bootstrapperSeed);
@@ -120,8 +120,8 @@ int main(int argc, char *argv[])
             experimentParams.weightingParameters.scatter = 0.1;
             experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, initialCurveSeed);
-            std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper, kdsRange, tdsRange);
+            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, initialCurveSeed);
+            std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
             bool result = upExperimentRunner->Setup();
 
             if (!result)

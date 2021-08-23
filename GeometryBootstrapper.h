@@ -3,7 +3,6 @@
 #include "BezierCurve.h"
 #include "Bootstrapper.h"
 #include "Geometry.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -16,7 +15,7 @@ namespace twisty
     {
 
     public:
-        explicit GeometryBootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry, Range arclengthRange, uint32_t randomSeed);
+        explicit GeometryBootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry, float targetArclength, uint32_t randomSeed);
 
     protected:
         virtual void BeginReset() override;

@@ -7,6 +7,8 @@
  *
  * @copyright Copyright (c) 2019
  *
+ * 
+ * TODO: Figure out what this file is even for... For now, lets not even build with it.
  */
 
 #include "ExperimentRunner.h"

@@ -3,7 +3,6 @@
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
-#include "Range.h"
 
 #include <FMath/Vector3.h>
 
@@ -18,9 +17,9 @@ using namespace twisty;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 14)
+    if (argc < 13)
     {
-        std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentDir numSegments minArclength maxArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed perturbSeed" << std::endl;
+        std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentDir numSegments targetArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed perturbSeed" << std::endl;
         return 1;
     }
 
@@ -29,16 +28,15 @@ int main(int argc, char *argv[])
     const std::string experimentName(argv[3]);
     const std::string experimentDirectoryPath(argv[4]);
     const uint32_t numExperimentSegments = std::stoi(argv[5]);
-    const float minTargetArclength = std::stof(argv[6]);
-    const float maxTargetArclength = std::stof(argv[7]);
+    const float targetArclength = std::stof(argv[6]);
 
-    const float minDegree = std::stof(argv[8]);
-    const float maxDegree = std::stof(argv[9]);
-    const uint32_t numDegreeSteps = std::stoi(argv[10]);
+    const float minDegree = std::stof(argv[7]);
+    const float maxDegree = std::stof(argv[8]);
+    const uint32_t numDegreeSteps = std::stoi(argv[9]);
 
-    const bool useGpu = std::stoi(argv[11]);
-    const int boostrapperSeed = std::stoi(argv[12]);
-    const int perturbSeed = std::stoi(argv[13]);
+    const bool useGpu = std::stoi(argv[10]);
+    const int boostrapperSeed = std::stoi(argv[11]);
+    const int perturbSeed = std::stoi(argv[12]);
 
     std::cout << "Command line args: " << std::endl;
     std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
@@ -46,8 +44,6 @@ int main(int argc, char *argv[])
     std::cout << "\tBootstrapper Seed: " << boostrapperSeed << std::endl;
     std::cout << "\tPerturb Seed: " << perturbSeed << std::endl;
 
-    // Bootstrap method
-    const Range defaultBounds = {-1.0f, 1.0f};
     // Currently this is a hardcoded position and direction
     const Farlor::Vector3 emitterStart{0.0f, 0.0f, 0.0f};
     const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
@@ -67,16 +63,9 @@ int main(int argc, char *argv[])
 
         RayGeometry rayReciever(recieverPos, recieverDir);
 
-        const Range arclengthRange = {minTargetArclength, maxTargetArclength};
-
-        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, boostrapperSeed);
+        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, boostrapperSeed);
 
         std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
-
-        // This is the range we want to meet
-        // The range of actual curvature/torsion * ds is below
-        Range kdsRange = {0.0f, 2.0f};
-        Range tdsRange = {-1.0f, 1.0f};
 
         std::stringstream experimentDirSS;
         experimentDirSS << experimentDirectoryPath;
@@ -109,7 +98,7 @@ int main(int argc, char *argv[])
 
         std::unique_ptr<ExperimentRunner> upExperimentRunner = nullptr;
 
-        upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+        upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
 
         bool result = upExperimentRunner->Setup();
         if (!result)

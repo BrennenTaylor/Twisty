@@ -4,8 +4,8 @@
 
 namespace twisty
 {
-    SpecifiedCurveParamBootstrapper::SpecifiedCurveParamBootstrapper(float initialCurvature, float initialTorsion, const Range& arclengthRange, uint32_t randomSeed)
-        : Bootstrapper(arclengthRange, randomSeed)
+    SpecifiedCurveParamBootstrapper::SpecifiedCurveParamBootstrapper(float initialCurvature, float initialTorsion, uint32_t randomSeed)
+        : Bootstrapper(randomSeed)
         , m_initialCurvature(initialCurvature)
         , m_initialTorsion(initialTorsion)
     {

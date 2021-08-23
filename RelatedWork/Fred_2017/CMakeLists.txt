@@ -1,13 +1,5 @@
 project(Fred2017)
 
-add_executable(Fred_2017_GreenFunctionExample
-    Main.cpp
-)
-
-target_link_libraries(Fred_2017_GreenFunctionExample
-    PUBLIC FMath::FMath
-)
-
 add_executable(Fred_2017_Benchmark_5_1
     Fred_2017_Benchmark_5_1.cpp
 )

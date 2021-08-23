@@ -8,8 +8,6 @@
 #include "Range.h"
 #include "TwistyYamlUtils.h"
 
-#include "TestBootstrappers.h"
-
 #include <QApplication>
 #include <QSurfaceFormat>
 

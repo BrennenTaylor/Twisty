@@ -1,5 +1,4 @@
 #include "FullExperimentRunner.h"
-#include "FullExperimentRunner2.h"
 
 #if defined(USE_CUDA)
 #include "GpuFullExperimentRunnerGeneral.h"

@@ -15,7 +15,7 @@ namespace twisty
     namespace testing
     {
         LinearBootstrapper::LinearBootstrapper()
-            : Bootstrapper({0.0f, 0.0f}, 0)
+            : Bootstrapper(0)
         {
             m_startPos = Farlor::Vector3(0.0f, 0.0f, 0.0f);
             m_startDir = Farlor::Vector3(1.0f, 1.0f, 1.0f).Normalized();
@@ -90,7 +90,7 @@ namespace twisty
 
         // Quadratic Bootstrapper ------------
         QuadraticBootstrapper::QuadraticBootstrapper()
-            : Bootstrapper({0.0f, 0.0f}, 0)
+            : Bootstrapper(0)
         {
             m_startPos = Farlor::Vector3(0.0f, 0.0f, 0.0f);
             m_startDir = Farlor::Vector3(0.0f, 1.0f, 0.0f).Normalized();
@@ -160,7 +160,7 @@ namespace twisty
 
         // CircleBootstrapper------------
         CircleBootstrapper::CircleBootstrapper()
-            : Bootstrapper({0.0f, 0.0f}, 0)
+            : Bootstrapper(0)
             , m_radius{0.0f}
         {
             // We set the circle
