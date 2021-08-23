@@ -91,14 +91,14 @@ namespace twisty
             virtual double Integrate(double scattering, double curvature) const override;
         };
 
-        class WeightLookupTableIntegral : public IntegralStrategy
+        class BaseWeightLookupTable : public IntegralStrategy
         {
         public:
-            WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds);
-            virtual ~WeightLookupTableIntegral();
+            BaseWeightLookupTable(const WeightingParameters& weightingParams, double ds);
+            virtual ~BaseWeightLookupTable();
 
             virtual double Integrate(double scattering, double curvature) const override;
-            
+
             const std::vector<double>& AccessLookupTable() const {
                 return m_lookupTable;
             }
@@ -115,10 +115,9 @@ namespace twisty
 
             void ExportValues(std::string relativePath);
 
-        private:
+        protected:
             double m_minCurvature;
             double m_maxCurvature;
-            RegularizedIntegral m_regularizedIntegral;
 
             double m_minSegmentWeight = 0.0;
             double m_maxSegmentWeight = 0.0;
@@ -127,12 +126,29 @@ namespace twisty
             std::vector<double> m_lookupTable;
         };
 
+        class WeightLookupTableIntegral : public BaseWeightLookupTable
+        {
+        public:
+            WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds);
+            virtual ~WeightLookupTableIntegral();
+
+            RegularizedIntegral m_regularizedIntegral;
+        };
+
+        // The ICTT27 Weighting function integral
+        class SimpleWeightLookupTable : public BaseWeightLookupTable
+        {
+        public:
+            SimpleWeightLookupTable(const WeightingParameters& weightingParams, double ds);
+            virtual ~SimpleWeightLookupTable();
+        };
+
         void CalcMinMaxCurvature(double& minCurvature, double& maxCurvature, double ds);
 
         // Given a vector of curvatures, 1 per segement of a path, weight the path and return the long10 of the weight
         // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
         // Assumes that integral matches weighting params
-        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const WeightLookupTableIntegral& weightIntegral);
+        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
 
         namespace NormalizerStuff
         {
@@ -140,7 +156,24 @@ namespace twisty
 
             NormalizerDoubleType f2_formula(const double z);
 
-            class FN
+            class BaseNormalizer
+            {
+            public:
+                BaseNormalizer()
+                {
+                }
+
+                virtual ~BaseNormalizer()
+                {
+                }
+
+                virtual NormalizerDoubleType eval(int order, double r) const
+                {
+                    return 1.0;
+                }
+            };
+
+            class FN : public BaseNormalizer
             {
             public:
                 FN(int samples, int numIntegrationSamples, int orders, const double &rmn, const double &rmx)
@@ -163,7 +196,7 @@ namespace twisty
 
                 ~FN() {}
 
-                NormalizerDoubleType eval(int order, double r) const;
+                virtual NormalizerDoubleType eval(int order, double r) const override;
 
                 double minimum() const { return rmin; }
                 double maximum() const { return rmax; }
@@ -186,21 +219,21 @@ namespace twisty
 
             Farlor::Vector3 makeVector(double a, double b, double c);
 
-            NormalizerDoubleType psd_one(const FN &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np, const Farlor::Vector3& beta);
+            NormalizerDoubleType psd_one(const BaseNormalizer &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np, const Farlor::Vector3& beta);
 
-            NormalizerDoubleType Norm(const FN &fn, int M, double z, double s);
+            NormalizerDoubleType Norm(const BaseNormalizer &fn, int M, double z, double s);
 
-            NormalizerDoubleType psd_n(const FN &fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
+            NormalizerDoubleType psd_n(const BaseNormalizer&fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
                 const std::vector<Farlor::Vector3>& beta);
 
-            NormalizerDoubleType likelihood(const FN &fn, int numSegments, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
+            NormalizerDoubleType likelihood(const BaseNormalizer&fn, int numSegments, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
                 const Farlor::Vector3& N, const Farlor::Vector3& Np, const std::vector<Farlor::Vector3> &beta0, const std::vector<Farlor::Vector3> &betastar);
 
-            NormalizerDoubleType CalculateLikelihood(const FN& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
                 std::vector<Farlor::Vector3>& oldTangents, std::vector<Farlor::Vector3>& newTangents);
 
 
-            std::unique_ptr<PathWeighting::NormalizerStuff::FN> GetNormalizer(uint32_t numSegments);
+            std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(uint32_t numSegments);
         }
     }
 }

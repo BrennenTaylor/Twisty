@@ -214,8 +214,8 @@ namespace twisty
         // TODO: Is this cache even used?
         std::vector<double> cachedSegmentWeights(m_experimentParams.numSegmentsPerCurve * numPerturbThreads);
 
-        std::unique_ptr<PathWeighting::NormalizerStuff::FN> upFN = PathWeighting::NormalizerStuff::GetNormalizer(m_experimentParams.numSegmentsPerCurve);
-        PathWeighting::NormalizerStuff::FN& fn = *upFN;
+        std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = PathWeighting::NormalizerStuff::GetNormalizer(m_experimentParams.numSegmentsPerCurve);
+        PathWeighting::NormalizerStuff::BaseNormalizer& fn = *upFN;
 
         Farlor::Vector3 Z = (boundaryConditions.m_endPos - boundaryConditions.m_startPos) * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
             - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
@@ -376,7 +376,7 @@ namespace twisty
         float segmentLength,
         const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
         const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
-        const PathWeighting::NormalizerStuff::FN& fn
+        const PathWeighting::NormalizerStuff::BaseNormalizer& fn
     )
     {
         uint32_t numPathsAccepted = 0;

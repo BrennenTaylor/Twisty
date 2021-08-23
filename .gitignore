@@ -16,7 +16,7 @@ twisty-config/
 NormalTest_Arclength_50/
 Test_Cpu_Fix_FFE/
 Test_Normals/
-unitweights/
+# unitweights/
 !FFE*.cpp
 Optimal*
 *.csv

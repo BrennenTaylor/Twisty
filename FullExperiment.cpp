@@ -4,6 +4,8 @@
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
+#include <libconfig.h++>
+
 //#include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 
 //#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
@@ -28,22 +30,41 @@ using namespace twisty;
 int main(int argc, char *argv[])
 {
     {
-        if (argc < 11)
+        if (argc < 2)
         {
-            std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentPath numSegments minArclength maxArclength runnerVersion bootstrapperSeed perturbSeed" << std::endl;
+            std::cout << "Call as: " << argv[0] << " configFilename" << std::endl;
             return 1;
         }
 
-        const uint64_t numPathsToGenerate = std::stoll(argv[1]);
-        const uint64_t numPathsToSkip = std::stoll(argv[2]);
-        const std::string experimentName(argv[3]);
-        const std::string experimentDirPath(argv[4]);
-        const uint32_t numExperimentSegments = std::stoi(argv[5]);
-        const float minTargetArclength = std::stof(argv[6]);
-        const float maxTargetArclength = std::stof(argv[7]);
-        const uint32_t runnerVersion = std::stoi(argv[8]);
-        const uint32_t boostrapperSeed = std::stoi(argv[9]);
-        const uint32_t perturbSeed = std::stoi(argv[10]);
+        const std::string configFilename(argv[1]);
+
+        libconfig::Config experimentConfig;
+        try
+        {
+            experimentConfig.readFile(configFilename);
+        }
+        catch (const libconfig::FileIOException &fioex)
+        {
+            std::cout << "I/O error while reading file." << std::endl;
+            return (1);
+        }
+        catch (const libconfig::ParseException &pex)
+        {
+            std::cout << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+                      << " - " << pex.getError() << std::endl;
+            return (1);
+        }
+
+        uint32_t numPathsToGenerate = experimentConfig.lookup("experiment.pathsToGenerate");
+        uint32_t numPathsToSkip = experimentConfig.lookup("experiment.pathsToSkip");
+        std::string experimentName = experimentConfig.lookup("experiment.name");
+        std::string experimentDirPath = experimentConfig.lookup("experiment.experimentDir");
+        uint32_t numExperimentSegments = experimentConfig.lookup("experiment.numSegments");
+        float minTargetArclength = experimentConfig.lookup("experiment.minArclength");
+        float maxTargetArclength = experimentConfig.lookup("experiment.maxArclength");
+        uint32_t runnerVersion = experimentConfig.lookup("experiment.runnerVersion");
+        uint32_t boostrapperSeed = experimentConfig.lookup("experiment.random.bootstrapperSeed");
+        uint32_t perturbSeed = experimentConfig.lookup("experiment.random.perturbSeed");
 
         std::cout << "Command line args: " << std::endl;
         std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
@@ -51,19 +72,23 @@ int main(int argc, char *argv[])
         std::cout << "\tBootstrapper Seed: " << boostrapperSeed << std::endl;
         std::cout << "\tPerturb Seed: " << perturbSeed << std::endl;
 
-
-
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
         _CrtDumpMemoryLeaks();
         _CrtMemDumpAllObjectsSince(NULL);
 #endif
 
         // Bootstrap method
-        const Range defaultBounds = { -1.0f, 1.0f };
-        const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
-        const Farlor::Vector3 emitterDir = Farlor::Vector3(0.0f, 0.0f, 1.0f).Normalized();
-        RayGeometry rayEmitter(emitterStart, emitterDir);
+        Farlor::Vector3 emitterStart;
+        emitterStart.x = experimentConfig.lookup("experiment.geometry.startPos.x");
+        emitterStart.y = experimentConfig.lookup("experiment.geometry.startPos.y");
+        emitterStart.z = experimentConfig.lookup("experiment.geometry.startPos.z");
 
+        Farlor::Vector3 emitterDir;
+        emitterDir.x = experimentConfig.lookup("experiment.geometry.startDir.x");
+        emitterDir.y = experimentConfig.lookup("experiment.geometry.startDir.y");
+        emitterDir.z = experimentConfig.lookup("experiment.geometry.startDir.z");
+        emitterDir.Normalize();
+        const RayGeometry rayEmitter(emitterStart, emitterDir);
 
         const double zMin = 0.0;
         const double zMax = 10.0;
@@ -106,18 +131,18 @@ int main(int argc, char *argv[])
         experimentParams.curvePurturbSeed = perturbSeed;
         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-        experimentParams.weightingParameters.mu = 0.1;
-        experimentParams.weightingParameters.eps = 0.1;
-        experimentParams.weightingParameters.numStepsInt = 2000;
+        experimentParams.weightingParameters.mu = experimentConfig.lookup("experiment.weighting.mu");
+        experimentParams.weightingParameters.eps = experimentConfig.lookup("experiment.weighting.eps");
+        experimentParams.weightingParameters.numStepsInt = experimentConfig.lookup("experiment.weighting.numStepsInt");
         experimentParams.weightingParameters.minBound = 0.0;
         experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
-        experimentParams.weightingParameters.numCurvatureSteps = 10000;
+        experimentParams.weightingParameters.numCurvatureSteps =  experimentConfig.lookup("experiment.weighting.numCurvatureSteps");;
         // Lets give some absorbtion as well
         // Absorbtion 1/20 off the time
-        experimentParams.weightingParameters.absorbtion = 0.05;
+        experimentParams.weightingParameters.absorbtion = experimentConfig.lookup("experiment.weighting.absorbtion");
         // 1/5 scatter means one event every 5 units, thus 2 scattering events in the shortest
         // or 5 in the longest 100 unit path
-        experimentParams.weightingParameters.scatter = 0.2;
+        experimentParams.weightingParameters.scatter = experimentConfig.lookup("experiment.weighting.scatter");
 
         std::unique_ptr<ExperimentRunner> upExperimentRunner = nullptr;
 

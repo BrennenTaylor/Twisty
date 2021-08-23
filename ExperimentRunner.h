@@ -53,6 +53,12 @@ namespace twisty
             uint64_t index;
         };
 
+        enum class PathNormalizerType
+        {
+            Default, // This is a default normalizer of 1
+            PDF // This is the one derived for the phytra 5 work
+        };
+
         struct ExperimentParameters
         {
             uint64_t numPathsInExperiment = 0;
@@ -69,6 +75,7 @@ namespace twisty
             CurvePerturbMethod curvePerturbMethod = CurvePerturbMethod::SimpleGeometry;
             twisty::WeightingParameters weightingParameters;
             float rotateInitialSeedCurveRadians = 0.0f;
+            PathNormalizerType pathNormalizerType = PathNormalizerType::PDF;
         };
 
         struct ExperimentResults

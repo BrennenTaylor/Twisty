@@ -112,15 +112,66 @@ namespace twisty
             return firstVal / secondVal;
         }
 
-
         // Lookup table integrand
-        WeightLookupTableIntegral::WeightLookupTableIntegral(const twisty::WeightingParameters& weightingParams, double ds)
+        BaseWeightLookupTable::BaseWeightLookupTable(const twisty::WeightingParameters& weightingParams, double ds)
             : IntegralStrategy(weightingParams, ds)
             , m_minCurvature(0.0)
             , m_maxCurvature(0.0)
-            , m_regularizedIntegral(m_weightingParams, ds)
             , m_curvatureStepSize(0.0f)
             , m_lookupTable()
+        {
+        }
+
+        BaseWeightLookupTable::~BaseWeightLookupTable()
+        {
+        }
+
+        double BaseWeightLookupTable::Integrate(double scattering, double curvature) const
+        {
+            assert(curvature >= m_minCurvature);
+
+            if (curvature > m_maxCurvature)
+            {
+                std::cout << "Clamping to max curvature" << std::endl;
+                curvature = m_maxCurvature;
+            }
+
+            double distance = curvature - m_minCurvature;
+            double realIdx = distance / m_curvatureStepSize;
+            uint32_t leftIdx = floor(realIdx);
+            uint32_t rightIdx = leftIdx + 1;
+
+            double leftLookup = m_lookupTable[leftIdx];
+            double rightLookup = m_lookupTable[rightIdx];
+
+            double leftDist = distance - (leftIdx * m_curvatureStepSize);
+
+            double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
+
+            return interpolatedResult;
+        }
+
+        void BaseWeightLookupTable::ExportValues(std::string relativePath)
+        {
+            const std::filesystem::path currentPath = std::filesystem::current_path();
+            const std::filesystem::path exprDirectory = currentPath / relativePath;
+            const std::string TableValuesFilename = "WeightLookuptableIntegralValues.csv";
+            const std::filesystem::path outputFilePath = exprDirectory / TableValuesFilename;
+
+            std::ofstream outputFile(outputFilePath.string());
+            for (uint32_t i = 0; i <= m_weightingParams.numCurvatureSteps; ++i)
+            {
+                const double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
+                outputFile << curvatureEval << ", " << m_lookupTable[i] << std::endl;
+            }
+            outputFile.close();
+        }
+
+
+        // Lookup table integrand
+        WeightLookupTableIntegral::WeightLookupTableIntegral(const twisty::WeightingParameters& weightingParams, double ds)
+            : BaseWeightLookupTable(weightingParams, ds)
+            , m_regularizedIntegral(m_weightingParams, ds)
         {
             std::cout << "Calcuating path weight integral lookup table" << std::endl;
 
@@ -214,45 +265,107 @@ namespace twisty
         {
         }
 
-        double WeightLookupTableIntegral::Integrate(double scattering, double curvature) const
+        // Lookup table integrand
+        SimpleWeightLookupTable::SimpleWeightLookupTable(const twisty::WeightingParameters& weightingParams, double ds)
+            : BaseWeightLookupTable(weightingParams, ds)
         {
-            assert(curvature >= m_minCurvature);
+            std::cout << "Calcuating path weight integral lookup table" << std::endl;
 
-            if (curvature > m_maxCurvature)
+            twisty::PathWeighting::CalcMinMaxCurvature(m_minCurvature, m_maxCurvature, ds);
+
+            m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / m_weightingParams.numCurvatureSteps;
+            m_lookupTable.clear();
+            m_lookupTable.resize(m_weightingParams.numCurvatureSteps + 1u);
+
+            auto CalculateSimpleWeightValue = [weightingParams, ds](double curvature) -> double {
+                const double alpha = 1.0 / (weightingParams.scatter * ds * weightingParams.mu);
+                const double leftComponent = std::exp(-1.0 * alpha);
+                const double rightComponent = std::exp(alpha * curvature);
+                return leftComponent * rightComponent;
+            };
+
+            // Handle first case
             {
-                std::cout << "Clamping to max curvature" << std::endl;
-                curvature = m_maxCurvature;
+                double value = CalculateSimpleWeightValue(m_minCurvature);
+                m_lookupTable[0] = value;
             }
 
-            double distance = curvature - m_minCurvature;
-            double realIdx = distance / m_curvatureStepSize;
-            uint32_t leftIdx = floor(realIdx);
-            uint32_t rightIdx = leftIdx + 1;
+            double min = m_lookupTable[0];
+            double max = m_lookupTable[0];
+            for (uint32_t i = 1; i <= m_weightingParams.numCurvatureSteps; ++i)
+            {
+                double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
+                double value = CalculateSimpleWeightValue(curvatureEval);
 
-            double leftLookup = m_lookupTable[leftIdx];
-            double rightLookup = m_lookupTable[rightIdx];
+                m_lookupTable[i] = value;
 
-            double leftDist = distance - (leftIdx * m_curvatureStepSize);
 
-            double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
+                if (min < 0.0)
+                {
+                    if (value > 0.0)
+                    {
+                        min = value;
+                    }
+                    else
+                    {
+                        // Do nothing because we dont want a negative min in the end, thus we dont need to update to a min
+                    }
+                }
+                else
+                {
+                    // We only want values greater than zero in this case, no negatives
+                    if (value > 0.0)
+                    {
+                        if (value < min)
+                        {
+                            min = value;
+                        }
+                    }
+                }
 
-            return interpolatedResult;
-        }
+                if (value > max)
+                {
+                    max = value;
+                }
+            }
 
-        void WeightLookupTableIntegral::ExportValues(std::string relativePath)
-        {
-            const std::filesystem::path currentPath = std::filesystem::current_path();
-            const std::filesystem::path exprDirectory = currentPath / relativePath;
-            const std::string TableValuesFilename = "WeightLookuptableIntegralValues.csv";
-            const std::filesystem::path outputFilePath = exprDirectory / TableValuesFilename;
-            
-            std::ofstream outputFile(outputFilePath.string());
+            uint32_t numInvalid = 0;
             for (uint32_t i = 0; i <= m_weightingParams.numCurvatureSteps; ++i)
             {
-                const double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-                outputFile << curvatureEval << ", " << m_lookupTable[i] << std::endl;
+                double value = m_lookupTable[i];
+
+                if (value <= 0.0)
+                {
+                    numInvalid++;
+                    value = min;
+                }
             }
-            outputFile.close();
+
+            if (numInvalid > 0)
+            {
+                std::cout << "We calculated " << numInvalid << " negative table values and clamped them to zero" << std::endl;
+            }
+
+            m_minSegmentWeight = min;
+            m_maxSegmentWeight = max;
+
+            std::cout << "Finished path weight integral lookup table" << std::endl;
+            std::cout << "\tMin Possible Weight Value: " << min << std::endl;
+            std::cout << "\tMax Possible Weight Value: " << max << std::endl;
+            //Parameters
+            std::cout << "\tTable construction params: " << std::endl;
+            std::cout << "\t\tmu: " << m_weightingParams.mu << std::endl;
+            std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << std::endl;
+            std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << std::endl;
+            std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << std::endl;
+            std::cout << "\t\tm_eps: " << m_weightingParams.eps << std::endl;
+            std::cout << "\t\tm_minCurvature: " << m_minCurvature << std::endl;
+            std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << std::endl;
+            std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps << std::endl;
+        }
+
+        SimpleWeightLookupTable::~SimpleWeightLookupTable()
+        {
         }
 
         // Todo: figure out why max is this, should have documented
@@ -263,7 +376,7 @@ namespace twisty
         }
 
         // Assume we have good pointers
-        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const twisty::PathWeighting::WeightLookupTableIntegral& weightIntegral)
+        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const twisty::PathWeighting::BaseWeightLookupTable& weightIntegral)
         {
             if (!pCurvatureStart || (numCurvatures == 0))
             {
@@ -459,7 +572,7 @@ namespace twisty
                 return data[ii] * (1.0 - weight) + data[iii] * weight;
             }
 
-            NormalizerDoubleType psd_one(const FN& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
+            NormalizerDoubleType psd_one(const BaseNormalizer& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
                 const Farlor::Vector3& beta)
             {
                 Farlor::Vector3 Z = X * (M + 1) * (1.0 / s) - N - Np;
@@ -478,19 +591,11 @@ namespace twisty
                 return result;
             }
 
-            NormalizerDoubleType Norm(const FN& fn, int M, double z, double s)
+            NormalizerDoubleType Norm(const BaseNormalizer& fn, int M, double z, double s)
             {
                 std::cout << "M: " << M << std::endl;
                 std::cout << "z: " << z << std::endl;
                 std::cout << "s: " << s << std::endl;
-
-                //NormalizerDoubleType result = fn.eval(M, z);
-
-                //std::cout << "result: " << result << std::endl;
-
-                //result *= std::pow(2.0 * 3.14150265, M - 1);
-                //result /= z;
-                //result *= std::pow((M + 2) / s, 3);
 
                 NormalizerDoubleType fneval = fn.eval(M, z);
                 NormalizerDoubleType piPower = boost::multiprecision::pow(
@@ -514,7 +619,7 @@ namespace twisty
                 return result;
             }
 
-            NormalizerDoubleType psd_n(const FN& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N,
+            NormalizerDoubleType psd_n(const BaseNormalizer& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N,
                 const Farlor::Vector3& Np, const std::vector<Farlor::Vector3>& beta)
             {
                 Farlor::Vector3 Zm = X * (M + 1) * (1 / s) - N - Np;
@@ -532,7 +637,7 @@ namespace twisty
                 return result;
             }
 
-            NormalizerDoubleType likelihood(const FN& fn, int M, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
+            NormalizerDoubleType likelihood(const BaseNormalizer& fn, int M, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
                 const Farlor::Vector3& N, const Farlor::Vector3& Np, const std::vector<Farlor::Vector3>& oldBetas, const std::vector < Farlor::Vector3> & newBetas)
             {
                 Farlor::Vector3 Z0 = (endPosition - startPosition) * (M + 1) * (1.0 / arclength);
@@ -574,7 +679,7 @@ namespace twisty
                 return Farlor::Vector3(a, b, c);
             }
 
-            NormalizerDoubleType CalculateLikelihood(const FN& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
                 std::vector<Farlor::Vector3>& oldBetas, std::vector<Farlor::Vector3>& newBetas)
             {
                 // We store 1 tangent per segement plus an addition one for end.
@@ -585,7 +690,7 @@ namespace twisty
                     boundaryConditions.m_endDir, boundaryConditions.m_startDir, oldBetas, newBetas);
             }
 
-            std::unique_ptr<PathWeighting::NormalizerStuff::FN> GetNormalizer(uint32_t numSegments)
+            std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(uint32_t numSegments)
             {
                 const std::string fnFilename = "SavedFN.fnd";
                 const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilename;
