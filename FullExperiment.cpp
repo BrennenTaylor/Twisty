@@ -21,6 +21,7 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <filesystem>
 
 int main(int argc, char *argv[])
 {
@@ -32,6 +33,9 @@ int main(int argc, char *argv[])
         }
 
         const std::string configFilename(argv[1]);
+        // Immediatly copy to cached cfg.
+        const std::string tmpFilename("tmp.cfg");
+        std::filesystem::copy_file(configFilename, tmpFilename, std::filesystem::copy_options::overwrite_existing);
 
         libconfig::Config experimentConfig;
         try
@@ -60,6 +64,13 @@ int main(int argc, char *argv[])
         uint32_t runnerVersion = experimentConfig.lookup("experiment.runnerVersion");
         uint32_t boostrapperSeed = experimentConfig.lookup("experiment.random.bootstrapperSeed");
         uint32_t perturbSeed = experimentConfig.lookup("experiment.random.perturbSeed");
+
+        if (!std::filesystem::exists(experimentDirPath))
+        {
+            std::filesystem::create_directories(experimentDirPath);
+        }
+        const std::string experimentCfgCopyFilename = std::string(experimentDirPath) + "/parameters.cfg";
+        std::filesystem::copy_file(tmpFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
 
         std::cout << "Command line args: " << std::endl;
         std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
