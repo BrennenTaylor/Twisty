@@ -3,9 +3,6 @@
 
 #include "CurveViewer.h"
 
-
-#include <fmt/format.h>
-
 #include <QPushButton>
 #include <QButtonGroup>
 #include <QCheckBox>

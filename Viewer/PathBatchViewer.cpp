@@ -8,7 +8,6 @@
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "Range.h"
-#include "TwistyYamlUtils.h"
 
 #include "TestBootstrappers.h"
 
