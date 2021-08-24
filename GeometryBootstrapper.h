@@ -15,7 +15,7 @@ namespace twisty
     {
 
     public:
-        explicit GeometryBootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry, float targetArclength, uint32_t randomSeed);
+        explicit GeometryBootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry);
 
     protected:
         virtual void BeginReset() override;

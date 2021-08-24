@@ -255,14 +255,6 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::PurturbCurve(const twisty::Cu
     // Actually do the purturbation
     std::unique_ptr<twisty::Curve> upNewCurve = nullptr;
     upNewCurve = SimpleGeometryCurvePerturb(curve, flag);
-    //else if (m_experimentParams.curvePerturbMethod == CurvePerturbMethod::ComplexGeometry)
-    //{
-    //    upNewCurve = ComplexGeometryCurvePerturb(curve, flag);
-    //}
-    //else if (m_experimentParams.curvePerturbMethod == CurvePerturbMethod::RootSolve)
-    //{
-    //    upNewCurve = RootSolveCurvePerturb(curve, flag);
-    //}
 
     return upNewCurve;
 }

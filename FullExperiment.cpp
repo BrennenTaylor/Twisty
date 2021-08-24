@@ -23,6 +23,60 @@
 #include <thread>
 #include <filesystem>
 
+twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(const libconfig::Config& config)
+{
+    twisty::ExperimentRunner::ExperimentParameters experimentParams;
+
+    // Hardocded values
+    experimentParams.maximumBootstrapCurveError = 0.5f;
+    experimentParams.rotateInitialSeedCurveRadians = 0.0f;
+
+    // Values loaded from the config file
+    experimentParams.numPathsInExperiment = config.lookup("experiment.pathsToGenerate");
+    experimentParams.numPathsToSkip = config.lookup("experiment.pathsToSkip");
+    experimentParams.experimentName = config.lookup("experiment.name").c_str();
+    experimentParams.experimentDirPath = config.lookup("experiment.experimentDir").c_str();
+    experimentParams.numSegmentsPerCurve = config.lookup("experiment.numSegments");
+    experimentParams.arclength = config.lookup("experiment.arclength");
+    experimentParams.bootstrapSeed = config.lookup("experiment.random.bootstrapSeed");
+    experimentParams.curvePurturbSeed = config.lookup("experiment.random.perturbSeed");
+
+    // Weighting parameter stuff
+    experimentParams.weightingParameters.mu = config.lookup("experiment.weighting.mu");
+    experimentParams.weightingParameters.eps = config.lookup("experiment.weighting.eps");
+    experimentParams.weightingParameters.numStepsInt = config.lookup("experiment.weighting.numStepsInt");
+    experimentParams.weightingParameters.numCurvatureSteps =  config.lookup("experiment.weighting.numCurvatureSteps");
+    experimentParams.weightingParameters.absorbtion = config.lookup("experiment.weighting.absorbtion");
+    experimentParams.weightingParameters.scatter = config.lookup("experiment.weighting.scatter");
+
+    // TODO: Should these be configurable in the file?
+    experimentParams.weightingParameters.minBound = 0.0;
+    experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
+
+    return experimentParams;
+}
+
+libconfig::Config LoadConfigFile(const std::string& filename)
+{
+    libconfig::Config experimentConfig;
+    try
+    {
+        experimentConfig.readFile(filename);
+    }
+    catch (const libconfig::FileIOException &fioex)
+    {
+        std::cout << "I/O error while reading file." << std::endl;
+        //assert(false);
+    }
+    catch (const libconfig::ParseException &pex)
+    {
+        std::cout << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+                    << " - " << pex.getError() << std::endl;
+        //assert(false);
+    }
+    return experimentConfig;
+}
+
 int main(int argc, char *argv[])
 {
     {
@@ -31,57 +85,20 @@ int main(int argc, char *argv[])
             std::cout << "Call as: " << argv[0] << " configFilename" << std::endl;
             return 1;
         }
-
-        const std::string configFilename(argv[1]);
-        // Immediatly copy to cached cfg.
-        const std::string tmpFilename("tmp.cfg");
-        std::filesystem::copy_file(configFilename, tmpFilename, std::filesystem::copy_options::overwrite_existing);
-
-        libconfig::Config experimentConfig;
-        try
+        std::string configFilename(argv[1]);
+        libconfig::Config experimentConfig = LoadConfigFile(std::string(argv[1]));
+        twisty::ExperimentRunner::ExperimentParameters experimentParams = ParseExperimentParamsFromConfig(experimentConfig);
+        if (!std::filesystem::exists(experimentParams.experimentDirPath))
         {
-            experimentConfig.readFile(configFilename);
+            std::filesystem::create_directories(experimentParams.experimentDirPath);
         }
-        catch (const libconfig::FileIOException &fioex)
-        {
-            std::cout << "I/O error while reading file." << std::endl;
-            return (1);
-        }
-        catch (const libconfig::ParseException &pex)
-        {
-            std::cout << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-                      << " - " << pex.getError() << std::endl;
-            return (1);
-        }
+        const std::string experimentCfgCopyFilename = std::string(experimentParams.experimentDirPath) + "/parameters.cfg";
+        std::filesystem::copy_file(configFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
 
-        uint32_t numPathsToGenerate = experimentConfig.lookup("experiment.pathsToGenerate");
-        uint32_t numPathsToSkip = experimentConfig.lookup("experiment.pathsToSkip");
-        std::string experimentName = experimentConfig.lookup("experiment.name");
-        std::string experimentDirPath = experimentConfig.lookup("experiment.experimentDir");
-        uint32_t numExperimentSegments = experimentConfig.lookup("experiment.numSegments");
+        // Parse experiment specific parameters
+        uint32_t runnerVersion = experimentConfig.lookup("experiment.runnerVersion");
         float minTargetArclength = experimentConfig.lookup("experiment.minArclength");
         float maxTargetArclength = experimentConfig.lookup("experiment.maxArclength");
-        uint32_t runnerVersion = experimentConfig.lookup("experiment.runnerVersion");
-        uint32_t boostrapperSeed = experimentConfig.lookup("experiment.random.bootstrapperSeed");
-        uint32_t perturbSeed = experimentConfig.lookup("experiment.random.perturbSeed");
-
-        if (!std::filesystem::exists(experimentDirPath))
-        {
-            std::filesystem::create_directories(experimentDirPath);
-        }
-        const std::string experimentCfgCopyFilename = std::string(experimentDirPath) + "/parameters.cfg";
-        std::filesystem::copy_file(tmpFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
-
-        std::cout << "Command line args: " << std::endl;
-        std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
-        std::cout << "\tExperiment name: " << experimentName << std::endl;
-        std::cout << "\tBootstrapper Seed: " << boostrapperSeed << std::endl;
-        std::cout << "\tPerturb Seed: " << perturbSeed << std::endl;
-
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-        _CrtDumpMemoryLeaks();
-        _CrtMemDumpAllObjectsSince(NULL);
-#endif
 
         // Bootstrap method
         Farlor::Vector3 emitterStart;
@@ -106,7 +123,6 @@ int main(int argc, char *argv[])
         const double ringRadius = 1.75;
 
         const Farlor::Vector3 recieverPos = Farlor::Vector3(ringRadius, 0.0f, receiverZ);
-
         const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
 
         twisty::RayGeometry rayReciever(recieverPos, recieverDir);
@@ -114,34 +130,9 @@ int main(int argc, char *argv[])
         float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
         targetArclength = std::max(targetArclength, 3.0f);
 
-        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, boostrapperSeed);
+        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
 
-        std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
-
-        twisty::ExperimentRunner::ExperimentParameters experimentParams;
-        experimentParams.numPathsInExperiment = numPathsToGenerate;
-        experimentParams.numPathsToSkip = numPathsToSkip;
-        experimentParams.exportGeneratedCurves = true;
-        experimentParams.experimentName = experimentName;
-        experimentParams.experimentDirPath = experimentDirPath;
-        experimentParams.numSegmentsPerCurve = numExperimentSegments;
-        experimentParams.maximumBootstrapCurveError = 0.5f;
-        experimentParams.curvePerturbMethod = twisty::ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
-        experimentParams.curvePurturbSeed = perturbSeed;
-        experimentParams.rotateInitialSeedCurveRadians = 0.0f;
-
-        experimentParams.weightingParameters.mu = experimentConfig.lookup("experiment.weighting.mu");
-        experimentParams.weightingParameters.eps = experimentConfig.lookup("experiment.weighting.eps");
-        experimentParams.weightingParameters.numStepsInt = experimentConfig.lookup("experiment.weighting.numStepsInt");
-        experimentParams.weightingParameters.minBound = 0.0;
-        experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
-        experimentParams.weightingParameters.numCurvatureSteps =  experimentConfig.lookup("experiment.weighting.numCurvatureSteps");;
-        // Lets give some absorbtion as well
-        // Absorbtion 1/20 off the time
-        experimentParams.weightingParameters.absorbtion = experimentConfig.lookup("experiment.weighting.absorbtion");
-        // 1/5 scatter means one event every 5 units, thus 2 scattering events in the shortest
-        // or 5 in the longest 100 unit path
-        experimentParams.weightingParameters.scatter = experimentConfig.lookup("experiment.weighting.scatter");
+        std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment << std::endl;
 
         std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
 

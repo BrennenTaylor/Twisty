@@ -11,8 +11,8 @@
 
 namespace twisty
 {
-    GeometryBootstrapper::GeometryBootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry, float targetArclength, uint32_t randomSeed)
-        : Bootstrapper(targetArclength, randomSeed)
+    GeometryBootstrapper::GeometryBootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry)
+        : Bootstrapper()
     {
         auto sample0 = emitterGeometry.GetSampleRay();
         m_startPos = sample0.m_pos;

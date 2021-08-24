@@ -92,7 +92,7 @@ namespace twisty
         std::cout << "Spot 2 - Num hardware threads: " << std::thread::hardware_concurrency() << std::endl;
 
         std::cout << "Random Seeds: " << std::endl;
-        std::cout << "\tBootstrap seed: " << m_bootstrapper.GetBootstrapSeed() << std::endl;
+        std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
         std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
 
         // Ask the bootstrapper to generate a discrete curve.
@@ -100,7 +100,8 @@ namespace twisty
         bool successfulGen = false;
         while (!successfulGen)
         {
-            m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve);
+            m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength,
+                m_experimentParams.bootstrapSeed);
             if (!m_upInitialCurve)
             {
                 printf("Failed to create bootstrap curve with bezier method. Trying again with geometric\n");
@@ -109,7 +110,7 @@ namespace twisty
                 return false;
                 
                 m_bootstrapper.Reset();
-                m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve);
+                m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
                 if (!m_upInitialCurve)
                 {
                     printf("Both bootstrap versions failed, now we have to error out.\n");

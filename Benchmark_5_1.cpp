@@ -203,7 +203,6 @@ int main(int argc, char* argv[])
                         experimentParams.experimentName = experimentName;
                         experimentParams.numSegmentsPerCurve = NumSegmentsPerCurve;
                         experimentParams.maximumBootstrapCurveError = 0.5f;
-                        experimentParams.curvePerturbMethod = twisty::ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
                         experimentParams.curvePurturbSeed = perCurveSeed;
                         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 

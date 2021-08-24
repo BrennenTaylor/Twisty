@@ -211,7 +211,6 @@ int main(int argc, char *argv[])
 //                     experimentParams.experimentName = experimentName;
 //                     experimentParams.numSegmentsPerCurve = 200;
 //                     experimentParams.maximumBootstrapCurveError = 0.5f;
-//                     experimentParams.curvePerturbMethod = ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
 //                     experimentParams.curvePurturbSeed = perturbSeed;
 //                     experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 

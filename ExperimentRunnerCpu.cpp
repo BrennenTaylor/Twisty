@@ -292,24 +292,7 @@ namespace twisty
         }
 
         // Actually do the purturbation
-        std::unique_ptr<Curve> upNewCurve = nullptr;
-        if (m_experimentParams.curvePerturbMethod == CurvePerturbMethod::SimpleGeometry)
-        {
-            upNewCurve = SimpleGeometryCurvePerturb(curve, flag);
-        }
-        //else if (m_experimentParams.curvePerturbMethod == CurvePerturbMethod::ComplexGeometry)
-        //{
-        //    upNewCurve = ComplexGeometryCurvePerturb(curve, flag);
-        //}
-        //else if (m_experimentParams.curvePerturbMethod == CurvePerturbMethod::RootSolve)
-        //{
-        //    upNewCurve = RootSolveCurvePerturb(curve, flag);
-        //}
-        else
-        {
-            std::assert(false);
-        }
-
+        std::unique_ptr<Curve> upNewCurve = SimpleGeometryCurvePerturb(curve, flag);
         return upNewCurve;
     }
 

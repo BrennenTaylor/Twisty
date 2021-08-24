@@ -20,18 +20,9 @@
 
 namespace twisty
 {
-    /**
-     * @brief Implements the ExperimentRunner interface for running the experiment on the CPU
-     *
-     */
     class FullExperimentRunnerOptimalPerturb : public ExperimentRunner
     {
     public:
-        /**
-         * @brief Construct a new Experiment Runner Cpu object
-         *
-         * @param bootstrapper Bootstrapper object responsible for generating an initial curve given the experiment constraints
-         */
         FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunnerOptimalPerturb();
 
@@ -40,13 +31,6 @@ namespace twisty
         virtual void Shutdown() override;
 
     private:
-        /*
-
-        flag parameter is set to 0 for no errors.
-        If the root solve fails, its set to 1
-        If the root solve succeeds, but we dont accept the path due to calculated path error, we set to 2
-        */
-
         void GeometryPerturb(
             int64_t threadIdx,
             int64_t numExperimentPaths,

@@ -90,7 +90,6 @@ int main(int argc, char *argv[])
     experimentParams.experimentName = "PurturbViewer";
     experimentParams.numSegmentsPerCurve = numSegments;
     experimentParams.maximumBootstrapCurveError = 0.5f;
-    experimentParams.curvePerturbMethod = twisty::ExperimentRunner::CurvePerturbMethod::SimpleGeometry;
     experimentParams.curvePurturbSeed = 0;
 
     std::unique_ptr<twisty::Curve> upInitialCurve = bootstrapper.CreateCurve(numSegments);

@@ -12,12 +12,11 @@
 
 namespace twisty
 {
-    Bootstrapper::Bootstrapper(float targetArclength, uint32_t randomSeed)
+    Bootstrapper::Bootstrapper()
         : m_startPos(0.0f, 0.0f, 0.0f)
         , m_startDir(0.0f, 0.0f, 0.0f)
         , m_endPos(0.0f, 0.0f, 0.0f)
         , m_endDir(0.0f, 0.0f, 0.0f)
-        , m_targetArclength(targetArclength)
         , m_isCached(false)
         , m_upCachedCurve(nullptr)
         , m_cachedTValues()
@@ -25,19 +24,7 @@ namespace twisty
         , m_cachedSegmentFrames()
         , m_upCachedBezierInfo(nullptr)
         , m_upCachedBezier(nullptr)
-        , m_gen()
-        , m_bootstrapSeed(randomSeed)
     {
-        if (randomSeed != 0)
-        {
-            m_bootstrapSeed = randomSeed;
-        }
-        else
-        {
-            m_bootstrapSeed = static_cast<uint64_t>(time(0));
-        }
-
-        m_gen = std::mt19937_64(m_bootstrapSeed);
     }
 
     Bootstrapper::~Bootstrapper()
@@ -59,11 +46,6 @@ namespace twisty
         EndReset();
     }
 
-    uint32_t Bootstrapper::GetBootstrapSeed() const
-    {
-        return m_bootstrapSeed;
-    }
-
     Farlor::Vector3 Bootstrapper::GetStartPosition() const
     {
         return m_startPos;
@@ -81,11 +63,12 @@ namespace twisty
         return m_endDir;
     }
 
-    std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(uint32_t numSegments)
+    std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(uint32_t numSegments, float targetArclength)
     {
         std::cout << "\nBegin generating curve" << std::endl;
+        
 
-        const double arclength = m_targetArclength;
+        const double arclength = targetArclength;
         const double ds = arclength / numSegments;
         const Farlor::Vector3 x_s = m_startPos + ds * m_startDir;
         const Farlor::Vector3 x_e = m_endPos -= ds * m_endDir;
@@ -176,18 +159,20 @@ namespace twisty
     }
 
     
-    std::unique_ptr<Curve> Bootstrapper::CreateCurve(uint32_t numSegments)
+    std::unique_ptr<Curve> Bootstrapper::CreateCurve(uint32_t numSegments, float targetArclength, uint32_t generationSeed)
     {
         std::cout << "\nBegin generating curve" << std::endl;
+        const uint32_t bootstrapSeed = (generationSeed != 0) ? generationSeed : static_cast<uint64_t>(time(0));
+        std::mt19937_64 randomGen(bootstrapSeed);
 
         std::cout << "\tBoundary conditions: " << std::endl;
         std::cout << "\tStart Pos: " << m_startPos << std::endl;
         std::cout << "\tStart Dir: " << m_startDir << std::endl;
         std::cout << "\tEnd Pos: " << m_endPos << std::endl;
         std::cout << "\tEnd Dir: " << m_endDir << std::endl;
-        std::cout << "\tTarget Arclength: " << m_targetArclength << std::endl;
+        std::cout << "\tTarget Arclength: " << targetArclength << std::endl;
 
-        const float requestedArclength = m_targetArclength;
+        const float requestedArclength = targetArclength;
 
         const float minL2 = 0.0f;
         const float maxL2 = pow(10.0f, 5);
@@ -204,8 +189,8 @@ namespace twisty
         const float project = 0.5f;
         std::uniform_real_distribution<float> dist(0.0f, project * length);
 
-        float l0 = static_cast<float>(dist(m_gen));
-        float l1 = static_cast<float>(dist(m_gen));
+        float l0 = static_cast<float>(dist(randomGen));
+        float l1 = static_cast<float>(dist(randomGen));
 
 #if defined(DetailedCurveGen)
         std::cout << "\t(l0, l1): (" << l0 << ", " << l1 << ")" << std::endl;
@@ -228,8 +213,8 @@ namespace twisty
 
 
         std::uniform_real_distribution<float> uniformZeroToOne(0.0f, 1.0f);
-        const float e0 = uniformZeroToOne(m_gen);
-        const float e1 = uniformZeroToOne(m_gen);
+        const float e0 = uniformZeroToOne(randomGen);
+        const float e1 = uniformZeroToOne(randomGen);
         Farlor::Vector3 n2 = Sample::SampleUnitSphere(e0, e1);
         
 #if defined(DetailedCurveGen)
@@ -268,7 +253,7 @@ namespace twisty
         const float maxL2ArcLength = TestL2Arclength(maxL2);
 
         const float minArclengthScaleFactor = 1.01f;
-        float targetArclength = std::max(static_cast<float>(m_targetArclength), shortestArclengthPossible) * minArclengthScaleFactor;
+        targetArclength = std::max(static_cast<float>(targetArclength), shortestArclengthPossible) * minArclengthScaleFactor;
         std::cout << "Selected arclength to target: " << targetArclength << std::endl;
 
         // Ok, we want to find target_l2 such that

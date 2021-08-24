@@ -23,26 +23,6 @@ namespace twisty
     class ExperimentRunner
     {
     public:
-        enum class CurvePerturbMethod
-        {
-            SimpleGeometry = 0,
-            ComplexGeometry = 1,
-            RootSolve = 2
-        };
-
-        //struct ExperimentSegmentTorsion
-        //{
-        //    float m_curvature;
-        //    float m_x;
-        //    float m_y;
-        //    float m_z;
-        //    float m_tx;
-        //    float m_ty;
-        //    float m_tz;
-        //};
-
-        //using KTSegments = std::vector<ExperimentSegmentTorsion>;
-        
         struct PathBatch
         {
             std::vector<float> m_curvatures;
@@ -65,14 +45,15 @@ namespace twisty
             uint64_t numPathsPerBatch = 1000000;
             uint64_t numPathsToSkip = 0;
             uint32_t numSegmentsPerCurve = 3;
+            float arclength = 0.0f;
             uint32_t exportPathBatchSize = 1000;
             bool exportGeneratedCurves = false;
             std::string experimentName = "Default_Experiment";
             std::string experimentDirPath = "./Default_Experiment/";
             std::string pathBatchPrepend = "";
             float maximumBootstrapCurveError = 0.1f;
+            uint32_t bootstrapSeed = 0;
             uint32_t curvePurturbSeed = 0;
-            CurvePerturbMethod curvePerturbMethod = CurvePerturbMethod::SimpleGeometry;
             twisty::WeightingParameters weightingParameters;
             float rotateInitialSeedCurveRadians = 0.0f;
             PathNormalizerType pathNormalizerType = PathNormalizerType::PDF;

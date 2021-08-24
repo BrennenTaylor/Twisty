@@ -122,7 +122,7 @@ namespace twisty
         bool successfulGen = false;
         while (!successfulGen)
         {
-            m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve);
+            m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength, m_experimentParams.bootstrapSeed);
             if (!m_upInitialCurve)
             {
                 printf("Failed to create bootstrap curve.\n");
