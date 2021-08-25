@@ -6,8 +6,9 @@
 
 */
 
-#include "FullExperimentRunner.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
+
+#include <libconfig.h++>
 
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
@@ -20,44 +21,100 @@
 #include <memory>
 #include <filesystem>
 
-const float distanceFromPlane = 10.0f;
+twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(const libconfig::Config& config)
+{
+    twisty::ExperimentRunner::ExperimentParameters experimentParams;
 
-const uint32_t numPathsPerInternal = 100000;
-const uint32_t numPathsSkipPerInternal = 1000;
+    // Hardocded values
+    experimentParams.maximumBootstrapCurveError = 0.5f;
+    experimentParams.rotateInitialSeedCurveRadians = 0.0f;
+
+    // Values loaded from the config file
+    experimentParams.numPathsInExperiment = (int)config.lookup("experiment.experimentParams.pathsToGenerate");
+    experimentParams.numPathsToSkip = (int)config.lookup("experiment.experimentParams.pathsToSkip");
+    experimentParams.experimentName = config.lookup("experiment.experimentParams.name").c_str();
+    experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
+    experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
+    experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
+
+    // Seeds
+    experimentParams.bootstrapSeed = (int)config.lookup("experiment.experimentParams.random.bootstrapSeed");
+    experimentParams.curvePurturbSeed = (int)config.lookup("experiment.experimentParams.random.perturbSeed");
+
+    if (experimentParams.bootstrapSeed == 0)
+    {
+        experimentParams.bootstrapSeed = time(0);
+    }
+    if (experimentParams.curvePurturbSeed == 0)
+    {
+        experimentParams.curvePurturbSeed = time(0);
+    }
+
+    // Weighting parameter stuff
+    experimentParams.weightingParameters.mu = config.lookup("experiment.experimentParams.weighting.mu");
+    experimentParams.weightingParameters.eps = config.lookup("experiment.experimentParams.weighting.eps");
+    experimentParams.weightingParameters.numStepsInt = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");
+    experimentParams.weightingParameters.numCurvatureSteps = (int)config.lookup("experiment.experimentParams.weighting.numCurvatureSteps");
+    experimentParams.weightingParameters.absorbtion = config.lookup("experiment.experimentParams.weighting.absorbtion");
+    experimentParams.weightingParameters.scatter = config.lookup("experiment.experimentParams.weighting.scatter");
+
+    // TODO: Should these be configurable in the file?
+    experimentParams.weightingParameters.minBound = 0.0;
+    experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
+
+    return experimentParams;
+}
+
+bool LoadConfigFile(const std::string& filename, libconfig::Config& experimentConfig)
+{
+    try
+    {
+        experimentConfig.readFile(filename);
+    }
+    catch (const libconfig::FileIOException &fioex)
+    {
+        std::cout << "I/O error while reading file." << std::endl;
+        return false;
+    }
+    catch (const libconfig::ParseException &pex)
+    {
+        std::cout << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+                    << " - " << pex.getError() << std::endl;
+        return false;
+    }
+    return true;
+}
 
 // Shoot along the z-axis
 int main(int argc, char *argv[])
 {
-    if (argc < 8)
+    if (argc < 2)
     {
-        std::cout << "Call as: " << argv[0] << " experimentName experimentOutputPath bootstrapperSeed perturbSeed numInitialCurves numPerInitialCurve numSegments" << std::endl;
+        std::cout << "Call as: " << argv[0] << " configFilename" << std::endl;
         return 1;
     }
-
-    const std::string experimentName(argv[1]);
-    const std::string experimentOutputPath(argv[2]);
-    int bootstrapperSeed = std::stoi(argv[3]);
-    int perturbSeed = std::stoi(argv[4]);
-    const uint32_t numInitialCurves = std::stoi(argv[5]);
-    const uint32_t numPerInitialCurve = std::stoi(argv[6]);
-    const uint32_t numSegments = std::stoi(argv[7]);
-
-    std::filesystem::path outputDirectoryPath = std::filesystem::path(experimentOutputPath);
-    std::cout << "Output Directory Path: " << outputDirectoryPath << std::endl;
-    if (!std::filesystem::exists(outputDirectoryPath))
-    {
-        std::filesystem::create_directories(outputDirectoryPath);
+    std::string configFilename(argv[1]);
+    libconfig::Config experimentConfig;
+    if (!LoadConfigFile(configFilename, experimentConfig)) {
+        std::cout << "Failed to load config file: " << configFilename << std::endl;
+        return false;
     }
 
-    if (bootstrapperSeed == 0)
+    twisty::ExperimentRunner::ExperimentParameters experimentParams = ParseExperimentParamsFromConfig(experimentConfig);
+    if (!std::filesystem::exists(experimentParams.experimentDirPath))
     {
-        bootstrapperSeed = time(0);
+        std::filesystem::create_directories(experimentParams.experimentDirPath);
     }
+    const std::string experimentCfgCopyFilename = std::string(experimentParams.experimentDirPath) + "/parameters.cfg";
+    std::filesystem::copy_file(configFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
 
-    if (perturbSeed == 0)
-    {
-        perturbSeed = time(0);
-    }
+    // Experiment specific parameters
+    const uint32_t numInitialCurves = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numInitialCurves");
+    const uint32_t numPerInitialCurve = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numPerInitialCurve");
+    const uint32_t numEmitterDirections = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numEmitterDirections");
+    const float distanceFromPlane = experimentConfig.lookup("experiment.smallSegmentExperiment.distanceFromPlane");
+    const uint32_t numPathsPerInternal = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numPathsPerInternal");
+    const uint32_t numPathsSkipPerInternal = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numPathsSkipPerInternal");
 
     // Ok, we want the ray emitter
     const Farlor::Vector3 emitterStart{0.0f, 0.0f, 0.0f};
@@ -69,8 +126,11 @@ int main(int argc, char *argv[])
     twisty::RayGeometry rayReciever(recieverPos, recieverDir);
 
     // Start at somehting close to 1.05 times the minimum arclength and go to 1.5 times the arclength
-    float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
-    targetArclength = std::max(targetArclength, 3.0f);
+    if (experimentParams.arclength < 3.0)
+    {
+        std::cout << "Overwritting arclength as it was too small" << std::endl;
+        experimentParams.arclength = 3.0;
+    }
 
     std::stringstream innerBlockSS;
     innerBlockSS << "<Converged Value>";
@@ -78,7 +138,11 @@ int main(int argc, char *argv[])
 
     boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
 
-    std::mt19937 initialCurveGen(bootstrapperSeed);
+    // Cache the initial seeds
+    uint32_t cachedInitialBootstrapSeed = experimentParams.bootstrapSeed;
+    uint32_t cachedInitialPerturbSeed = experimentParams.curvePurturbSeed;
+
+    std::mt19937 initialCurveGen(cachedInitialBootstrapSeed);
     for (uint32_t initialCurveIdx = 0; initialCurveIdx < numInitialCurves; ++initialCurveIdx)
     {
         int initialCurveSeed = initialCurveGen();
@@ -89,37 +153,21 @@ int main(int argc, char *argv[])
 
         boost::multiprecision::cpp_dec_float_100 maxResult = 0.0;
 
-        std::mt19937 perCurveGen(perturbSeed);
+        std::mt19937 perCurveGen(cachedInitialPerturbSeed);
         for (uint32_t perInitialCurveIdx = 0; perInitialCurveIdx < numPerInitialCurve; ++perInitialCurveIdx)
         {
+            // Go ahead and overwrite the per curve seed
             int perCurveSeed = perCurveGen();
             while (perCurveSeed == 0)
             {
                 perCurveSeed = perCurveGen();
             }
 
-            twisty::ExperimentRunner::ExperimentParameters experimentParams;
-            experimentParams.numPathsInExperiment = numPathsPerInternal;
-            experimentParams.numPathsToSkip = numPathsSkipPerInternal;
-            experimentParams.exportGeneratedCurves = false;
-            experimentParams.experimentName = experimentName;
-            experimentParams.numSegmentsPerCurve = numSegments;
-            experimentParams.maximumBootstrapCurveError = 0.5f;
+            // Update random seeds
+            experimentParams.bootstrapSeed = initialCurveSeed;
             experimentParams.curvePurturbSeed = perCurveSeed;
-            experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-            // Use a big mu value
-            experimentParams.weightingParameters.mu = 99.0;
-            experimentParams.weightingParameters.eps = 0.1;
-            experimentParams.weightingParameters.numStepsInt = 2000;
-            experimentParams.weightingParameters.minBound = 0.0;
-            experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
-            experimentParams.weightingParameters.numCurvatureSteps = 10000;
-            experimentParams.weightingParameters.absorbtion = 0.9;
-            experimentParams.weightingParameters.scatter = 0.1;
-            experimentParams.rotateInitialSeedCurveRadians = 0.0f;
-
-            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, initialCurveSeed);
+            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
             std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
             bool result = upExperimentRunner->Setup();
 
@@ -145,7 +193,7 @@ int main(int argc, char *argv[])
 
     // Export freeze frame pixel data
     {
-        std::filesystem::path converedValuesOutputPath = outputDirectoryPath;
+        std::filesystem::path converedValuesOutputPath = experimentParams.experimentDirPath;
         converedValuesOutputPath.append("Converged.dat");
 
         std::ofstream convergedValuesOutputStream(converedValuesOutputPath.string());

@@ -4,6 +4,7 @@ add_executable(CalculateGroundTruth
 
 target_link_libraries(CalculateGroundTruth
     PUBLIC FMath
+    PUBLIC Twisty
 )
 
 target_compile_features(CalculateGroundTruth

@@ -1,6 +1,6 @@
-#include "FullExperimentRunner.h"
+// #include "FullExperimentRunner.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
-#include "FullExperimentRunnerOptimalPerturbOptimized.h"
+// #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
 #include <libconfig.h++>
 
@@ -32,22 +32,23 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
     // Values loaded from the config file
-    experimentParams.numPathsInExperiment = config.lookup("experiment.pathsToGenerate");
-    experimentParams.numPathsToSkip = config.lookup("experiment.pathsToSkip");
-    experimentParams.experimentName = config.lookup("experiment.name").c_str();
-    experimentParams.experimentDirPath = config.lookup("experiment.experimentDir").c_str();
-    experimentParams.numSegmentsPerCurve = config.lookup("experiment.numSegments");
-    experimentParams.arclength = config.lookup("experiment.arclength");
-    experimentParams.bootstrapSeed = config.lookup("experiment.random.bootstrapSeed");
-    experimentParams.curvePurturbSeed = config.lookup("experiment.random.perturbSeed");
+    experimentParams.numPathsInExperiment = (int)config.lookup("experiment.experimentParams.pathsToGenerate");
+    experimentParams.numPathsToSkip = (int)config.lookup("experiment.experimentParams.pathsToSkip");
+    experimentParams.experimentName = config.lookup("experiment.experimentParams.name").c_str();
+    experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
+    experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
+    experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
+
+    experimentParams.bootstrapSeed = (int)config.lookup("experiment.experimentParams.random.bootstrapSeed");
+    experimentParams.curvePurturbSeed = (int)config.lookup("experiment.experimentParams.random.perturbSeed");
 
     // Weighting parameter stuff
-    experimentParams.weightingParameters.mu = config.lookup("experiment.weighting.mu");
-    experimentParams.weightingParameters.eps = config.lookup("experiment.weighting.eps");
-    experimentParams.weightingParameters.numStepsInt = config.lookup("experiment.weighting.numStepsInt");
-    experimentParams.weightingParameters.numCurvatureSteps =  config.lookup("experiment.weighting.numCurvatureSteps");
-    experimentParams.weightingParameters.absorbtion = config.lookup("experiment.weighting.absorbtion");
-    experimentParams.weightingParameters.scatter = config.lookup("experiment.weighting.scatter");
+    experimentParams.weightingParameters.mu = config.lookup("experiment.experimentParams.weighting.mu");
+    experimentParams.weightingParameters.eps = config.lookup("experiment.experimentParams.weighting.eps");
+    experimentParams.weightingParameters.numStepsInt = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");
+    experimentParams.weightingParameters.numCurvatureSteps = (int)config.lookup("experiment.experimentParams.weighting.numCurvatureSteps");
+    experimentParams.weightingParameters.absorbtion = config.lookup("experiment.experimentParams.weighting.absorbtion");
+    experimentParams.weightingParameters.scatter = config.lookup("experiment.experimentParams.weighting.scatter");
 
     // TODO: Should these be configurable in the file?
     experimentParams.weightingParameters.minBound = 0.0;
@@ -56,9 +57,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     return experimentParams;
 }
 
-libconfig::Config LoadConfigFile(const std::string& filename)
+bool LoadConfigFile(const std::string& filename, libconfig::Config& experimentConfig)
 {
-    libconfig::Config experimentConfig;
     try
     {
         experimentConfig.readFile(filename);
@@ -66,15 +66,15 @@ libconfig::Config LoadConfigFile(const std::string& filename)
     catch (const libconfig::FileIOException &fioex)
     {
         std::cout << "I/O error while reading file." << std::endl;
-        //assert(false);
+        return false;
     }
     catch (const libconfig::ParseException &pex)
     {
         std::cout << "Parse error at " << pex.getFile() << ":" << pex.getLine()
                     << " - " << pex.getError() << std::endl;
-        //assert(false);
+        return false;
     }
-    return experimentConfig;
+    return true;
 }
 
 int main(int argc, char *argv[])
@@ -86,7 +86,12 @@ int main(int argc, char *argv[])
             return 1;
         }
         std::string configFilename(argv[1]);
-        libconfig::Config experimentConfig = LoadConfigFile(std::string(argv[1]));
+        libconfig::Config experimentConfig;
+        if (!LoadConfigFile(configFilename, experimentConfig)) {
+            std::cout << "Failed to load config file: " << configFilename << std::endl;
+            return false;
+        }
+
         twisty::ExperimentRunner::ExperimentParameters experimentParams = ParseExperimentParamsFromConfig(experimentConfig);
         if (!std::filesystem::exists(experimentParams.experimentDirPath))
         {
@@ -97,9 +102,7 @@ int main(int argc, char *argv[])
 
         // Parse experiment specific parameters
         uint32_t runnerVersion = experimentConfig.lookup("experiment.runnerVersion");
-        float minTargetArclength = experimentConfig.lookup("experiment.minArclength");
-        float maxTargetArclength = experimentConfig.lookup("experiment.maxArclength");
-
+        
         // Bootstrap method
         Farlor::Vector3 emitterStart;
         emitterStart.x = experimentConfig.lookup("experiment.geometry.startPos.x");
@@ -139,23 +142,23 @@ int main(int argc, char *argv[])
         std::cout << "Runner version: " << runnerVersion << std::endl;
 
 // #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-        switch (runnerVersion)
-        {
-        case 0:
-        {
-            std::cout << "Selected Runner Method: FullExperimentRunner" << std::endl;
-            upExperimentRunner = std::make_unique<twisty::FullExperimentRunner>(experimentParams, bootstrapper);
-        } break;
-        case 1:
-        {
-            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
-        } break;
-        case 2:
-        {
-            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized" << std::endl;
-            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
-        } break;
+        // switch (runnerVersion)
+        // {
+        // case 0:
+        // {
+        //     std::cout << "Selected Runner Method: FullExperimentRunner" << std::endl;
+        //     upExperimentRunner = std::make_unique<twisty::FullExperimentRunner>(experimentParams, bootstrapper);
+        // } break;
+        // case 1:
+        // {
+        std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
+        upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
+        // } break;
+        // case 2:
+        // {
+        //     std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized" << std::endl;
+        //     upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
+        // } break;
 
         //case 3:
         //{
@@ -168,12 +171,12 @@ int main(int argc, char *argv[])
         // {
         //     upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
         // } break;
-        default:
-        {
-            std::cout << "Invalid experiment runner method selected" << std::endl;
-            exit(1);
-        }
-        }
+        // default:
+        // {
+        //     std::cout << "Invalid experiment runner method selected" << std::endl;
+        //     exit(1);
+        // }
+        // }
 // #else
         // upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
 // #endif
