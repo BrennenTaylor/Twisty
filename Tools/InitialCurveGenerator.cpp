@@ -55,13 +55,13 @@ int main(int argc, char* argv[])
     {
         const uint32_t bootstrapperSeed = std::stoi(argv[numInitialArguments + curveIdx]);
 
-        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclength, bootstrapperSeed);
+        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
 
         std::unique_ptr<twisty::Curve> upInitialCurve = nullptr;
         bool successfulGen = false;
         while (!successfulGen)
         {
-            upInitialCurve = bootstrapper.CreateCurve(numSegments);
+            upInitialCurve = bootstrapper.CreateCurve(numSegments, arclength, bootstrapperSeed);
             if (!upInitialCurve)
             {
                 printf("Failed to create bootstrap curve.\n");

@@ -84,18 +84,20 @@ int main(int argc, char *argv[])
 
             RayGeometry rayReciever(recieverPos, recieverDir);
 
-            GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, initialCurveSeed);
+            GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
 
             std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
 
             ExperimentRunner::ExperimentParameters experimentParams;
             experimentParams.numPathsInExperiment = numPathsToGenerate;
             experimentParams.numPathsToSkip = numPathsToSkip;
+            experimentParams.arclength = targetArclength;
             experimentParams.exportGeneratedCurves = true;
             experimentParams.experimentName = experimentName;
             experimentParams.experimentDirPath = experimentDirPath;
             experimentParams.numSegmentsPerCurve = numExperimentSegments;
             experimentParams.maximumBootstrapCurveError = 0.5f;
+            experimentParams.bootstrapSeed = initialCurveSeed;
             experimentParams.curvePurturbSeed = perCurveSeed;
             experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 

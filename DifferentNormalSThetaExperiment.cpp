@@ -35,13 +35,13 @@ int main(int argc, char *argv[])
     const uint32_t numDegreeSteps = std::stoi(argv[9]);
 
     const bool useGpu = std::stoi(argv[10]);
-    const int boostrapperSeed = std::stoi(argv[11]);
+    const int bootstrapperSeed = std::stoi(argv[11]);
     const int perturbSeed = std::stoi(argv[12]);
 
     std::cout << "Command line args: " << std::endl;
     std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
     std::cout << "\tExperiment name: " << experimentName << std::endl;
-    std::cout << "\tBootstrapper Seed: " << boostrapperSeed << std::endl;
+    std::cout << "\tBootstrapper Seed: " << bootstrapperSeed << std::endl;
     std::cout << "\tPerturb Seed: " << perturbSeed << std::endl;
 
     // Currently this is a hardcoded position and direction
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 
         RayGeometry rayReciever(recieverPos, recieverDir);
 
-        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, boostrapperSeed);
+        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
 
         std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
 
@@ -74,11 +74,13 @@ int main(int argc, char *argv[])
         ExperimentRunner::ExperimentParameters experimentParams;
         experimentParams.numPathsInExperiment = numPathsToGenerate;
         experimentParams.numPathsToSkip = numPathsToSkip;
+        experimentParams.arclength = targetArclength;
         experimentParams.exportGeneratedCurves = true;
         experimentParams.experimentName = experimentName;
         experimentParams.experimentDirPath = experimentDirSS.str();
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
         experimentParams.maximumBootstrapCurveError = 0.5f;
+        experimentParams.bootstrapSeed = bootstrapperSeed;
         experimentParams.curvePurturbSeed = perturbSeed;
         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 

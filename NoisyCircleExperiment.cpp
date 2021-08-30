@@ -231,10 +231,12 @@ int main(int argc, char *argv[])
                             twisty::ExperimentRunner::ExperimentParameters experimentParams;
                             experimentParams.numPathsInExperiment = numPathsToGenerate;
                             experimentParams.numPathsToSkip = numPathsToSkip;
+                            experimentParams.arclength = targetArclength;
                             experimentParams.exportGeneratedCurves = false;
                             experimentParams.experimentName = experimentName;
                             experimentParams.numSegmentsPerCurve = 200;
                             experimentParams.maximumBootstrapCurveError = 0.5f;
+                            experimentParams.bootstrapSeed = initialCurveSeed;
                             experimentParams.curvePurturbSeed = perCurveSeed;
                             experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
@@ -254,7 +256,7 @@ int main(int argc, char *argv[])
                             
                             experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-                            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, initialCurveSeed);
+                            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
                             std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
                             bool result = upExperimentRunner->Setup();
 

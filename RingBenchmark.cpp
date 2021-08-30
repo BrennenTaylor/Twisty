@@ -61,13 +61,13 @@ int main(int argc, char *argv[])
         float minTargetArclength = experimentConfig.lookup("experiment.minArclength");
         float maxTargetArclength = experimentConfig.lookup("experiment.maxArclength");
         uint32_t runnerVersion = experimentConfig.lookup("experiment.runnerVersion");
-        uint32_t boostrapperSeed = experimentConfig.lookup("experiment.random.bootstrapperSeed");
+        uint32_t bootstrapperSeed = experimentConfig.lookup("experiment.random.bootstrapperSeed");
         uint32_t perturbSeed = experimentConfig.lookup("experiment.random.perturbSeed");
 
         std::cout << "Command line args: " << std::endl;
         std::cout << "\tNum paths to gen: " << numPathsToGenerate << std::endl;
         std::cout << "\tExperiment name: " << experimentName << std::endl;
-        std::cout << "\tBootstrapper Seed: " << boostrapperSeed << std::endl;
+        std::cout << "\tBootstrapper Seed: " << bootstrapperSeed << std::endl;
         std::cout << "\tPerturb Seed: " << perturbSeed << std::endl;
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
@@ -108,18 +108,20 @@ int main(int argc, char *argv[])
         float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
         targetArclength = std::max(targetArclength, 3.0f);
 
-        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, targetArclength, boostrapperSeed);
+        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
 
         std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
 
         ExperimentRunner::ExperimentParameters experimentParams;
         experimentParams.numPathsInExperiment = numPathsToGenerate;
         experimentParams.numPathsToSkip = numPathsToSkip;
+        experimentParams.arclength = targetArclength;
         experimentParams.exportGeneratedCurves = false;
         experimentParams.experimentName = experimentName;
         experimentParams.experimentDirPath = experimentDirPath;
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
         experimentParams.maximumBootstrapCurveError = 0.5f;
+        experimentParams.bootstrapSeed = bootstrapperSeed;
         experimentParams.curvePurturbSeed = perturbSeed;
         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
