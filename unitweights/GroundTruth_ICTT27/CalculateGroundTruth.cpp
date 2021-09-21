@@ -15,7 +15,7 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
 {
     twisty::ExperimentRunner::ExperimentParameters experimentParams;
 
-    // Hardocded values
+    // Hardcoded values
     experimentParams.maximumBootstrapCurveError = 0.5f;
     experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
@@ -24,6 +24,9 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     experimentParams.numPathsToSkip = (int)config.lookup("experiment.experimentParams.pathsToSkip");
     experimentParams.experimentName = config.lookup("experiment.experimentParams.name").c_str();
     experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
+
+    experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
+
     experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
     experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
 
@@ -177,7 +180,7 @@ int main(int argc, char* argv[])
    {
       std::filesystem::create_directories(experimentParams.experimentDirPath);
    }
-   const std::string experimentCfgCopyFilename = std::string(experimentParams.experimentDirPath) + "/parameters.cfg";
+   const std::string experimentCfgCopyFilename = std::string(experimentParams.experimentDirPath) + "/" + experimentParams.experimentName + ".cfg";
 
    if (!std::filesystem::exists(experimentCfgCopyFilename)) {
        std::filesystem::copy_file(configFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
@@ -201,7 +204,7 @@ int main(int argc, char* argv[])
    const double sMax = 1.0;
    const double sStepSize = (sMax - sMin) / (numSSteps - 1);
 
-   std::string outputDataFilename = std::string(experimentParams.experimentDirPath) + std::string("Results.dat");
+   std::string outputDataFilename = std::string(experimentParams.experimentDirPath) + std::string("/Results.dat");
    std::ofstream ofs(outputDataFilename);
 
    const double theta = 0.0;
