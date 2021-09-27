@@ -1,15 +1,6 @@
-// #include "FullExperimentRunner.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
-// #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
 #include <libconfig.h++>
-
-//#include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
-
-//#if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-//#include "GpuFullExperimentRunnerGeneral.h"
-//#include "GpuFullExperimentRunnerGeneral2.h"
-//#endif
 
 #include "GeometryBootstrapper.h"
 #include "MathConsts.h"
@@ -97,113 +88,82 @@ int main(int argc, char *argv[])
         {
             std::filesystem::create_directories(experimentParams.experimentDirPath);
         }
-        const std::string experimentCfgCopyFilename = std::string(experimentParams.experimentDirPath) + "/parameters.cfg";
-        std::filesystem::copy_file(configFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
+        const std::string experimentCfgCopyFilename = std::string(experimentParams.experimentDirPath) + "/" + experimentParams.experimentName + ".cfg";
 
-        // Parse experiment specific parameters
-        uint32_t runnerVersion = experimentConfig.lookup("experiment.runnerVersion");
-        
-        // Bootstrap method
-        Farlor::Vector3 emitterStart;
-        emitterStart.x = experimentConfig.lookup("experiment.geometry.startPos.x");
-        emitterStart.y = experimentConfig.lookup("experiment.geometry.startPos.y");
-        emitterStart.z = experimentConfig.lookup("experiment.geometry.startPos.z");
-
-        Farlor::Vector3 emitterDir;
-        emitterDir.x = experimentConfig.lookup("experiment.geometry.startDir.x");
-        emitterDir.y = experimentConfig.lookup("experiment.geometry.startDir.y");
-        emitterDir.z = experimentConfig.lookup("experiment.geometry.startDir.z");
-        emitterDir.Normalize();
-        const twisty::RayGeometry rayEmitter(emitterStart, emitterDir);
-
-        const double zMin = 0.0;
-        const double zMax = 10.0;
-
-        const uint32_t numZValues = 10;
-        const double deltaZ = (zMax - zMin) / (numZValues - 1);
-        const uint32_t zIdx = 2;
-        const double receiverZ = zMin + deltaZ * zIdx;
-        const double ringRadius = 1.75;
-
-        const Farlor::Vector3 recieverPos = Farlor::Vector3(ringRadius, 0.0f, receiverZ);
-        const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
-
-        twisty::RayGeometry rayReciever(recieverPos, recieverDir);
-
-        float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
-        targetArclength = std::max(targetArclength, 3.0f);
-
-        twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
-
-        std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment << std::endl;
-
-        std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
-
-        std::cout << "Runner version: " << runnerVersion << std::endl;
-
-// #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-        // switch (runnerVersion)
-        // {
-        // case 0:
-        // {
-        //     std::cout << "Selected Runner Method: FullExperimentRunner" << std::endl;
-        //     upExperimentRunner = std::make_unique<twisty::FullExperimentRunner>(experimentParams, bootstrapper);
-        // } break;
-        // case 1:
-        // {
-        std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-        upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
-        // } break;
-        // case 2:
-        // {
-        //     std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized" << std::endl;
-        //     upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
-        // } break;
-
-        //case 3:
-        //{
-        //    std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized_GPU" << std::endl;
-        //    upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized_GPU>(experimentParams, bootstrapper);
-        //} break;
-
-        // Debug modes
-        // case 66:
-        // {
-        //     upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
-        // } break;
-        // default:
-        // {
-        //     std::cout << "Invalid experiment runner method selected" << std::endl;
-        //     exit(1);
-        // }
-        // }
-// #else
-        // upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
-// #endif
-
-        std::cout << "Spot 1 - Num hardware threads: " << std::thread::hardware_concurrency() << std::endl;
-
-
-        bool result = upExperimentRunner->Setup();
-        if (!result)
-        {
-            upExperimentRunner->Shutdown();
-            std::cout << "Failed to setup experiment runner." << std::endl;
-            return 1;
+        if (!std::filesystem::exists(experimentCfgCopyFilename)) {
+            std::filesystem::copy_file(configFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
         }
-        auto start = std::chrono::high_resolution_clock::now();
-        twisty::ExperimentRunner::ExperimentResults results = upExperimentRunner->RunExperiment();
-        auto end = std::chrono::high_resolution_clock::now();
-        auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        const uint32_t numEmitterDirections = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numEmitterDirections");
+        const float distanceFromPlane = experimentConfig.lookup("experiment.smallSegmentExperiment.distanceFromPlane");
 
-        std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
-        std::cout << "Total experiment weight: " << results.experimentWeight << std::endl;
-        std::cout << "Avg path weight: " << results.experimentWeight / results.totalPathsGenerated << std::endl;
+        const double ds = experimentParams.arclength / experimentParams.numSegmentsPerCurve;
+        const double alpha = 1.0 / (experimentParams.weightingParameters.scatter * experimentParams.weightingParameters.mu * ds);
+        
+        Farlor::Vector3 startPos(0.0f, 0.0f, 0.0f);
+        Farlor::Vector3 startDir(0.0f, 0.0f, 1.0f);
+        const twisty::RayGeometry rayEmitter(startPos, startDir);
 
-        // Retrieve Data we want from experiment
-        upExperimentRunner->Shutdown();
-        upExperimentRunner.reset(nullptr);
+
+
+
+        const uint32_t numSSteps = numEmitterDirections;
+        const double sMin = -1.0;
+        const double sMax = 1.0;
+        const double sStepSize = (sMax - sMin) / (numSSteps - 1);
+
+        std::string outputDataFilename = std::string(experimentParams.experimentDirPath) + std::string("/Results.dat");
+        std::ofstream ofs(outputDataFilename);
+
+        const double theta = 0.0;
+        for (uint32_t sIdx = 0; sIdx < numSSteps; sIdx++)
+        {
+            const double s = sMin + sIdx * sStepSize;
+            const double ss = sqrt(1.0 - s * s);
+
+            std::cout << "S: " << s << std::endl;
+
+
+            Farlor::Vector3 endPos(0.0f, 0.0f, distanceFromPlane);
+            Farlor::Vector3 evalVector = Farlor::Vector3(ss * cos(theta), ss * sin(theta), s).Normalized();
+            twisty::RayGeometry rayReciever(endPos, evalVector);
+
+            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
+
+
+            std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment << std::endl;
+
+            std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
+
+            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
+            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
+
+            bool result = upExperimentRunner->Setup();
+            if (!result)
+            {
+                upExperimentRunner->Shutdown();
+                std::cout << "Failed to setup experiment runner." << std::endl;
+                return 1;
+            }
+            auto start = std::chrono::high_resolution_clock::now();
+            twisty::ExperimentRunner::ExperimentResults results = upExperimentRunner->RunExperiment();
+            auto end = std::chrono::high_resolution_clock::now();
+            auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+
+            std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
+            std::cout << "Total experiment weight: " << results.experimentWeight << std::endl;
+            std::cout << "Avg path weight: " << results.experimentWeight / results.totalPathsGenerated << std::endl;
+
+            // Retrieve Data we want from experiment
+            upExperimentRunner->Shutdown();
+            upExperimentRunner.reset(nullptr);
+
+            ofs << s << ", " << results.experimentWeight << std::endl;
+
+            std::cout << "\tEnd Dir: " << evalVector << std::endl;
+            std::cout << "\tEval: " << results.experimentWeight << std::endl;
+        }
+        ofs.close();
     }
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
