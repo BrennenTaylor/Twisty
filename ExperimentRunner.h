@@ -50,6 +50,7 @@ namespace twisty
             bool exportGeneratedCurves = false;
             std::string experimentName = "Default_Experiment";
             std::string experimentDirPath = "./Default_Experiment/";
+            std::string perExperimentDirSubfolder = "";
             std::string pathBatchPrepend = "";
             float maximumBootstrapCurveError = 0.1f;
             uint32_t bootstrapSeed = 0;
@@ -89,6 +90,7 @@ namespace twisty
         ExperimentParameters& m_experimentParams;
         Bootstrapper& m_bootstrapper;
         std::unique_ptr<Curve> m_upInitialCurve;
+        std::string m_pathBatchOutputPath;
 
     private:
         rapidjson::Document m_pathBatchJsonIndex;

@@ -65,15 +65,23 @@ namespace twisty
 
     std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(uint32_t numSegments, float targetArclength)
     {
-        std::cout << "\nBegin generating curve" << std::endl;
-        
+        // TODO: Add assertion for minimal number of segments!
 
+        std::cout << "\nBegin generating curve" << std::endl;
         const double arclength = targetArclength;
         const double ds = arclength / numSegments;
-        const Farlor::Vector3 x_s = m_startPos + ds * m_startDir;
-        const Farlor::Vector3 x_e = m_endPos -= ds * m_endDir;
-        const Farlor::Vector3 x_p = (x_s + x_e) * 0.5;
-        const Farlor::Vector3 lineUnitDir = (x_e - x_s).Normalized();
+
+        // If we have an odd number of segments, we want to place two segments right at the beginning
+        // TODO: The second segment really should be flexible in its placement for allowing the most environment configurations
+        //       however, its good enough for now.
+
+        bool evenNumberOfSegments = (numSegments % 2) == 0;
+
+        // In the odd case, we place two segments initially
+        const Farlor::Vector3 x_1 = m_startPos + ds * m_startDir;
+        const Farlor::Vector3 x_s = evenNumberOfSegments ? x_1 + (m_endPos - x_1).Normalized() * ds : x_1;
+        const Farlor::Vector3 x_p = (x_s + m_endPos) * 0.5;
+        const Farlor::Vector3 lineUnitDir = (m_endPos - x_s).Normalized();
         
         Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
         if (lineUnitDir == otherCrossVec)
@@ -82,8 +90,15 @@ namespace twisty
         }
         
         const Farlor::Vector3 normalToLine = lineUnitDir.Cross(otherCrossVec).Normalized();
-        const double hypot = (numSegments - 2) * 0.5 * ds;
-        const double D_2 = (x_e - x_s).Magnitude() / 2.0;
+
+        // TODO: Add assertion that remaining segments can fill gap
+
+        // Subtract off segments which are already accounted for, 1 if odd and 2 if even
+        const int remainingSegmentCount = evenNumberOfSegments ? numSegments - 2 : numSegments - 1;
+        // We should have an even number of segments remaining
+        assert((remainingSegmentCount % 2) == 0);
+        const double hypot = remainingSegmentCount * 0.5 * ds;
+        const double D_2 = (m_endPos - x_s).Magnitude() * 0.5;
         const double distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
         const Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
 
@@ -96,35 +111,39 @@ namespace twisty
         m_upCachedCurve->m_targetPos = GetTargetPosition();
         m_upCachedCurve->m_targetTangent = GetTargetNormal();
         
-        // First 2 positions
-        // Defines first segment
+        int remainingSegmentCountDiv2 = remainingSegmentCount / 2;
+
+        // First positions
+        int xsPos = 0;
+        if (evenNumberOfSegments)
+        {
+            m_upCachedCurve->m_positions[0] = m_startPos;
+            m_upCachedCurve->m_positions[1] = x_1;
+            m_upCachedCurve->m_positions[2] = x_s;
+            xsPos = 2;
+        }
+        else
         {
             m_upCachedCurve->m_positions[0] = m_startPos;
             m_upCachedCurve->m_positions[1] = x_s;
+            xsPos = 1;
         }
-        
 
-        // Last 2 positions
-        // Defines last segment
         {
-            m_upCachedCurve->m_positions[numSegments - 1] = x_e;
             m_upCachedCurve->m_positions[numSegments] = m_endPos;
         }
-
-        // Calculate the left side
-        const uint32_t numLeft = (((numSegments + 1) - 4) / 2) + 1;
-        const uint32_t numRight = numLeft - 1;
         
         const Farlor::Vector3 leftDir = (x_t - x_s).Normalized();
-        for (uint32_t i = 1; i <= numLeft; ++i)
+        for (uint32_t leftIdx = 1; leftIdx <= remainingSegmentCountDiv2; ++leftIdx)
         {
-            m_upCachedCurve->m_positions[1 + i] = x_s + i * ds * leftDir;
+            // We want leftIdx 0 to be 1 step away, thus the + 1
+            m_upCachedCurve->m_positions[leftIdx + xsPos] = x_s + leftIdx * ds* leftDir;
         }
 
-        const Farlor::Vector3 rightDir = (x_e - x_t).Normalized();
-        for (uint32_t i = 1; i <= numRight; ++i)
+        const Farlor::Vector3 rightDir = (m_endPos - x_t).Normalized();
+        for (uint32_t rightIdx = 1; rightIdx <= remainingSegmentCountDiv2; ++rightIdx)
         {
-            m_upCachedCurve->m_positions[numLeft + i] = x_t + i * ds * rightDir;
+            m_upCachedCurve->m_positions[rightIdx + xsPos + remainingSegmentCountDiv2] = x_t + rightIdx * ds * rightDir;
         }
         
         twisty::PerturbUtils::BoundrayConditions boundaryConditions;
@@ -137,7 +156,7 @@ namespace twisty
             m_upCachedCurve->m_curvatures.data(), m_upCachedCurve->m_numSegments, boundaryConditions);
 
 
-        float totalDistance = 0.0f;
+        double totalDistance = 0.0;
         // Calculate the actual length of the segment based curve
         for (uint32_t i = 0; i < m_upCachedCurve->m_numSegments - 1; ++i)
         {
@@ -161,6 +180,8 @@ namespace twisty
     
     std::unique_ptr<Curve> Bootstrapper::CreateCurve(uint32_t numSegments, float targetArclength, uint32_t generationSeed)
     {
+        std::cout << "Error: Dont use this version of the curve creator" << std::endl;
+        assert(false);
         std::cout << "\nBegin generating curve" << std::endl;
         const uint32_t bootstrapSeed = (generationSeed != 0) ? generationSeed : static_cast<uint64_t>(time(0));
         std::mt19937_64 randomGen(bootstrapSeed);
@@ -233,22 +254,6 @@ namespace twisty
             m_upCachedBezier->m_controlPts[2] = previous;
             return arclength;
         };
-
-        // Ok, so we hand an arclength to the bootstrapper. We want to have the closest minimum arclenghth that matches.
-
-        // TODO: Figure out if we need to flip the normal here?
-        // We want basically the arc length to never shrink as we move along the normal.
-        // If we get this case, we have a problem.
-
-        
-        //        float minL2ArcLength = TestL2Arclength(minL2);
-//        float maxL2ArcLength = TestL2Arclength(maxL2);
-//
-//#if defined(DetailedCurveGen)
-//        std::cout << "\tminL2ArcLength: " << minL2ArcLength << std::endl;
-//        std::cout << "\tmaxL2ArcLength: " << maxL2ArcLength << std::endl;
-//#endif
-//
 
         const float maxL2ArcLength = TestL2Arclength(maxL2);
 

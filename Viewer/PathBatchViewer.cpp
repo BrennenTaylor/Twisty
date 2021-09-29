@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        printf("Call as: %s ExperimentDirectory RawPathFilename", argv[0]);
+        printf("Call as: %s PathDirectory RawPathFilename", argv[0]);
         return 1;
     }
 
@@ -42,12 +42,10 @@ int main(int argc, char *argv[])
 
 
     //const std::string FixedBinaryFilename("Paths_FixedOrder.pbd");
-    std::string pathFromLocal(argv[1]);
+    std::string pathsDirectory(argv[1]);
     std::string rawPathFilename(argv[2]);
 
-    std::filesystem::path currentPath = std::filesystem::current_path();
-    std::filesystem::path pathsDirectoryPath = currentPath;
-    pathsDirectoryPath.append(pathFromLocal);
+    std::filesystem::path pathsDirectoryPath = pathsDirectory;
     std::cout << "pathsDirectoryPath: " << pathsDirectoryPath << std::endl;
 
     std::filesystem::path fixedBinaryFullPath(pathsDirectoryPath);
@@ -107,6 +105,15 @@ int main(int argc, char *argv[])
     seedCurveFS.read((char*)&upInitialCurve->m_baseTangent, sizeof(Farlor::Vector3));
     seedCurveFS.read((char*)&upInitialCurve->m_targetPos, sizeof(Farlor::Vector3));
     seedCurveFS.read((char*)&upInitialCurve->m_targetTangent, sizeof(Farlor::Vector3));
+
+    std::cout << "Base Curve Info:" << std::endl;
+    std::cout << "\tNum Segements: " << upInitialCurve->m_numSegments << std::endl;
+    std::cout << "\tArclength: " << upInitialCurve->m_arclength << std::endl;
+    std::cout << "\tBase Pos: " << upInitialCurve->m_basePos << std::endl;
+    std::cout << "\tBase Tangent: " << upInitialCurve->m_baseTangent << std::endl;
+    std::cout << "\tTarget Pos: " << upInitialCurve->m_targetPos << std::endl;
+    std::cout << "\tTarget Tangent: " << upInitialCurve->m_targetTangent << std::endl;
+
 
     seedCurveFS.read((char*)&upInitialCurve->m_curvatures[0], sizeof(float) * upInitialCurve->m_numSegments);
     seedCurveFS.read((char*)&upInitialCurve->m_positions[0], sizeof(Farlor::Vector3) * upInitialCurve->m_numSegments);

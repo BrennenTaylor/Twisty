@@ -10,25 +10,42 @@ typedef boost::multiprecision::cpp_dec_float_100 cpp_dec_float_custom;
 #include <memory>
 #include <random>
 #include <vector>
+#include <filesystem>
 
 int main(int argc, char* argv[])
 {
-    if (argc < 5)
+    std::cout << "argc: " << argc << std::endl;
+    if (argc < 4)
     {
-        std::cout << "Call as: " << argv[0] << " exportRate dataFilename outputFilename compressedWeightsLog10" << std::endl;
+        std::cout << "Call as: " << argv[0] << " exportRate dataPathDir compressedWeightsLog10" << std::endl;
         return false;
     }
 
     uint32_t exportRate = std::stoi(argv[1]);
+    std::cout << "Export rate: " << exportRate << std::endl;
 
-    std::string dataFilename = argv[2];
-    std::string outFilename = argv[3];
-    dataFilename += ".txt";
 
-    bool compressedWeightsLog10 = (std::stoi(argv[4]) == 0) ? false : true;
+    std::filesystem::path generatedCurvesDirPath = std::string(argv[2]);
+
+    std::cout << "Export path: " << generatedCurvesDirPath << std::endl;
+
+    std::string dataFilename = generatedCurvesDirPath.string();
+    dataFilename += "\\BigFloatWeights.txt";
+
+
+    std::string outputFilename = generatedCurvesDirPath.string();
+    outputFilename += "\\Output";
+
+    bool compressedWeightsLog10 = (std::stoi(argv[3]) == 0) ? false : true;
     std::cout << "Compressed weights: " << compressedWeightsLog10 << std::endl;
 
+    std::cout << "Data filename: " << dataFilename << std::endl;
     std::ifstream inDataFile(dataFilename);
+    if (!inDataFile.is_open()) {
+        std::cout << "Failed to open data file" << std::endl;
+        std::cout << "Error: " << strerror(errno) << std::endl;
+        return 1;
+    }
     uint32_t numWeightValues = 0;
     inDataFile >> numWeightValues;
 
@@ -45,7 +62,7 @@ int main(int argc, char* argv[])
         // Output Slice Weights
         std::stringstream outputSS;
 
-        outputSS << outFilename;
+        outputSS << outputFilename;
         outputSS << "_ConvergencePathWeights";
         outputSS << "_";
         outputSS << i;
@@ -54,7 +71,7 @@ int main(int argc, char* argv[])
 
 
         std::stringstream outputLnSS;
-        outputLnSS << outFilename;
+        outputLnSS << outputFilename;
         outputLnSS << "_ConvergencePathWeights_Ln";
         outputLnSS << "_";
         outputLnSS << i;

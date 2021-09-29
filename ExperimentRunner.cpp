@@ -20,12 +20,16 @@ namespace twisty
 
     bool ExperimentRunner::BeginPathBatchOutput()
     {
-        std::filesystem::path outputDirectoryPath = std::filesystem::current_path();
-        outputDirectoryPath.append(m_experimentParams.experimentName);
-        if (!std::filesystem::exists(outputDirectoryPath))
+
+        std::filesystem::path generatedCurvesDirPath = m_experimentParams.experimentDirPath;
+        generatedCurvesDirPath /= m_experimentParams.perExperimentDirSubfolder;
+        generatedCurvesDirPath /= "GeneratedCurves";
+        if (!std::filesystem::exists(generatedCurvesDirPath))
         {
-            std::filesystem::create_directory(outputDirectoryPath);
+            std::filesystem::create_directories(generatedCurvesDirPath);
         }
+
+        m_pathBatchOutputPath = generatedCurvesDirPath.string();
 
         m_pathBatchJsonIndex.RemoveAllMembers();
         // Define the document as an object, not an array
@@ -40,7 +44,7 @@ namespace twisty
         seedCurveSS << m_experimentParams.experimentName;
         seedCurveSS << "_Seed_Curve.tcf";
 
-        std::filesystem::path seedCurvePath = outputDirectoryPath;
+        std::filesystem::path seedCurvePath = generatedCurvesDirPath;
         seedCurvePath.append(seedCurveSS.str());
 
         rapidjson::Value seedCurveFilenameValue(seedCurveSS.str().c_str(), allocator);
@@ -65,8 +69,7 @@ namespace twisty
         pathBatchNameSS << pathBatch.index;
         pathBatchNameSS << ".tpb";
 
-        std::filesystem::path outputDirectoryPath = std::filesystem::current_path();
-        outputDirectoryPath.append(m_experimentParams.experimentName);
+        std::filesystem::path outputDirectoryPath = m_pathBatchOutputPath;
 
         std::filesystem::path pathBatchFilename = outputDirectoryPath;
         pathBatchFilename.append(pathBatchNameSS.str());
@@ -104,8 +107,7 @@ namespace twisty
         std::stringstream indexJsonSS;
         indexJsonSS << "index.json";
 
-        std::filesystem::path outputDirectoryPath = std::filesystem::current_path();
-        outputDirectoryPath.append(m_experimentParams.experimentName);
+        std::filesystem::path outputDirectoryPath = m_pathBatchOutputPath;
 
         std::filesystem::path indexJsonPath = outputDirectoryPath;
         indexJsonPath.append(indexJsonSS.str());

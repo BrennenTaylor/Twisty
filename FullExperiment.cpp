@@ -13,6 +13,7 @@
 #include <memory>
 #include <thread>
 #include <filesystem>
+#include <string>
 
 twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(const libconfig::Config& config)
 {
@@ -27,6 +28,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     experimentParams.numPathsToSkip = (int)config.lookup("experiment.experimentParams.pathsToSkip");
     experimentParams.experimentName = config.lookup("experiment.experimentParams.name").c_str();
     experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
+    experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
+
     experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
     experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
 
@@ -84,10 +87,16 @@ int main(int argc, char *argv[])
         }
 
         twisty::ExperimentRunner::ExperimentParameters experimentParams = ParseExperimentParamsFromConfig(experimentConfig);
+
+        // Override params
+        //experimentParams.numPathsInExperiment = 10000;
+        //experimentParams.numPathsToSkip = 100;
+
         if (!std::filesystem::exists(experimentParams.experimentDirPath))
         {
             std::filesystem::create_directories(experimentParams.experimentDirPath);
         }
+        std::cout << "experimentDirPath: " << experimentParams.experimentDirPath << std::endl;
         const std::string experimentCfgCopyFilename = std::string(experimentParams.experimentDirPath) + "/" + experimentParams.experimentName + ".cfg";
 
         if (!std::filesystem::exists(experimentCfgCopyFilename)) {
@@ -102,9 +111,6 @@ int main(int argc, char *argv[])
         Farlor::Vector3 startPos(0.0f, 0.0f, 0.0f);
         Farlor::Vector3 startDir(0.0f, 0.0f, 1.0f);
         const twisty::RayGeometry rayEmitter(startPos, startDir);
-
-
-
 
         const uint32_t numSSteps = numEmitterDirections;
         const double sMin = -1.0;
@@ -122,13 +128,13 @@ int main(int argc, char *argv[])
 
             std::cout << "S: " << s << std::endl;
 
+            experimentParams.perExperimentDirSubfolder = std::string("s_") + std::to_string(sIdx);
 
             Farlor::Vector3 endPos(0.0f, 0.0f, distanceFromPlane);
             Farlor::Vector3 evalVector = Farlor::Vector3(ss * cos(theta), ss * sin(theta), s).Normalized();
             twisty::RayGeometry rayReciever(endPos, evalVector);
 
             twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
-
 
             std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment << std::endl;
 

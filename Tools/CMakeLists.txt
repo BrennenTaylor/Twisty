@@ -76,6 +76,11 @@ add_executable(ConvergenceExperiment
     ConvergenceExperiment.cpp
 )
 
+target_compile_features(ConvergenceExperiment
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
 target_include_directories(ConvergenceExperiment
     PUBLIC ${Boost_INCLUDE_DIR}
 )

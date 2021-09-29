@@ -24,17 +24,10 @@
 
 const double AmountOfFullRotation = 1.0;
 
-//#define HardcodedSegments
-//#define HardcodedDifference
-//#define HardcodedRotation
-
 //#define SINGLE_THREAD_PERTURB_MODE
-//#define OutputBigFloatPathWeights
-//#define SerialMultithread
-//#define BlockingMultithread
-//#define BlockingOutputThread
+#define OutputBigFloatPathWeights
 
-//#define ExportPathBatches
+#define ExportPathBatches
 
 #if defined(ExportPathBatches)
 
@@ -89,8 +82,6 @@ namespace twisty
 
     bool FullExperimentRunnerOptimalPerturb::Setup()
     {
-        std::cout << "Spot 2 - Num hardware threads: " << std::thread::hardware_concurrency() << std::endl;
-
         std::cout << "Random Seeds: " << std::endl;
         std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
         std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
@@ -100,22 +91,11 @@ namespace twisty
         bool successfulGen = false;
         while (!successfulGen)
         {
-            m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength,
-                m_experimentParams.bootstrapSeed);
+            m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
             if (!m_upInitialCurve)
             {
-                printf("Failed to create bootstrap curve with bezier method. Trying again with geometric\n");
- 
-                // TODO: Remove this after debugging
+                printf("Both bootstrap versions failed, now we have to error out.\n");
                 return false;
-                
-                m_bootstrapper.Reset();
-                m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
-                if (!m_upInitialCurve)
-                {
-                    printf("Both bootstrap versions failed, now we have to error out.\n");
-                    return false;
-                }
             }
 
             // Lets also get the error of the initial curve, just to know
@@ -137,510 +117,30 @@ namespace twisty
         return true;
     }
 
-    void FullExperimentRunnerOptimalPerturb::GeometryPerturb(
-        int64_t threadIdx,
-        int64_t numExperimentPaths,
-        int64_t numPathsPerThread,
-        int64_t numPathsToSkipPerThread,
-        int64_t numSegmentsPerCurve,
-        std::vector<std::mt19937_64>& rngGenerators,
-        std::vector<Farlor::Vector3>& globalPos,
-        std::vector<Farlor::Vector3>& globalTans,
-        std::vector<float>& globalCurvatures,
-        std::vector<Farlor::Vector3>& scratchPositionSpaceLeft,
-        std::vector<Farlor::Vector3>& scratchTangentSpaceLeft,
-        std::vector<float>& scratchCurvatureSpaceLeft,
-        std::vector<Farlor::Vector3>& scratchPositionSpaceRight,
-        std::vector<Farlor::Vector3>& scratchTangentSpaceRight,
-        std::vector<float>& scratchCurvatureSpaceRight,
-        std::vector<double>& globalPathWeights,
-        std::vector<double>& cachedSegmentWeights,
-        float segmentLength,
-        const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
-        const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
-        const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
-    )
-    {
-        uint32_t numPathsAccepted = 0;
-        uint32_t numPathsUnaccepted = 0;
-        uint32_t numPathsUnacceptedTangentPdf = 0;
-        uint32_t numPathsUnacceptedCurvaturePdf = 0;
-
-#if defined(ExportPathBatches)
-
-        // This should be per thread
-        int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
-        std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
-        {
-            for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx)
-            {
-                for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                {
-                    int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
-                    pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
-                }
-            }
-        }
-#endif      
-        const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-        const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
-        const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
-
-        const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
-        const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
-        const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
-
-        // Now, we can begin the actual algorithm
-        {
-
-            // This is the perturbation piece.
-            // Can we do this in place, most likely
-            // This will modify pCurrentThreadCurve
-            // Remember, the structure of this is:
-            // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
-
-            // Start at the thread's first path idx
-
-            int64_t numCurvesInBatch = 0;
-            int64_t outputIdx = 0;
-
-
-            bool useOptimal = false;
-            const uint32_t numRandom = 1000;
-            const uint32_t numOptimal = 5000;
-            uint32_t countCurrentMethod = 0;
-
-            for (int64_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread); ++pathCount)
-            {
-                // Expect to go negative, thus int
-                int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
-                // We can exit once this point is reached as we have generated all the paths necessary for this thread
-                if (currentPathIdx >= numExperimentPaths)
-                {
-#if defined(ExportPathBatches)
-                    if (numCurvesInBatch > 0)
-                    {
-                        ExportPathBatchesMutex.lock();
-
-                        if (threadIdx == 11)
-                        {
-                            std::cout << "Should be exporting thread 12" << std::endl;
-                        }
-
-
-                        curvesMetadataFile << threadIdx << " ";
-                        curvesMetadataFile << outputIdx << " ";
-                        curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                        numCurvesInBatch = 0;
-                        outputIdx++;
-
-                        ExportPathBatchesMutex.unlock();
-                    }
-#endif
-                    // We dont want to continue if we have already generated the correct number of paths.
-                    break;
-                }
-
-                // Do the perturb now
-
-                // Each time, we first copy the "old path" to the "scratch space"
-                for (uint32_t segIdx = 0; segIdx <= numSegmentsPerCurve; ++segIdx)
-                {
-                    scratchPositionSpaceLeft[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
-                    scratchPositionSpaceRight[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
-
-                }
-                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
-                    &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions);
-
-                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
-                    &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions);
-
-#ifdef HardcodedSegments
-                int64_t leftPointIndex = 25;
-                int64_t rightPointIndex = 75;
-#else
-
-#if defined(HardcodedDifference)
-                int64_t diff = 20;
-#else
-                std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 2), 25)); // uniform, unbiased
-                int64_t diff = diffDist(rngGenerators[threadIdx]);
-#endif
-
-                std::uniform_int_distribution<int> leftPointIndexUniformDist(1, numSegmentsPerCurve - 1 - diff); // uniform, unbiased
-                int64_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
-
-                int64_t rightPointIndex = leftPointIndex + diff;
-
-                assert((rightPointIndex - leftPointIndex) >= diff);
-#endif
-                assert(leftPointIndex < rightPointIndex);
-
-#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                {
-                    printf("Left point idx: %d\n", leftPointIndex);
-                    printf("Right point idx: %d\n", rightPointIndex);
-                }
-#endif
-                // We need two frames for each segment to get the new curvature and torsion.
-                // we need the frame left of the segment, as well as the frame right of the segment.
-                // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
-                const Farlor::Vector3 leftPoint = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex];
-                const Farlor::Vector3 rightPoint = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex];
-
-                const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
-
-                double leftRotationAngle = 0.0;
-                {
-#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                    printf("Axis before (%.6f, %.6f, %.6f)\n",
-                        N[0], N[1], N[2]
-                    );
-#endif
-
-                    const Farlor::Vector3 Xss1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex - 1];
-                    const Farlor::Vector3 Xs = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex];
-                    const Farlor::Vector3 Xsp1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex + 1];
-                    const Farlor::Vector3 PL = Xs + ((Xsp1 - Xs).Dot(N)) * N;
-                    const Farlor::Vector3 ZL = Xss1 - ((Xss1 - PL).Dot(N)) * N;
-
-                    // Get side of plane Z is on
-                    const Farlor::Vector3 NL = N.Cross((Xsp1 - PL).Normalized()).Normalized();
-                    const double sideDistL = (ZL - PL).Dot(NL);
-
-                    const Farlor::Vector3 ZPnorm = (ZL - PL).Normalized();
-                    const Farlor::Vector3 Xsp1PLnorm = (Xsp1 - PL).Normalized();
-                    double cosAngle = ZPnorm.Dot(Xsp1PLnorm);
-                    cosAngle = std::max(-1.0, cosAngle);
-                    cosAngle = std::min(1.0, cosAngle);
-                    const double angle = acos(cosAngle);
-
-                    const double threshold = 10e-10;
-                    
-                    // In the case, we are aligned, we want a Pi rotation
-                    if (abs(angle) <= threshold)
-                    {
-                        leftRotationAngle = TwistyPi;
-                    }
-                    // If we are Pi away, we want no rotation
-                    else if (abs(abs(angle) - TwistyPi) < threshold)
-                    {
-                        leftRotationAngle = 0.0;
-                    }
-                    // On back side
-                    else if (sideDistL < 0.0)
-                    {
-                        leftRotationAngle = TwistyPi - angle;
-                    }
-                    // On front side
-                    else
-                    {
-                        leftRotationAngle = -1.0 * (TwistyPi - angle);
-                    }
-                }
-
-
-                double rightRotationAngle = 0.0;
-                {
-//#if defined(DetailedPurturb) && defined(SingleThreadMode)
-//                    printf("Axis before (%.6f, %.6f, %.6f)\n",
-//                        N_R[0], N_R[1], N_R[2]
-//                    );
-//#endif
-
-                    const Farlor::Vector3 Xes1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex - 1];
-                    const Farlor::Vector3 Xe = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex];
-                    const Farlor::Vector3 Xep1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex + 1];
-                    const Farlor::Vector3 PR = Xe + ((Xes1 - Xe).Dot(N)) * N;
-                    const Farlor::Vector3 ZR = Xep1 - ((Xep1 - PR).Dot(N)) * N;
-
-                    // Get side of plane Z is on
-                    const Farlor::Vector3 NR = N.Cross((Xes1 - PR).Normalized()).Normalized();
-                    const double sideDistR = (ZR - PR).Dot(NR);
-
-                    const Farlor::Vector3 ZPnorm = (ZR - PR).Normalized();
-                    const Farlor::Vector3 Xes1PLnorm = (Xes1 - PR).Normalized();
-                    double cosAngle = ZPnorm.Dot(Xes1PLnorm);
-                    cosAngle = std::max(-1.0, cosAngle);
-                    cosAngle = std::min(1.0, cosAngle);
-                    const double angle = acos(cosAngle);
-
-                    const double threshold = 10e-10;
-
-                    // In the case, we are aligned, we want a Pi rotation
-                    if (abs(angle) <= threshold)
-                    {
-                        rightRotationAngle = TwistyPi;
-                    }
-                    // If we are Pi away, we want no rotation
-                    else if (abs(abs(angle) - TwistyPi) < threshold)
-                    {
-                        rightRotationAngle = 0.0;
-                    }
-                    // On back side
-                    else if (sideDistR < 0.0)
-                    {
-                        rightRotationAngle = TwistyPi - angle;
-                    }
-                    // On front side
-                    else
-                    {
-                        rightRotationAngle = -1.0 * (TwistyPi - angle);
-                    }
-                }
-                
-                // Overwrite angle
-                if (!useOptimal)
-                {
-                    countCurrentMethod++;
-                    if (countCurrentMethod >= numRandom)
-                    {
-                        useOptimal = !useOptimal;
-                    }
-                    //double mult = (((pathCount / 2) % 2) == 0) ? 1 : -1;
-
-                    std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi * AmountOfFullRotation, TwistyPi* AmountOfFullRotation);
-                    //rotationAngle = TwistyPi * 0.75 * mult;
-                    double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
-                    leftRotationAngle = randRotationAngle;
-                    rightRotationAngle = randRotationAngle;
-                    //std::cout << "Overwritten rotation angle: " << randRotationAngle << std::endl;
-                }
-                else
-                {
-                    countCurrentMethod++;
-                    if (countCurrentMethod >= numOptimal)
-                    {
-                        useOptimal = !useOptimal;
-                    }
-                }
-
-                // Left Rotation
-                {
-                    float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                    RotationMatrixAroundAxis(leftRotationAngle, (float*)(&N), rotationMatrix);
-
-                    for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
-                    {
-                        Farlor::Vector3 shiftedPoint = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
-                        // Rotate and stuff back in shifted point
-                        RotateVectorByMatrix(rotationMatrix, (float*)(&shiftedPoint));
-                        // Update the point with the rotated version
-                        scratchPositionSpaceLeft[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
-                    }
-
-                    //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
-                    //We can do a different approach later.
-                    // Here, we want to do a perturb update call
-                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
-                        &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions);
-                }
-
-                // Right Rotation
-                {
-                    float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                    RotationMatrixAroundAxis(rightRotationAngle, (float*)(&N), rotationMatrix);
-
-                    for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
-                    {
-                        Farlor::Vector3 shiftedPoint = scratchPositionSpaceRight[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
-                        // Rotate and stuff back in shifted point
-                        RotateVectorByMatrix(rotationMatrix, (float*)(&shiftedPoint));
-                        // Update the point with the rotated version
-                        scratchPositionSpaceRight[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
-                    }
-
-                    //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
-                    //We can do a different approach later.
-                    // Here, we want to do a perturb update call
-                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
-                        &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions);
-                }
-
-                double leftPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
-                    numSegmentsPerCurve, weightingIntegral);
-
-                double rightPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
-                    numSegmentsPerCurve, weightingIntegral);
-
-                bool useLeftRotation = (leftPathWeightLog10 >= rightPathWeightLog10);
-
-                uint32_t numBetas = (rightPointIndex - 1) - leftPointIndex;
-                std::vector<Farlor::Vector3> oldBetas(numBetas);
-                std::vector<Farlor::Vector3> newBetas(numBetas);
-                for (int64_t tanIdx = 0; tanIdx < numBetas; ++tanIdx)
-                {
-                    oldBetas[tanIdx] = globalTans[CurrentThreadTanStartIdx + leftPointIndex + tanIdx];
-
-                    if (useLeftRotation)
-                    {
-                        newBetas[tanIdx] = scratchTangentSpaceLeft[CurrentThreadTanStartIdx + leftPointIndex + tanIdx];
-                    }
-                    else
-                    {
-                        newBetas[tanIdx] = scratchTangentSpaceRight[CurrentThreadTanStartIdx + leftPointIndex + tanIdx];
-                    }
-                }
-
-                // Now we have a candidate path
-                // We perform metropolis and see if we want to accept the path, i.e. copy the scratch space values to the actual curve values, or reroll a new curve
-                std::uniform_real_distribution<double> uniformRandomZeroOne(0.0, 1.0);
-                    
-                double acceptanceProb = uniformRandomZeroOne(rngGenerators[threadIdx]);
-
-                // For now, we always accept a path
-                // This is not using the metropolis sampling at all
-                double oldPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
-                    numSegmentsPerCurve, weightingIntegral);
-
-                double newPathWeightLog10 = 0.0;
-                        
-                if (useLeftRotation)
-                {
-                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
-                        numSegmentsPerCurve, weightingIntegral);
-                }
-                else
-                {
-                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
-                        numSegmentsPerCurve, weightingIntegral);
-                }
-                        
-                double lambdaLog10 = newPathWeightLog10 - oldPathWeightLog10;
-
-                double weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
-                while (weightAcceptance == 0)
-                {
-                    weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
-                }
-
-                double weightAcceptanceLog10 = std::log10(weightAcceptance);
-
-                for (uint32_t i = 0; i <= numSegmentsPerCurve; i++)
-                {
-                    if (useLeftRotation)
-                    {
-                        globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + i];
-                    }
-                    else
-                    {
-                        globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceRight[CurrentThreadPosStartIdx + i];
-                    }
-                }
-
-                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&globalPos[CurrentThreadPosStartIdx],
-                    &globalTans[CurrentThreadTanStartIdx], &globalCurvatures[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions);
-
-                numPathsAccepted++;
-
-                double pathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
-                    numSegmentsPerCurve, weightingIntegral);
-
-                if (pathCount < numPathsToSkipPerThread)
-                {
-                    // Skip
-                }
-                else
-                {
-                    // Else, contribute to the paths
-                    int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
-                    assert(currentPathIdx >= numPathsPerThread * threadIdx);
-                    globalPathWeights[currentPathIdx] = pathWeightLog10;
-
-#if defined(ExportPathBatches)
-
-                    //std::cout << "Accepted curve: " << std::endl;
-                    //for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                    //{
-                    //    std::cout << "\t" << globalPos[CurrentThreadPosStartIdx + pointIdx] << std::endl;
-                    //}
-
-                    // Add the path to the path batch
-                    for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                    {
-                        Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
-                        pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
-                    }
-                    numCurvesInBatch++;
-
-                    if (numCurvesInBatch == ExportPathBatchCacheSize)
-                    {
-                        ExportPathBatchesMutex.lock();
-
-                        curvesMetadataFile << threadIdx << " ";
-                        curvesMetadataFile << outputIdx << " ";
-                        curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                        numCurvesInBatch = 0;
-                        outputIdx++;
-
-                        ExportPathBatchesMutex.unlock();
-                    }
-#endif
-                }
-            }
-
-#if defined(ExportPathBatches)
-            if (numCurvesInBatch > 0)
-            {
-                ExportPathBatchesMutex.lock();
-
-                curvesMetadataFile << threadIdx << " ";
-                curvesMetadataFile << outputIdx << " ";
-                curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                numCurvesInBatch = 0;
-                outputIdx++;
-
-                ExportPathBatchesMutex.unlock();
-            }
-#endif
-        }
-
-        std::cout << "Num path accepted: " << numPathsAccepted << std::endl;
-        std::cout << "Num path unaccepted: " << numPathsUnaccepted << std::endl;
-        std::cout << "Num path unaccepted tangents: " << numPathsUnacceptedTangentPdf << std::endl;
-        std::cout << "Num path unaccepted curvature: " << numPathsUnacceptedCurvaturePdf << std::endl;
-    }
-
     ExperimentRunner::ExperimentResults FullExperimentRunnerOptimalPerturb::RunExperiment()
     {
-        int64_t numFailures = 0;
-        int64_t totalFailures = 0;
-        int64_t totalSuccess = 0;
-
         auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
 
         /* --------------------- */
         auto setupTimeStart = std::chrono::high_resolution_clock::now();
 
-        std::cout << "Got here1" << std::endl;
-
 #if defined(ExportPathBatches)
         {
             BeginPathBatchOutput();
 
-            std::filesystem::path experimentDirPath = m_experimentParams.experimentDirPath;
-            if (!std::filesystem::exists(experimentDirPath))
+            std::filesystem::path generatedCurvesDirPath = m_experimentParams.experimentDirPath;
+            generatedCurvesDirPath /= m_experimentParams.perExperimentDirSubfolder;
+            generatedCurvesDirPath /= "GeneratedCurves";
+            if (!std::filesystem::exists(generatedCurvesDirPath))
             {
-                std::filesystem::create_directories(experimentDirPath);
+                std::filesystem::create_directories(generatedCurvesDirPath);
             }
 
             std::stringstream pathBinaryFilenameSS;
             pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
             pathBinaryFilenameSS << "Paths_Binary" << ".pbd";
 
-            std::filesystem::path binaryFilePath = experimentDirPath;
+            std::filesystem::path binaryFilePath = generatedCurvesDirPath;
             binaryFilePath.append(pathBinaryFilenameSS.str());
             curvesBinaryFile.open(binaryFilePath, std::ios::binary);
 
@@ -648,7 +148,7 @@ namespace twisty
             pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
             pathMetadataFilenameSS << "Paths_Metadata" << ".pmd";
 
-            std::filesystem::path metadataFilePath = experimentDirPath;
+            std::filesystem::path metadataFilePath = generatedCurvesDirPath;
             metadataFilePath.append(pathMetadataFilenameSS.str());
             curvesMetadataFile.open(metadataFilePath);
         }
@@ -683,11 +183,7 @@ namespace twisty
 // #ifdef SINGLE_THREAD_PERTURB_MODE
 //         int64_t numPurturbThreads = 1;
 // #else
-// #ifdef HardcodedNumPurturbThreads
-//         int64_t numPurturbThreads = 3;
-// #else
         int64_t numPurturbThreads = std::thread::hardware_concurrency();
-// #endif
 // #endif
         std::cout << "We have " << numPurturbThreads << " avalible for purturbation." << std::endl;
 
@@ -979,21 +475,21 @@ namespace twisty
             /* --------------------- */
 
 #ifdef OutputBigFloatPathWeights
-            std::filesystem::path experimentDirectoryPath = m_experimentParams.experimentDirPath;
+            std::filesystem::path weightDirectoryPath = m_pathBatchOutputPath;
             std::string bigfloatOutputFile = "BigFloatWeights.txt";
-            experimentDirectoryPath.append(bigfloatOutputFile);
+            weightDirectoryPath.append(bigfloatOutputFile);
 
             std::cout << "Output: " << dispatchIdx << " : " << bigFloatWeightsLog10.size() << std::endl;
 
             std::ofstream bigfloatOFS;
             if (dispatchIdx == 0)
             {
-                bigfloatOFS.open(experimentDirectoryPath.c_str());
+                bigfloatOFS.open(weightDirectoryPath.c_str());
                 bigfloatOFS << m_experimentParams.numPathsInExperiment << std::endl;
             }
             else
             {
-                bigfloatOFS.open(experimentDirectoryPath.c_str(), std::ios::app);
+                bigfloatOFS.open(weightDirectoryPath.c_str(), std::ios::app);
             }
             
             for (int64_t i = 0; i < bigFloatWeightsLog10.size(); ++i)
@@ -1071,6 +567,468 @@ namespace twisty
             bigFloatWeightsLog10[idx] = bigfloatCompressed;
             threadWeight += pathWeight;
         }
+    }
+
+
+
+
+    void FullExperimentRunnerOptimalPerturb::GeometryPerturb(
+        int64_t threadIdx,
+        int64_t numExperimentPaths,
+        int64_t numPathsPerThread,
+        int64_t numPathsToSkipPerThread,
+        int64_t numSegmentsPerCurve,
+        std::vector<std::mt19937_64>& rngGenerators,
+        std::vector<Farlor::Vector3>& globalPos,
+        std::vector<Farlor::Vector3>& globalTans,
+        std::vector<float>& globalCurvatures,
+        std::vector<Farlor::Vector3>& scratchPositionSpaceLeft,
+        std::vector<Farlor::Vector3>& scratchTangentSpaceLeft,
+        std::vector<float>& scratchCurvatureSpaceLeft,
+        std::vector<Farlor::Vector3>& scratchPositionSpaceRight,
+        std::vector<Farlor::Vector3>& scratchTangentSpaceRight,
+        std::vector<float>& scratchCurvatureSpaceRight,
+        std::vector<double>& globalPathWeights,
+        std::vector<double>& cachedSegmentWeights,
+        float segmentLength,
+        const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
+        const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+        const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
+    )
+    {
+        uint32_t numPathsAccepted = 0;
+        uint32_t numPathsUnaccepted = 0;
+        uint32_t numPathsUnacceptedTangentPdf = 0;
+        uint32_t numPathsUnacceptedCurvaturePdf = 0;
+
+#if defined(ExportPathBatches)
+
+        // This should be per thread
+        int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
+        std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
+        {
+            for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx)
+            {
+                for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+                {
+                    int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
+                    pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+                }
+            }
+        }
+#endif      
+        const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
+        const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
+        const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
+
+        const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
+        const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
+        const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
+
+        // Now, we can begin the actual algorithm
+        {
+
+            // This is the perturbation piece.
+            // Can we do this in place, most likely
+            // This will modify pCurrentThreadCurve
+            // Remember, the structure of this is:
+            // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
+
+            // Start at the thread's first path idx
+
+            int64_t numCurvesInBatch = 0;
+            int64_t outputIdx = 0;
+
+
+            bool useOptimal = false;
+            const uint32_t numRandom = 1000;
+            const uint32_t numOptimal = 5000;
+            uint32_t countCurrentMethod = 0;
+
+            for (int64_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread); ++pathCount)
+            {
+                // Expect to go negative, thus int
+                int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+                // We can exit once this point is reached as we have generated all the paths necessary for this thread
+                if (currentPathIdx >= numExperimentPaths)
+                {
+#if defined(ExportPathBatches)
+                    if (numCurvesInBatch > 0)
+                    {
+                        ExportPathBatchesMutex.lock();
+
+                        if (threadIdx == 11)
+                        {
+                            std::cout << "Should be exporting thread 12" << std::endl;
+                        }
+
+
+                        curvesMetadataFile << threadIdx << " ";
+                        curvesMetadataFile << outputIdx << " ";
+                        curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                        numCurvesInBatch = 0;
+                        outputIdx++;
+
+                        ExportPathBatchesMutex.unlock();
+                    }
+#endif
+                    // We dont want to continue if we have already generated the correct number of paths.
+                    break;
+                }
+
+                // Do the perturb now
+
+                // Each time, we first copy the "old path" to the "scratch space"
+                for (uint32_t segIdx = 0; segIdx <= numSegmentsPerCurve; ++segIdx)
+                {
+                    scratchPositionSpaceLeft[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
+                    scratchPositionSpaceRight[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
+
+                }
+                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
+                    &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
+                    numSegmentsPerCurve, boundaryConditions);
+
+                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
+                    &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
+                    numSegmentsPerCurve, boundaryConditions);
+
+                std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 1), 25)); // uniform, unbiased
+                int64_t diff = diffDist(rngGenerators[threadIdx]);
+
+                std::uniform_int_distribution<int> leftPointIndexUniformDist(1, numSegmentsPerCurve - diff); // uniform, unbiased
+                int64_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
+
+                int64_t rightPointIndex = leftPointIndex + diff;
+
+                assert((rightPointIndex - leftPointIndex) >= diff);
+                assert(leftPointIndex < rightPointIndex);
+
+#if defined(DetailedPurturb) && defined(SingleThreadMode)
+                {
+                    printf("Left point idx: %d\n", leftPointIndex);
+                    printf("Right point idx: %d\n", rightPointIndex);
+                }
+#endif
+                // We need two frames for each segment to get the new curvature and torsion.
+                // we need the frame left of the segment, as well as the frame right of the segment.
+                // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
+                const Farlor::Vector3 leftPoint = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex];
+                const Farlor::Vector3 rightPoint = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex];
+
+                const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
+
+                double leftRotationAngle = 0.0;
+                {
+#if defined(DetailedPurturb) && defined(SingleThreadMode)
+                    printf("Axis before (%.6f, %.6f, %.6f)\n",
+                        N[0], N[1], N[2]
+                    );
+#endif
+
+                    const Farlor::Vector3 Xss1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex - 1];
+                    const Farlor::Vector3 Xs = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex];
+                    const Farlor::Vector3 Xsp1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex + 1];
+                    const Farlor::Vector3 PL = Xs + ((Xsp1 - Xs).Dot(N)) * N;
+                    const Farlor::Vector3 ZL = Xss1 - ((Xss1 - PL).Dot(N)) * N;
+
+                    // Get side of plane Z is on
+                    const Farlor::Vector3 NL = N.Cross((Xsp1 - PL).Normalized()).Normalized();
+                    const double sideDistL = (ZL - PL).Dot(NL);
+
+                    const Farlor::Vector3 ZPnorm = (ZL - PL).Normalized();
+                    const Farlor::Vector3 Xsp1PLnorm = (Xsp1 - PL).Normalized();
+                    double cosAngle = ZPnorm.Dot(Xsp1PLnorm);
+                    cosAngle = std::max(-1.0, cosAngle);
+                    cosAngle = std::min(1.0, cosAngle);
+                    const double angle = acos(cosAngle);
+
+                    const double threshold = 10e-10;
+
+                    // In the case, we are aligned, we want a Pi rotation
+                    if (abs(angle) <= threshold)
+                    {
+                        leftRotationAngle = TwistyPi;
+                    }
+                    // If we are Pi away, we want no rotation
+                    else if (abs(abs(angle) - TwistyPi) < threshold)
+                    {
+                        leftRotationAngle = 0.0;
+                    }
+                    // On back side
+                    else if (sideDistL < 0.0)
+                    {
+                        leftRotationAngle = TwistyPi - angle;
+                    }
+                    // On front side
+                    else
+                    {
+                        leftRotationAngle = -1.0 * (TwistyPi - angle);
+                    }
+                }
+
+
+                double rightRotationAngle = 0.0;
+                {
+                    //#if defined(DetailedPurturb) && defined(SingleThreadMode)
+                    //                    printf("Axis before (%.6f, %.6f, %.6f)\n",
+                    //                        N_R[0], N_R[1], N_R[2]
+                    //                    );
+                    //#endif
+
+                    const Farlor::Vector3 Xes1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex - 1];
+                    const Farlor::Vector3 Xe = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex];
+                    const Farlor::Vector3 Xep1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex + 1];
+                    const Farlor::Vector3 PR = Xe + ((Xes1 - Xe).Dot(N)) * N;
+                    const Farlor::Vector3 ZR = Xep1 - ((Xep1 - PR).Dot(N)) * N;
+
+                    // Get side of plane Z is on
+                    const Farlor::Vector3 NR = N.Cross((Xes1 - PR).Normalized()).Normalized();
+                    const double sideDistR = (ZR - PR).Dot(NR);
+
+                    const Farlor::Vector3 ZPnorm = (ZR - PR).Normalized();
+                    const Farlor::Vector3 Xes1PLnorm = (Xes1 - PR).Normalized();
+                    double cosAngle = ZPnorm.Dot(Xes1PLnorm);
+                    cosAngle = std::max(-1.0, cosAngle);
+                    cosAngle = std::min(1.0, cosAngle);
+                    const double angle = acos(cosAngle);
+
+                    const double threshold = 10e-10;
+
+                    // In the case, we are aligned, we want a Pi rotation
+                    if (abs(angle) <= threshold)
+                    {
+                        rightRotationAngle = TwistyPi;
+                    }
+                    // If we are Pi away, we want no rotation
+                    else if (abs(abs(angle) - TwistyPi) < threshold)
+                    {
+                        rightRotationAngle = 0.0;
+                    }
+                    // On back side
+                    else if (sideDistR < 0.0)
+                    {
+                        rightRotationAngle = TwistyPi - angle;
+                    }
+                    // On front side
+                    else
+                    {
+                        rightRotationAngle = -1.0 * (TwistyPi - angle);
+                    }
+                }
+
+                // Overwrite angle
+                if (!useOptimal)
+                {
+                    countCurrentMethod++;
+                    if (countCurrentMethod >= numRandom)
+                    {
+                        useOptimal = !useOptimal;
+                    }
+                    //double mult = (((pathCount / 2) % 2) == 0) ? 1 : -1;
+
+                    std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi * AmountOfFullRotation, TwistyPi * AmountOfFullRotation);
+                    //rotationAngle = TwistyPi * 0.75 * mult;
+                    double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
+                    leftRotationAngle = randRotationAngle;
+                    rightRotationAngle = randRotationAngle;
+                    //std::cout << "Overwritten rotation angle: " << randRotationAngle << std::endl;
+                }
+                else
+                {
+                    countCurrentMethod++;
+                    if (countCurrentMethod >= numOptimal)
+                    {
+                        useOptimal = !useOptimal;
+                    }
+                }
+
+                // Left Rotation
+                {
+                    float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+                    RotationMatrixAroundAxis(leftRotationAngle, (float*)(&N), rotationMatrix);
+
+                    for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
+                    {
+                        Farlor::Vector3 shiftedPoint = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
+                        // Rotate and stuff back in shifted point
+                        RotateVectorByMatrix(rotationMatrix, (float*)(&shiftedPoint));
+                        // Update the point with the rotated version
+                        scratchPositionSpaceLeft[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
+                    }
+
+                    //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                    //We can do a different approach later.
+                    // Here, we want to do a perturb update call
+                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
+                        &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
+                        numSegmentsPerCurve, boundaryConditions);
+                }
+
+                // Right Rotation
+                {
+                    float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+                    RotationMatrixAroundAxis(rightRotationAngle, (float*)(&N), rotationMatrix);
+
+                    for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
+                    {
+                        Farlor::Vector3 shiftedPoint = scratchPositionSpaceRight[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
+                        // Rotate and stuff back in shifted point
+                        RotateVectorByMatrix(rotationMatrix, (float*)(&shiftedPoint));
+                        // Update the point with the rotated version
+                        scratchPositionSpaceRight[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
+                    }
+
+                    //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                    //We can do a different approach later.
+                    // Here, we want to do a perturb update call
+                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
+                        &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
+                        numSegmentsPerCurve, boundaryConditions);
+                }
+
+                double leftPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
+                    numSegmentsPerCurve, weightingIntegral);
+
+                double rightPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
+                    numSegmentsPerCurve, weightingIntegral);
+
+                bool useLeftRotation = (leftPathWeightLog10 >= rightPathWeightLog10);
+
+                uint32_t numBetas = (rightPointIndex - 1) - leftPointIndex;
+                std::vector<Farlor::Vector3> oldBetas(numBetas);
+                std::vector<Farlor::Vector3> newBetas(numBetas);
+                for (int64_t tanIdx = 0; tanIdx < numBetas; ++tanIdx)
+                {
+                    oldBetas[tanIdx] = globalTans[CurrentThreadTanStartIdx + leftPointIndex + tanIdx];
+
+                    if (useLeftRotation)
+                    {
+                        newBetas[tanIdx] = scratchTangentSpaceLeft[CurrentThreadTanStartIdx + leftPointIndex + tanIdx];
+                    }
+                    else
+                    {
+                        newBetas[tanIdx] = scratchTangentSpaceRight[CurrentThreadTanStartIdx + leftPointIndex + tanIdx];
+                    }
+                }
+
+                // Now we have a candidate path
+                // We perform metropolis and see if we want to accept the path, i.e. copy the scratch space values to the actual curve values, or reroll a new curve
+                std::uniform_real_distribution<double> uniformRandomZeroOne(0.0, 1.0);
+
+                double acceptanceProb = uniformRandomZeroOne(rngGenerators[threadIdx]);
+
+                // For now, we always accept a path
+                // This is not using the metropolis sampling at all
+                double oldPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                    numSegmentsPerCurve, weightingIntegral);
+
+                double newPathWeightLog10 = 0.0;
+
+                if (useLeftRotation)
+                {
+                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
+                        numSegmentsPerCurve, weightingIntegral);
+                }
+                else
+                {
+                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
+                        numSegmentsPerCurve, weightingIntegral);
+                }
+
+                double lambdaLog10 = newPathWeightLog10 - oldPathWeightLog10;
+
+                double weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
+                while (weightAcceptance == 0)
+                {
+                    weightAcceptance = uniformRandomZeroOne(rngGenerators[threadIdx]);
+                }
+
+                double weightAcceptanceLog10 = std::log10(weightAcceptance);
+
+                for (uint32_t i = 0; i <= numSegmentsPerCurve; i++)
+                {
+                    if (useLeftRotation)
+                    {
+                        globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + i];
+                    }
+                    else
+                    {
+                        globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpaceRight[CurrentThreadPosStartIdx + i];
+                    }
+                }
+
+                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&globalPos[CurrentThreadPosStartIdx],
+                    &globalTans[CurrentThreadTanStartIdx], &globalCurvatures[CurrentThreadCurvatureStartIdx],
+                    numSegmentsPerCurve, boundaryConditions);
+
+                numPathsAccepted++;
+
+                double pathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                    numSegmentsPerCurve, weightingIntegral);
+
+                if (pathCount < numPathsToSkipPerThread)
+                {
+                    // Skip
+                }
+                else
+                {
+                    // Else, contribute to the paths
+                    int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+                    assert(currentPathIdx >= numPathsPerThread * threadIdx);
+                    globalPathWeights[currentPathIdx] = pathWeightLog10;
+
+#if defined(ExportPathBatches)
+                    // Add the path to the path batch
+                    for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+                    {
+                        Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                        pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
+                    }
+                    numCurvesInBatch++;
+
+                    if (numCurvesInBatch == ExportPathBatchCacheSize)
+                    {
+                        ExportPathBatchesMutex.lock();
+
+                        curvesMetadataFile << threadIdx << " ";
+                        curvesMetadataFile << outputIdx << " ";
+                        curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                        numCurvesInBatch = 0;
+                        outputIdx++;
+
+                        ExportPathBatchesMutex.unlock();
+                    }
+#endif
+                }
+            }
+
+#if defined(ExportPathBatches)
+            if (numCurvesInBatch > 0)
+            {
+                ExportPathBatchesMutex.lock();
+
+                curvesMetadataFile << threadIdx << " ";
+                curvesMetadataFile << outputIdx << " ";
+                curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                numCurvesInBatch = 0;
+                outputIdx++;
+
+                ExportPathBatchesMutex.unlock();
+            }
+#endif
+        }
+
+        std::cout << "Num path accepted: " << numPathsAccepted << std::endl;
+        std::cout << "Num path unaccepted: " << numPathsUnaccepted << std::endl;
+        std::cout << "Num path unaccepted tangents: " << numPathsUnacceptedTangentPdf << std::endl;
+        std::cout << "Num path unaccepted curvature: " << numPathsUnacceptedCurvaturePdf << std::endl;
     }
 
     void FullExperimentRunnerOptimalPerturb::Shutdown()
