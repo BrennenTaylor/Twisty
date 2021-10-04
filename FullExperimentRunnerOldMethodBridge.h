@@ -31,10 +31,8 @@ namespace twisty
          * @brief Construct a new Experiment Runner Cpu object
          *
          * @param bootstrapper Bootstrapper object responsible for generating an initial curve given the experiment constraints
-         * @param kdsRange Range of allowed curvature * ds values
-         * @param tdsRange Range of allowed torsion * ds values
          */
-        FullExperimentRunnerOldMethodBridge(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper, Range kdsRange, Range tdsRange);
+        FullExperimentRunnerOldMethodBridge(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunnerOldMethodBridge();
 
         virtual bool Setup() override;
@@ -80,8 +78,5 @@ namespace twisty
             std::string pathToRawBinary,
             std::vector<double>& cachedWeights
         );
-
-    private:
-        std::unique_ptr<PathWeighting::RegularizedIntegral> m_upRegIntEvaluator;
     };
 }

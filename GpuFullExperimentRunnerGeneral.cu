@@ -555,7 +555,7 @@ namespace twisty
 {
 
     GpuFullExperimentRunnerGeneral::GpuFullExperimentRunnerGeneral(ExperimentRunner::ExperimentParameters& experimentParams,
-        Bootstrapper& bootstrapper, Range kdsRange, Range tdsRange)
+        Bootstrapper& bootstrapper)
         : ExperimentRunner(experimentParams, bootstrapper)
         , m_rng()
         , m_numSMs(0)

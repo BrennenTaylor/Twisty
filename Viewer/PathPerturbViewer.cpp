@@ -79,11 +79,6 @@ int main(int argc, char *argv[])
     uint32_t numPathsToSkip = 0;
     uint32_t numPathsToGenerate = std::stoi(argv[1]);
 
-    // This is the range we want to meet
-    // The range of actual curvature/torsion * ds is below
-    twisty::Range kdsRange = { 0.0f, 2.0f };
-    twisty::Range tdsRange = { -1.0f, 1.0f };
-
     twisty::ExperimentRunner::ExperimentParameters experimentParams;
     experimentParams.numPathsInExperiment = numPathsToGenerate;
     experimentParams.exportGeneratedCurves = true;

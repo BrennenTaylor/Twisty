@@ -17,7 +17,7 @@ namespace twisty
     {
     public:
         ExperimentRunnerGpu(ExperimentRunner::ExperimentParameters& experimentparams,
-            Bootstrapper& bootstrapper, uint32_t pathBatchSize, Range kdsRange, Range tdsRange);
+            Bootstrapper& bootstrapper, uint32_t pathBatchSize);
         virtual ~ExperimentRunnerGpu();
 
         virtual bool Setup() override;
@@ -67,12 +67,6 @@ namespace twisty
         std::vector<ExperimentSegmentTorsion> m_pathBatchReciever_Host;
 
         std::vector<ExperimentSegmentTorsion> m_initialSegmentDataServer;
-
-        Range m_kdsRange;
-        Range m_tdsRange;
-
-        Range m_kRange;
-        Range m_tRange;
 
         // Device Memory - Shared Among Threads
         DeviceCurve* m_pSharedCurveInfo;

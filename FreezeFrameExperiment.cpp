@@ -195,8 +195,6 @@ int main(int argc, char *argv[])
 
 //                     // This is the range we want to meet
 //                     // The range of actual curvature/torsion * ds is below
-//                     Range kdsRange = { 0.0f, 2.0f };
-//                     Range tdsRange = { -1.0f, 1.0f };
 
 //                     int randomSeed = boostrapperSeed;
 //                     if (randomSeed == 0)
@@ -232,7 +230,7 @@ int main(int argc, char *argv[])
 //                         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
 //                         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
-//                         std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper, kdsRange, tdsRange);
+//                         std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper);
 //                         bool result = upExperimentRunner->Setup();
 
 //                         if (!result)
@@ -264,7 +262,7 @@ int main(int argc, char *argv[])
 
 //                         // NOTE: This is tuned to maximize purturb kernel
 //                         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
-//                         std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper, kdsRange, tdsRange);
+//                         std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper);
 //                         bool result = upExperimentRunner->Setup();
 //                         if (!result)
 //                         {

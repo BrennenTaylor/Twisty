@@ -47,10 +47,8 @@ namespace twisty
          * @brief Construct a new Experiment Runner Cpu object
          *
          * @param bootstrapper Bootstrapper object responsible for generating an initial curve given the experiment constraints
-         * @param kdsRange Range of allowed curvature * ds values
-         * @param tdsRange Range of allowed torsion * ds values
          */
-        GpuFullExperimentRunnerOptimized(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper, Range kdsRange, Range tdsRange);
+        GpuFullExperimentRunnerOptimized(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~GpuFullExperimentRunnerOptimized();
 
         virtual bool Setup() override;
@@ -90,8 +88,6 @@ namespace twisty
 
     private:
         std::mt19937 m_rng;
-
-        std::unique_ptr<PathSpaceUtils::RegularizedIntegral> m_upRegIntEvaluator;
 
         // Cuda Stuff
     private:

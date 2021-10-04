@@ -31,8 +31,6 @@ namespace twisty
          * @brief Construct a new Experiment Runner Cpu object
          *
          * @param bootstrapper Bootstrapper object responsible for generating an initial curve given the experiment constraints
-         * @param kdsRange Range of allowed curvature * ds values
-         * @param tdsRange Range of allowed torsion * ds values
          */
         FullExperimentRunner(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunner();
@@ -115,8 +113,5 @@ namespace twisty
         void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread, float arclength, int64_t numSegmentsPerCurve,
             const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeightsLog10,
             boost::multiprecision::cpp_dec_float_100& threadWeight, boost::multiprecision::cpp_dec_float_100 pathNormalizer);
-
-    private:
-        std::unique_ptr<PathWeighting::RegularizedIntegral> m_upRegIntEvaluator;
     };
 }

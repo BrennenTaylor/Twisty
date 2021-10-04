@@ -11,9 +11,6 @@
 #include <map>
 #include <vector>
 
-// TODO: Track down why this was added and add a useful comment.
-//#include <boost/multiprecision/cpp_dec_float.hpp>
-
 #define BigFloatMultiprecision
 
 namespace twisty
@@ -34,70 +31,48 @@ namespace twisty
 
     namespace PathWeighting
     {
-        class IntegralStrategy;
-
+        // Used for the Path Integral Radiative Transfer Weighting
         double SimpleGaussianPhase(double evalLocation, double mu);
         double GaussianPhase(double evalLocation, double mu);
 
-        class IntegralStrategy
+
+
+        // Simple Weight Function, for small segment work!
+        double SimpleWeightFunction(double curvature);
+
+
+        // TODO: Describe this with a useful comment
+        //class IntegralStrategy
+        //{
+        //public:
+        //    IntegralStrategy(const WeightingParameters& weightingParams, double ds);
+        //    virtual ~IntegralStrategy();
+
+        //    virtual double Integrate(double curvature) const = 0;
+
+        //    double GetDs() const
+        //    {
+        //        return m_ds;
+        //    }
+
+        //    const WeightingParameters& GetWeightingParams() const
+        //    {
+        //        return m_weightingParams;
+        //    }
+
+        //protected:
+
+        //    double m_ds;
+        //    WeightingParameters m_weightingParams;
+        //};
+
+        class BaseWeightLookupTable
         {
         public:
-            IntegralStrategy(const WeightingParameters& weightingParams, double ds);
-            virtual ~IntegralStrategy();
-
-            virtual double Eval(double density, double absorbtion, double curvature) const;
-            virtual double Integrate(double density, double curvature) const = 0;
-
-            double GetDs() const
-            {
-                return m_ds;
-            }
-
-            const WeightingParameters& GetWeightingParams() const
-            {
-                return m_weightingParams;
-            }
-
-        protected:
-            double m_ds;
-            WeightingParameters m_weightingParams;
-        };
-
-        /*
-            Numerically evaluate path weight integral, introducing an epsilon term to
-            make the integration numerically feasible.
-
-            Parameters
-            ----------
-
-            mu : float
-            Gaussian phase function width parameter.
-            step : float
-            Step size used for integration.
-            bounds : 2 - tuple or None
-            Minimum and maximum of interval to step over when evaluating the
-            integral.
-            eps : float
-            A small value.The smaller this value, the more accurate the
-            integration, but breaks down numerically if the value is too small.
-            '''
-        */
-        class RegularizedIntegral : public IntegralStrategy
-        {
-        public:
-            RegularizedIntegral(const WeightingParameters& weightParams, double ds);
-            virtual ~RegularizedIntegral();
-
-            virtual double Integrate(double scattering, double curvature) const override;
-        };
-
-        class BaseWeightLookupTable : public IntegralStrategy
-        {
-        public:
-            BaseWeightLookupTable(const WeightingParameters& weightingParams, double ds);
+            BaseWeightLookupTable(const WeightingParameters& weightingParams, double ds, double minCurvature, double maxCurvature);
             virtual ~BaseWeightLookupTable();
 
-            virtual double Integrate(double scattering, double curvature) const override;
+            double InterpolateWeightValues(double curvature) const;
 
             const std::vector<double>& AccessLookupTable() const {
                 return m_lookupTable;
@@ -113,9 +88,20 @@ namespace twisty
                 return m_maxSegmentWeight;
             }
 
+            double GetDs() const {
+                return m_ds;
+            }
+
+            WeightingParameters GetWeightingParams() const {
+                return m_weightingParams;
+            }
+
             void ExportValues(std::string relativePath);
 
         protected:
+            //virtual double Integrate(double curvature, const WeightingParameters& weightingParams, double ds) const = 0;
+            virtual const std::string ExportFilename() const = 0;
+
             double m_minCurvature;
             double m_maxCurvature;
 
@@ -124,6 +110,9 @@ namespace twisty
 
             double m_curvatureStepSize;
             std::vector<double> m_lookupTable;
+
+            double m_ds;
+            WeightingParameters m_weightingParams;
         };
 
         class WeightLookupTableIntegral : public BaseWeightLookupTable
@@ -132,7 +121,13 @@ namespace twisty
             WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds);
             virtual ~WeightLookupTableIntegral();
 
-            RegularizedIntegral m_regularizedIntegral;
+        protected:
+            double Integrate(double curvature, const WeightingParameters& weightingParams, double ds) const;
+            virtual const std::string ExportFilename() const override {
+                return "WeightLookupTableIntegral_Values.csv";
+            }
+
+            //RegularizedIntegral m_regularizedIntegral;
         };
 
         // The ICTT27 Weighting function integral
@@ -141,6 +136,15 @@ namespace twisty
         public:
             SimpleWeightLookupTable(const WeightingParameters& weightingParams, double ds);
             virtual ~SimpleWeightLookupTable();
+
+            //virtual double Integrate(double curvature, const WeightingParameters& weightingParams, double ds) const override;
+
+            virtual const std::string ExportFilename() const override{
+                return "SimpleWeightLookupTable_Values.csv";
+            }
+
+        protected:
+
         };
 
         void CalcMinMaxCurvature(double& minCurvature, double& maxCurvature, double ds);

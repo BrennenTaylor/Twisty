@@ -28,105 +28,34 @@ namespace twisty
             return (a * b) / c;
         }
 
-        // Base Integral Strategy
-        IntegralStrategy::IntegralStrategy(const WeightingParameters& weightingParams, double ds)
-            : m_ds(ds)
-            , m_weightingParams(weightingParams)
-        {
-        }
+        //// Base Integral Strategy
+        //IntegralStrategy::IntegralStrategy(const WeightingParameters& weightingParams, double ds)
+        //    : m_ds(ds)
+        //    , m_weightingParams(weightingParams)
+        //{
+        //}
 
-        IntegralStrategy::~IntegralStrategy()
-        {
-        }
-
-        double IntegralStrategy::Eval(double density, double absorbtion, double curvature) const
-        {
-            double c = density + absorbtion;
-            double constant = std::exp(-c * m_ds) / (2.0 * TwistyPi * TwistyPi);
-            return constant * Integrate(density, curvature);
-        }
-
-        // Regularized Integral
-        RegularizedIntegral::RegularizedIntegral(const WeightingParameters& weightingParams, double ds)
-            : IntegralStrategy(weightingParams, ds)
-        {
-        }
-
-        RegularizedIntegral::~RegularizedIntegral()
-        {
-        }
-
-        double RegularizedIntegral::Integrate(double scattering, double curvature) const
-        {
-            double kds = curvature * m_ds;
-            double bds = scattering * m_ds;
-
-            auto Integrand = [this](double p, double kds, double bds) -> double
-            {
-                double phaseFunction = GaussianPhase(p, m_weightingParams.mu);
-
-                double scatteringTerm = p * std::exp(
-                    bds * phaseFunction // scatter piece
-                    - 1.0 * (m_weightingParams.eps * m_weightingParams.eps * p * p) / 2.0 // regularizer
-                );
-
-                double sinTerm = 0.0;
-                if (kds != 0.0)
-                {
-                    sinTerm = sin(kds * p) / kds;
-                }
-                else
-                {
-                    sinTerm = p;
-                }
-
-                return scatteringTerm * sinTerm;// *regularizer;
-            };
-
-            // Perform first integration
-            double firstVal = 0.0f;
-            {
-                double stepSize = (m_weightingParams.maxBound - m_weightingParams.minBound) / m_weightingParams.numStepsInt;
-                for (uint32_t i = 0; i <= m_weightingParams.numStepsInt; ++i)
-                {
-                    double p = i * stepSize;
-                    double left = Integrand(p, kds, bds);
-                    //std::cout << "Integrand eval: " << left << std::endl;
-                    firstVal += left * stepSize;
-                }
-            }
-
-            // Note: This is added back in because it seems this allows the base kds == 0 case to work
-            // Perform second integration
-            double secondVal = 0.0f;
-            {
-                double stepSize = (m_weightingParams.maxBound - m_weightingParams.minBound) / m_weightingParams.numStepsInt;
-                for (uint32_t i = 0; i <= m_weightingParams.numStepsInt; ++i)
-                {
-                    double p = i * stepSize;
-                    double left = Integrand(p, 0.0, bds);
-                    secondVal += left * stepSize;
-                }
-            }
-
-            return firstVal / secondVal;
-        }
+        //IntegralStrategy::~IntegralStrategy()
+        //{
+        //}
 
         // Lookup table integrand
-        BaseWeightLookupTable::BaseWeightLookupTable(const twisty::WeightingParameters& weightingParams, double ds)
-            : IntegralStrategy(weightingParams, ds)
-            , m_minCurvature(0.0)
-            , m_maxCurvature(0.0)
-            , m_curvatureStepSize(0.0f)
-            , m_lookupTable()
+        BaseWeightLookupTable::BaseWeightLookupTable(const WeightingParameters& weightingParams, double ds, double minCurvature, double maxCurvature)
+            : m_minCurvature(minCurvature)
+            , m_maxCurvature(maxCurvature)
+            , m_curvatureStepSize(0.0)
+            , m_lookupTable(weightingParams.numCurvatureSteps)
+            , m_weightingParams(weightingParams)
+            , m_ds(ds)
         {
+            m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
         }
 
         BaseWeightLookupTable::~BaseWeightLookupTable()
         {
         }
 
-        double BaseWeightLookupTable::Integrate(double scattering, double curvature) const
+        double BaseWeightLookupTable::InterpolateWeightValues(double curvature) const
         {
             assert(curvature >= m_minCurvature);
 
@@ -151,15 +80,16 @@ namespace twisty
             return interpolatedResult;
         }
 
-        void BaseWeightLookupTable::ExportValues(std::string relativePath)
+        void BaseWeightLookupTable::ExportValues(std::string directoryFileName)
         {
-            const std::filesystem::path currentPath = std::filesystem::current_path();
-            const std::filesystem::path exprDirectory = currentPath / relativePath;
-            const std::string TableValuesFilename = "WeightLookuptableIntegralValues.csv";
+            const std::filesystem::path exprDirectory = directoryFileName;
+            const std::string TableValuesFilename = ExportFilename();
             const std::filesystem::path outputFilePath = exprDirectory / TableValuesFilename;
 
+            std::cout << "Exporting table of size: " << m_lookupTable.size() << std::endl;
+
             std::ofstream outputFile(outputFilePath.string());
-            for (uint32_t i = 0; i <= m_weightingParams.numCurvatureSteps; ++i)
+            for (uint32_t i = 0; i <= m_lookupTable.size(); ++i)
             {
                 const double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
                 outputFile << curvatureEval << ", " << m_lookupTable[i] << std::endl;
@@ -169,33 +99,27 @@ namespace twisty
 
 
         // Lookup table integrand
-        WeightLookupTableIntegral::WeightLookupTableIntegral(const twisty::WeightingParameters& weightingParams, double ds)
-            : BaseWeightLookupTable(weightingParams, ds)
-            , m_regularizedIntegral(m_weightingParams, ds)
+        WeightLookupTableIntegral::WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds)
+            : BaseWeightLookupTable(weightingParams, ds, 0.0, 0.0)
         {
-            std::cout << "Calcuating path weight integral lookup table" << std::endl;
-
+            std::cout << "Calcuating WeightLookupTableIntegral lookup table" << std::endl;
             twisty::PathWeighting::CalcMinMaxCurvature(m_minCurvature, m_maxCurvature, ds);
 
-            m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / m_weightingParams.numCurvatureSteps;
-            m_lookupTable.clear();
-            m_lookupTable.resize(m_weightingParams.numCurvatureSteps + 1u);
+            m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
             // Handle first case
             {
-                double value = m_regularizedIntegral.Integrate(m_weightingParams.scatter, m_minCurvature);
+                double value = Integrate(m_minCurvature, weightingParams, ds);
                 m_lookupTable[0] = value;
             }
 
             double min = m_lookupTable[0];
             double max = m_lookupTable[0];
-            for (uint32_t i = 1; i <= m_weightingParams.numCurvatureSteps; ++i)
+            for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i)
             {
                 double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-                double value = m_regularizedIntegral.Integrate(m_weightingParams.scatter, curvatureEval);
-
+                double value = Integrate(curvatureEval, weightingParams, ds);
                 m_lookupTable[i] = value;
-
 
                 if (min < 0.0)
                 {
@@ -227,7 +151,7 @@ namespace twisty
             }
 
             uint32_t numInvalid = 0;
-            for (uint32_t i = 0; i <= m_weightingParams.numCurvatureSteps; ++i)
+            for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i)
             {
                 double value = m_lookupTable[i];
 
@@ -251,31 +175,86 @@ namespace twisty
             std::cout << "\tMax Possible Weight Value: " << max << std::endl;
             //Parameters
             std::cout << "\tTable construction params: " << std::endl;
-            std::cout << "\t\tmu: " << m_weightingParams.mu << std::endl;
-            std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << std::endl;
-            std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << std::endl;
-            std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << std::endl;
-            std::cout << "\t\tm_eps: " << m_weightingParams.eps<< std::endl;
+            std::cout << "\t\tmu: " << weightingParams.mu << std::endl;
+            std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << std::endl;
+            std::cout << "\t\tm_minBound: " << weightingParams.minBound << std::endl;
+            std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << std::endl;
+            std::cout << "\t\tm_eps: " << weightingParams.eps<< std::endl;
             std::cout << "\t\tm_minCurvature: " << m_minCurvature << std::endl;
             std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << std::endl;
-            std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps << std::endl;
+            std::cout << "\t\tm_numCurvatureSteps: " << weightingParams.numCurvatureSteps << std::endl;
         }
 
         WeightLookupTableIntegral::~WeightLookupTableIntegral()
         {
         }
 
+
+        double WeightLookupTableIntegral::Integrate(double curvature, const WeightingParameters& weightingParams, double ds) const
+        {
+            double kds = curvature * ds;
+            double bds = weightingParams.scatter * ds;
+
+            auto Integrand = [this, weightingParams](double p, double kds, double bds) -> double
+            {
+                double phaseFunction = GaussianPhase(p, weightingParams.mu);
+
+                double scatteringTerm = p * std::exp(
+                    bds * phaseFunction // scatter piece
+                    - 1.0 * (weightingParams.eps * weightingParams.eps * p * p) / 2.0 // regularizer
+                );
+
+                double sinTerm = 0.0;
+                if (kds != 0.0)
+                {
+                    sinTerm = sin(kds * p) / kds;
+                }
+                else
+                {
+                    sinTerm = p;
+                }
+
+                return scatteringTerm * sinTerm;
+            };
+
+            // Perform first integration
+            double firstVal = 0.0f;
+            {
+                double stepSize = (weightingParams.maxBound - weightingParams.minBound) / weightingParams.numStepsInt;
+                for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i)
+                {
+                    double p = i * stepSize;
+                    double left = Integrand(p, kds, bds);
+                    firstVal += left * stepSize;
+                }
+            }
+
+            // Note: This is added back in because it seems this allows the base kds == 0 case to work
+            // Perform second integration
+            double secondVal = 0.0f;
+            {
+                double stepSize = (weightingParams.maxBound - weightingParams.minBound) / weightingParams.numStepsInt;
+                for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i)
+                {
+                    double p = i * stepSize;
+                    double left = Integrand(p, 0.0, bds);
+                    secondVal += left * stepSize;
+                }
+            }
+
+            double c = weightingParams.absorbtion + weightingParams.scatter;
+            double constant = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
+            return constant * (firstVal / secondVal);
+        }
+
         // Lookup table integrand
         SimpleWeightLookupTable::SimpleWeightLookupTable(const twisty::WeightingParameters& weightingParams, double ds)
-            : BaseWeightLookupTable(weightingParams, ds)
+            : BaseWeightLookupTable(weightingParams, ds, 0.0, 0.0)
         {
-            std::cout << "Calcuating path weight integral lookup table" << std::endl;
-
+            std::cout << "Calcuating path weight integral lookup table: " << weightingParams.numCurvatureSteps << std::endl;
             twisty::PathWeighting::CalcMinMaxCurvature(m_minCurvature, m_maxCurvature, ds);
 
-            m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / m_weightingParams.numCurvatureSteps;
-            m_lookupTable.clear();
-            m_lookupTable.resize(m_weightingParams.numCurvatureSteps + 1u);
+            m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
             auto CalculateSimpleWeightValue = [weightingParams, ds](double curvature) -> double {
                 const double alpha = 1.0 / (weightingParams.scatter * ds * weightingParams.mu);
@@ -292,14 +271,12 @@ namespace twisty
 
             double min = m_lookupTable[0];
             double max = m_lookupTable[0];
-            for (uint32_t i = 1; i <= m_weightingParams.numCurvatureSteps; ++i)
+            for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i)
             {
                 double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
                 double value = CalculateSimpleWeightValue(curvatureEval);
 
                 m_lookupTable[i] = value;
-
-
                 if (min < 0.0)
                 {
                     if (value > 0.0)
@@ -330,7 +307,7 @@ namespace twisty
             }
 
             uint32_t numInvalid = 0;
-            for (uint32_t i = 0; i <= m_weightingParams.numCurvatureSteps; ++i)
+            for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i)
             {
                 double value = m_lookupTable[i];
 
@@ -354,14 +331,14 @@ namespace twisty
             std::cout << "\tMax Possible Weight Value: " << max << std::endl;
             //Parameters
             std::cout << "\tTable construction params: " << std::endl;
-            std::cout << "\t\tmu: " << m_weightingParams.mu << std::endl;
-            std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << std::endl;
-            std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << std::endl;
-            std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << std::endl;
-            std::cout << "\t\tm_eps: " << m_weightingParams.eps << std::endl;
+            std::cout << "\t\tmu: " << weightingParams.mu << std::endl;
+            std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << std::endl;
+            std::cout << "\t\tm_minBound: " << weightingParams.minBound << std::endl;
+            std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << std::endl;
+            std::cout << "\t\tm_eps: " << weightingParams.eps << std::endl;
             std::cout << "\t\tm_minCurvature: " << m_minCurvature << std::endl;
             std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << std::endl;
-            std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps << std::endl;
+            std::cout << "\t\tm_numCurvatureSteps: " << weightingParams.numCurvatureSteps << std::endl;
         }
 
         SimpleWeightLookupTable::~SimpleWeightLookupTable()

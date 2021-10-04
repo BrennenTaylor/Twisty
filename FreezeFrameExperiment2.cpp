@@ -225,11 +225,6 @@ int main(int argc, char *argv[])
 //                     double targetArclength = minArclength + arclengthStepSize * arclengthIdx;
 //                     const Range arclengthRange = { targetArclength, targetArclength };
 
-//                     // This is the range we want to meet
-//                     // The range of actual curvature/torsion * ds is below
-//                     Range kdsRange = { 0.0f, 2.0f };
-//                     Range tdsRange = { -1.0f, 1.0f };
-
 //                     int randomSeed = boostrapperSeed;
 //                     if (randomSeed == 0)
 //                     {

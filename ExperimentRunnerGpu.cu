@@ -39,11 +39,7 @@ namespace twisty
         ExperimentRunner::ExperimentSegmentTorsion* pWriteSegments,
         ExperimentRunner::ExperimentSegmentTorsion* pInitalSegmentValuesArray,
         DeviceCurve* pSeedCurveInfo,
-        curandState_t* pStates,
-        float kmin,
-        float kmax,
-        float tmin,
-        float tmax)
+        curandState_t* pStates)
     {
         // First, we calculate the block thread index of the entire gpu dispatch.
         // For the number of threads dispatched, each is responsible for a number of 
@@ -109,7 +105,7 @@ namespace twisty
     }
 
     ExperimentRunnerGpu::ExperimentRunnerGpu(ExperimentRunner::ExperimentParameters& experimentParams,
-        Bootstrapper& bootstrapper, uint32_t pathBatchSize, Range kdsRange, Range tdsRange)
+        Bootstrapper& bootstrapper, uint32_t pathBatchSize)
         : ExperimentRunner(experimentParams, bootstrapper )
         , m_numSMs(0)
         , m_warpSize(0)
@@ -124,8 +120,6 @@ namespace twisty
         //, m_pathBatchHostServer()
         , m_pathBatchReciever_Host()
         , m_initialSegmentDataServer()
-        , m_kdsRange(kdsRange)
-        , m_tdsRange(tdsRange)
         // Cude memory stuff
         , m_pSharedCurveInfo( nullptr )
         , m_pPerBlockThreadRandStates(nullptr)
@@ -163,12 +157,6 @@ namespace twisty
             // Once we have a curve, we know arclength.
             // Thus, we can setup the min and max curvatures
             float ds = m_upInitialCurve->m_arclength / m_upInitialCurve->m_numSegments;
-            // Curvature range setup
-            m_kRange.m_min = m_kdsRange.m_min / ds;
-            m_kRange.m_max = m_kdsRange.m_max / ds;
-            // Torsion range setup
-            m_tRange.m_min = m_tdsRange.m_min / ds;
-            m_tRange.m_max = m_tdsRange.m_max / ds;
 
             // Lets also get the error of the initial curve, just to know
             float curveError = CurveUtils::CalculateCurveError(*m_upInitialCurve);
@@ -545,11 +533,7 @@ namespace twisty
             m_pPathBatchWrite_Device,
             m_pInitialPathSegmentValues,
             m_pSharedCurveInfo,
-            m_pPerBlockThreadRandStates,
-            m_kRange.m_min,
-            m_kRange.m_max,
-            m_tRange.m_min,
-            m_tRange.m_max
+            m_pPerBlockThreadRandStates
         );
         CudaSafeErrorCheck(cudaPeekAtLastError(), "Purturb Launch");
         CudaSafeErrorCheck(cudaDeviceSynchronize(), "Purturb Sync");

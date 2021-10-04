@@ -10,7 +10,6 @@
  */
 
 #include "ExperimentRunner.h"
-#include "Range.h"
 #include "PathWeightUtils.h"
 
 #include <optional>
@@ -29,10 +28,8 @@ namespace twisty
          * @brief Construct a new Experiment Runner Cpu object
          * 
          * @param bootstrapper Bootstrapper object responsible for generating an initial curve given the experiment constraints
-         * @param kdsRange Range of allowed curvature * ds values
-         * @param tdsRange Range of allowed torsion * ds values
          */
-        ExperimentRunnerCpu(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper, Range kdsRange, Range tdsRange);
+        ExperimentRunnerCpu(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~ExperimentRunnerCpu();
 
         virtual bool Setup() override;
@@ -50,17 +47,8 @@ namespace twisty
 
         std::unique_ptr<Curve> SimpleGeometryCurvePerturb(const Curve& curve, uint32_t& flag);
         std::unique_ptr<Curve> ComplexGeometryCurvePerturb(const Curve& curve, uint32_t& flag);
-        std::unique_ptr<Curve> RootSolveCurvePerturb(const Curve& curve, uint32_t& flag);
 
     private:
         std::mt19937 m_rng;
-
-        Range m_kdsRange;
-        Range m_tdsRange;
-
-        Range m_kRange;
-        Range m_tRange;
-
-        std::unique_ptr<PathSpaceUtils::RegularizedIntegral> m_upRegIntEvaluator;
     };
 }

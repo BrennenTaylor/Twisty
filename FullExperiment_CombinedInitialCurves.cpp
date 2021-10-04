@@ -136,12 +136,6 @@ int main(int argc, char *argv[])
                 std::cout << "\tSelected Runner Method: FullExperimentRunnerOptimalPerturbOptimized" << std::endl;
                 upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
             } break;
-
-            // Debug modes
-            //case 66:
-            //{
-            //    upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper, kdsRange, tdsRange);
-            //} break;
             default:
             {
                 std::cout << "Invalid experiment runner method selected" << std::endl;
@@ -149,7 +143,7 @@ int main(int argc, char *argv[])
             }
             }
 #else
-            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper, kdsRange, tdsRange);
+            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
 #endif
 
             bool result = upExperimentRunner->Setup();

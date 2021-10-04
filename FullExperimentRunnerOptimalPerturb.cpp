@@ -156,10 +156,11 @@ namespace twisty
 
         // Say that we will start outputing the path batch output
         const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
-        /*twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);*/
 
-        // TODO: Commented out for the new experiment stuff.
         twisty::PathWeighting::SimpleWeightLookupTable lookupEvaluator(m_experimentParams.weightingParameters, ds);
+        std::filesystem::path exportTableDir = m_experimentParams.experimentDirPath;
+        exportTableDir /= m_experimentParams.perExperimentDirSubfolder;
+        lookupEvaluator.ExportValues(exportTableDir.string());
         
         twisty::PerturbUtils::BoundrayConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
