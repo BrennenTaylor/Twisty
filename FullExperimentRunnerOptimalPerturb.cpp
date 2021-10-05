@@ -781,7 +781,18 @@ namespace twisty
 
                     const Farlor::Vector3 Xes1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex - 1];
                     const Farlor::Vector3 Xe = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex];
-                    const Farlor::Vector3 Xep1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex + 1];
+
+                    // Handle case where we are rotation with end point as pivot point
+                    Farlor::Vector3 Xep1(0.0f, 0.0f, 0.0f);
+                    if (rightPointIndex == numSegmentsPerCurve) {
+                        Xep1 = Xe + boundaryConditions.m_endPos + segmentLength * boundaryConditions.m_endDir.Normalized();
+                    }
+                    else {
+                        Xep1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex + 1];
+                    }
+
+
+                    //const Farlor::Vector3 Xep1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex + 1];
                     const Farlor::Vector3 PR = Xe + ((Xes1 - Xe).Dot(N)) * N;
                     const Farlor::Vector3 ZR = Xep1 - ((Xep1 - PR).Dot(N)) * N;
 
@@ -890,10 +901,10 @@ namespace twisty
                         numSegmentsPerCurve, boundaryConditions);
                 }
 
-                double leftPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
+                double leftPathWeightLog10 = twisty::PathWeighting::SimpleWeightCurveViaTangentDotProductLog10(&(scratchTangentSpaceLeft[CurrentThreadTanStartIdx]),
                     numSegmentsPerCurve, weightingIntegral);
 
-                double rightPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
+                double rightPathWeightLog10 = twisty::PathWeighting::SimpleWeightCurveViaTangentDotProductLog10(&(scratchTangentSpaceRight[CurrentThreadTanStartIdx]),
                     numSegmentsPerCurve, weightingIntegral);
 
                 bool useLeftRotation = (leftPathWeightLog10 >= rightPathWeightLog10);
@@ -923,19 +934,19 @@ namespace twisty
 
                 // For now, we always accept a path
                 // This is not using the metropolis sampling at all
-                double oldPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                double oldPathWeightLog10 = twisty::PathWeighting::SimpleWeightCurveViaTangentDotProductLog10(&(globalTans[CurrentThreadTanStartIdx]),
                     numSegmentsPerCurve, weightingIntegral);
 
                 double newPathWeightLog10 = 0.0;
 
                 if (useLeftRotation)
                 {
-                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
+                    newPathWeightLog10 = twisty::PathWeighting::SimpleWeightCurveViaTangentDotProductLog10(&(scratchTangentSpaceLeft[CurrentThreadTanStartIdx]),
                         numSegmentsPerCurve, weightingIntegral);
                 }
                 else
                 {
-                    newPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx]),
+                    newPathWeightLog10 = twisty::PathWeighting::SimpleWeightCurveViaTangentDotProductLog10(&(scratchTangentSpaceRight[CurrentThreadTanStartIdx]),
                         numSegmentsPerCurve, weightingIntegral);
                 }
 

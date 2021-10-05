@@ -88,6 +88,16 @@ namespace twisty
                 return m_maxSegmentWeight;
             }
 
+            double GetMinCurvature() const
+            {
+                return m_minCurvature;
+            }
+
+            double GetMaxCurvature() const
+            {
+                return m_maxCurvature;
+            }
+
             double GetDs() const {
                 return m_ds;
             }
@@ -153,6 +163,9 @@ namespace twisty
         // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
         // Assumes that integral matches weighting params
         double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
+
+
+        double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
 
         namespace NormalizerStuff
         {
