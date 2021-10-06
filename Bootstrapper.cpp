@@ -78,10 +78,13 @@ namespace twisty
         bool evenNumberOfSegments = (numSegments % 2) == 0;
 
         // In the odd case, we place two segments initially
-        const Farlor::Vector3 x_1 = m_startPos + ds * m_startDir;
-        const Farlor::Vector3 x_s = evenNumberOfSegments ? x_1 + (m_endPos - x_1).Normalized() * ds : x_1;
-        const Farlor::Vector3 x_p = (x_s + m_endPos) * 0.5;
-        const Farlor::Vector3 lineUnitDir = (m_endPos - x_s).Normalized();
+        const Farlor::Vector3 x_sp1 = m_startPos + ds * m_startDir;
+        const Farlor::Vector3 x_em1 = m_endPos - ds * m_endDir;
+        const Farlor::Vector3 x_s = evenNumberOfSegments ? x_sp1 : x_sp1 + (x_em1 - x_sp1).Normalized() * ds;
+        
+        
+        const Farlor::Vector3 x_p = (x_s + x_em1) * 0.5;
+        const Farlor::Vector3 lineUnitDir = (x_em1 - x_s).Normalized();
         
         Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
         if (lineUnitDir == otherCrossVec)
@@ -93,8 +96,8 @@ namespace twisty
 
         // TODO: Add assertion that remaining segments can fill gap
 
-        // Subtract off segments which are already accounted for, 1 if odd and 2 if even
-        const int remainingSegmentCount = evenNumberOfSegments ? numSegments - 2 : numSegments - 1;
+        // Subtract off segments which are already accounted for, 3 if odd and 2 if even
+        const int remainingSegmentCount = evenNumberOfSegments ? numSegments - 2 : numSegments - 3;
         // We should have an even number of segments remaining
         assert((remainingSegmentCount % 2) == 0);
         const double hypot = remainingSegmentCount * 0.5 * ds;

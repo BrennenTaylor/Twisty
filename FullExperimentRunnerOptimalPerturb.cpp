@@ -696,10 +696,10 @@ namespace twisty
                     &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
                     numSegmentsPerCurve, boundaryConditions);
 
-                std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 1), 25)); // uniform, unbiased
+                std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 2), 25)); // uniform, unbiased
                 int64_t diff = diffDist(rngGenerators[threadIdx]);
 
-                std::uniform_int_distribution<int> leftPointIndexUniformDist(1, numSegmentsPerCurve - diff); // uniform, unbiased
+                std::uniform_int_distribution<int> leftPointIndexUniformDist(1, numSegmentsPerCurve - diff - 1); // uniform, unbiased
                 int64_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
 
                 int64_t rightPointIndex = leftPointIndex + diff;
