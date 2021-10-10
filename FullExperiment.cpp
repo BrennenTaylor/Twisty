@@ -42,7 +42,14 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     experimentParams.weightingParameters.numStepsInt = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");
     experimentParams.weightingParameters.numCurvatureSteps = (int)config.lookup("experiment.experimentParams.weighting.numCurvatureSteps");
     experimentParams.weightingParameters.absorbtion = config.lookup("experiment.experimentParams.weighting.absorbtion");
-    experimentParams.weightingParameters.scatter = config.lookup("experiment.experimentParams.weighting.scatter");
+    
+    std::vector<double> scatterValues;
+    auto& scatterValuesLookup = config.lookup("experiment.experimentParams.weighting.scatterValues");
+    for (int scatterIdx = 0; scatterIdx < scatterValuesLookup.getLength(); ++scatterIdx)
+    {
+        scatterValues.push_back(scatterValuesLookup[scatterIdx]);
+    }
+    experimentParams.weightingParameters.scatterValues = scatterValues;
 
     // TODO: Should these be configurable in the file?
     experimentParams.weightingParameters.minBound = 0.0;
@@ -157,17 +164,23 @@ int main(int argc, char *argv[])
             auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
 
             std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
-            std::cout << "Total experiment weight: " << results.experimentWeight << std::endl;
-            std::cout << "Avg path weight: " << results.experimentWeight / results.totalPathsGenerated << std::endl;
+            
+            auto experimentWeights = results.experimentWeights;
+            
+            for (int scatterIdx = 0; scatterIdx < results.experimentWeights.size(); scatterIdx++)
+            {
+                std::cout << "\tTotal experiment weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] << std::endl;
+                std::cout << "\tAvg path weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
+
+                ofs << s << ", " << results.experimentWeights[scatterIdx];
+            }
+            ofs << std::endl;
 
             // Retrieve Data we want from experiment
             upExperimentRunner->Shutdown();
             upExperimentRunner.reset(nullptr);
 
-            ofs << s << ", " << results.experimentWeight << std::endl;
-
             std::cout << "\tEnd Dir: " << evalVector << std::endl;
-            std::cout << "\tEval: " << results.experimentWeight << std::endl;
         }
         ofs.close();
     }

@@ -63,7 +63,7 @@ namespace twisty
         struct ExperimentResults
         {
             // Double, float, whatever, weight value
-            boost::multiprecision::cpp_dec_float_100 experimentWeight = 0.0;
+            std::vector<boost::multiprecision::cpp_dec_float_100> experimentWeights;
             uint64_t totalPathsGenerated = 0;
             uint64_t numFailedPaths = 0;
         };

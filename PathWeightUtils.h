@@ -24,9 +24,16 @@ namespace twisty
         double eps = 0.01;
 
         double scatter = 0.0;
+        std::vector<double> scatterValues;
         double absorbtion = 0.0;
 
         uint32_t numCurvatureSteps = 10000;
+
+        WeightingParameters::WeightingParameters()
+            : scatterValues()
+        {
+            scatterValues.push_back(0.0);
+        }
     };
 
     namespace PathWeighting

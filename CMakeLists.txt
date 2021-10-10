@@ -56,11 +56,11 @@ add_library(Twisty
 
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
-    FullExperimentRunnerOptimalPerturbOptimized.cpp
-    FullExperimentRunnerOptimalPerturbOptimized.h
+    # FullExperimentRunnerOptimalPerturbOptimized.cpp
+    # FullExperimentRunnerOptimalPerturbOptimized.h
 
-    FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
-    FullExperimentRunnerOptimalPerturbOptimized_GPU.h
+    # FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
+    # FullExperimentRunnerOptimalPerturbOptimized_GPU.h
 
     FullExperimentRunnerOldMethodBridge.cpp
     FullExperimentRunnerOldMethodBridge.h
@@ -107,8 +107,8 @@ add_library(Twisty
     FullExperimentRunner.h
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
-    FullExperimentRunnerOptimalPerturbOptimized.cpp
-    FullExperimentRunnerOptimalPerturbOptimized.h
+    # FullExperimentRunnerOptimalPerturbOptimized.cpp
+    # FullExperimentRunnerOptimalPerturbOptimized.h
     Geometry.h
     Geometry.cpp
     GeometryBootstrapper.h
@@ -208,73 +208,73 @@ target_link_options(FullExperiment
 endif (WIN32)
 
 
-if (WIN32)
-add_executable(RingBenchmark
-    RingBenchmark.cpp
-)
-else()
-add_executable(RingBenchmark
-    RingBenchmark.cpp
-)
-endif (WIN32)
+# if (WIN32)
+# add_executable(RingBenchmark
+#     RingBenchmark.cpp
+# )
+# else()
+# add_executable(RingBenchmark
+#     RingBenchmark.cpp
+# )
+# endif (WIN32)
 
-target_compile_features(RingBenchmark
-    PUBLIC cxx_static_assert
-    PUBLIC cxx_std_17
-)
+# target_compile_features(RingBenchmark
+#     PUBLIC cxx_static_assert
+#     PUBLIC cxx_std_17
+# )
 
-target_link_libraries(RingBenchmark
-    PUBLIC Twisty
-    PUBLIC glm
-    PUBLIC libconfig++
-    PUBLIC shlwapi
-)
+# target_link_libraries(RingBenchmark
+#     PUBLIC Twisty
+#     PUBLIC glm
+#     PUBLIC libconfig++
+#     PUBLIC shlwapi
+# )
 
-if (WIN32)
-else()
-target_compile_options(RingBenchmark
-    PUBLIC -lstdc++fs
-    PUBLIC -std=c++17
-)
-target_link_options(RingBenchmark
-    PUBLIC -pthread
-    PUBLIC -lstdc++fs
-)
-endif (WIN32)
+# if (WIN32)
+# else()
+# target_compile_options(RingBenchmark
+#     PUBLIC -lstdc++fs
+#     PUBLIC -std=c++17
+# )
+# target_link_options(RingBenchmark
+#     PUBLIC -pthread
+#     PUBLIC -lstdc++fs
+# )
+# endif (WIN32)
 
 
 # Combined initial curve full experiment
-if (WIN32)
-add_executable(FullExperiment_CombinedInitialCurves
-    FullExperiment_CombinedInitialCurves.cpp
-)
-else()
-add_executable(FullExperiment_CombinedInitialCurves
-    FullExperiment_CombinedInitialCurves.cpp
-)
-endif (WIN32)
+# if (WIN32)
+# add_executable(FullExperiment_CombinedInitialCurves
+#     FullExperiment_CombinedInitialCurves.cpp
+# )
+# else()
+# add_executable(FullExperiment_CombinedInitialCurves
+#     FullExperiment_CombinedInitialCurves.cpp
+# )
+# endif (WIN32)
 
-target_compile_features(FullExperiment_CombinedInitialCurves
-    PUBLIC cxx_static_assert
-    PUBLIC cxx_std_17
-)
+# target_compile_features(FullExperiment_CombinedInitialCurves
+#     PUBLIC cxx_static_assert
+#     PUBLIC cxx_std_17
+# )
 
-target_link_libraries(FullExperiment_CombinedInitialCurves
-    PUBLIC Twisty
-    PUBLIC glm
-)
+# target_link_libraries(FullExperiment_CombinedInitialCurves
+#     PUBLIC Twisty
+#     PUBLIC glm
+# )
 
-if (WIN32)
-else()
-target_compile_options(FullExperiment_CombinedInitialCurves
-    PUBLIC -lstdc++fs
-    PUBLIC -std=c++17
-)
-target_link_options(FullExperiment_CombinedInitialCurves
-    PUBLIC -pthread
-    PUBLIC -lstdc++fs
-)
-endif (WIN32)
+# if (WIN32)
+# else()
+# target_compile_options(FullExperiment_CombinedInitialCurves
+#     PUBLIC -lstdc++fs
+#     PUBLIC -std=c++17
+# )
+# target_link_options(FullExperiment_CombinedInitialCurves
+#     PUBLIC -pthread
+#     PUBLIC -lstdc++fs
+# )
+# endif (WIN32)
 
 
 
@@ -299,46 +299,46 @@ endif (WIN32)
 #     PUBLIC glm
 # )
 
-add_executable(NoisyCircleExperiment
-    NoisyCircleExperiment.cpp
-)
+# add_executable(NoisyCircleExperiment
+#     NoisyCircleExperiment.cpp
+# )
 
-target_link_libraries(NoisyCircleExperiment
-    PUBLIC Twisty
-    PUBLIC glm
-)
+# target_link_libraries(NoisyCircleExperiment
+#     PUBLIC Twisty
+#     PUBLIC glm
+# )
 
-add_executable(NoisyCircleExperimentHalf
-    NoisyCircleExperimentHalf.cpp
-)
+# add_executable(NoisyCircleExperimentHalf
+#     NoisyCircleExperimentHalf.cpp
+# )
 
-target_link_libraries(NoisyCircleExperimentHalf
-    PUBLIC Twisty
-    PUBLIC glm
-)
-
-
-add_executable(DifferentNormalSThetaExperiment
-    DifferentNormalSThetaExperiment.cpp
-)
-
-target_link_libraries(DifferentNormalSThetaExperiment
-    PUBLIC Twisty
-    PUBLIC glm
-)
+# target_link_libraries(NoisyCircleExperimentHalf
+#     PUBLIC Twisty
+#     PUBLIC glm
+# )
 
 
-add_executable(Benchmark_5_1
-    Benchmark_5_1.cpp
-)
+# add_executable(DifferentNormalSThetaExperiment
+#     DifferentNormalSThetaExperiment.cpp
+# )
 
-target_link_libraries(Benchmark_5_1
-    PUBLIC Twisty
-    PUBLIC glm
-)
+# target_link_libraries(DifferentNormalSThetaExperiment
+#     PUBLIC Twisty
+#     PUBLIC glm
+# )
+
+
+# add_executable(Benchmark_5_1
+#     Benchmark_5_1.cpp
+# )
+
+# target_link_libraries(Benchmark_5_1
+#     PUBLIC Twisty
+#     PUBLIC glm
+# )
 
 if (WIN32)
-add_subdirectory(Experiments)
+# add_subdirectory(Experiments)
 add_subdirectory(Tools)
 add_subdirectory(Viewer)
 add_subdirectory(unitweights)

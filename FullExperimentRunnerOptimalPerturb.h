@@ -50,13 +50,15 @@ namespace twisty
             std::vector<double>& globalPathWeights,
             std::vector<double>& cachedSegmentWeights,
             float segmentLength,
-            const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
+            std::vector<twisty::PathWeighting::SimpleWeightLookupTable*> weightingIntegrals,
+            //const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
             const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
             const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
         );
 
-        void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread, float arclength, int64_t numSegmentsPerCurve,
+        void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread,
+            int numLookupEvaluators, float arclength, int64_t numSegmentsPerCurve,
             const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeightsLog10,
-            boost::multiprecision::cpp_dec_float_100& threadWeight, boost::multiprecision::cpp_dec_float_100 pathNormalizer);
+            std::vector<boost::multiprecision::cpp_dec_float_100>& threadScatterWeights, boost::multiprecision::cpp_dec_float_100 pathNormalizer);
     };
 }

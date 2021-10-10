@@ -1868,7 +1868,9 @@ namespace twisty
 #endif
 
         ExperimentResults results;
-        results.experimentWeight = bigTotalExperimentWeight;
+        std::vector< boost::multiprecision::cpp_dec_float_100> finalValuesVec;
+        finalValuesVec.push_back(bigTotalExperimentWeight);
+        results.experimentWeights = finalValuesVec;
         results.totalPathsGenerated = numPathsGenerated;
         results.numFailedPaths = 0;
         return results;

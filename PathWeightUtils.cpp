@@ -424,10 +424,6 @@ namespace twisty
             const double curvatureStepSize = (maxCurvature - minCurvature) / weightingParams.numCurvatureSteps;
             auto& lookupTable = weightIntegral.AccessLookupTable();
 
-            const float c = weightingParams.scatter + weightingParams.absorbtion;
-            const float absorbtionConst = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
-            const float absorbtionConstLog10 = std::log10(absorbtionConst);
-
             // Calculate value
             double runningPathWeightLog10 = 0.0;
             for (int64_t segIdx = 0; segIdx < numScatterEvents; ++segIdx)
@@ -456,21 +452,16 @@ namespace twisty
                 double leftDist = distance - (leftIdx * curvatureStepSize);
 
                 double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
-                // Take the natural log of the interpolated results
+                // Take the log10 of the interpolated results
                 double interpolatedResultLog10 = std::log10(interpolatedResult);
                 // Lets do weights as doubles for now
                 double segmentWeightLog10 = interpolatedResultLog10;
-
-                // Take natural log of this constant
-                segmentWeightLog10 += absorbtionConstLog10;
 
                 // Update the running path weight. We also want to cache the segment weights
                 runningPathWeightLog10 += segmentWeightLog10;
             }
             return runningPathWeightLog10;
         }
-
-
 
         namespace NormalizerStuff
         {
