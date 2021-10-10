@@ -160,47 +160,47 @@ double G_4(const Farlor::Vector3& q, const Farlor::Vector3& beta, double ds, dou
     }
     return result;
 }
-
-// Spherical coordinates used for integeration
-// https://tutorial.math.lamar.edu/classes/calcii/sphericalcoords.aspx
-double G_5(const Farlor::Vector3& q, const Farlor::Vector3& beta, double ds, double alpha, const Farlor::Vector3& n0)
-{
-    const uint32_t numThetaSteps = 100;
-    const double thetaMin = 0.0;
-    const double thetaMax = 2.0 * M_PI;
-    const double thetaStepSize = (thetaMax - thetaMin) / (numThetaSteps - 1);
-
-    const double dTheta = ((thetaMax - thetaMin) / numThetaSteps);
-
-    const uint32_t numSSteps = 100;
-    const double sMin = -1.0;
-    const double sMax = 1.0;
-    const double sStepSize = (sMax - sMin) / (numSSteps - 1);
-
-    const double dS = ((sMax - sMin) / numSSteps);
-
-    double result = 0.0;
-
-    for (uint32_t thetaIdx = 0; thetaIdx < numThetaSteps; thetaIdx++)
-    {
-        const double theta = thetaMin + thetaIdx * thetaStepSize;
-        for (uint32_t sIdx = 0; sIdx < numSSteps; sIdx++)
-        {
-            const double s = sMin + sIdx * sStepSize;
-            const double ss = sqrt(1.0 - s * s);
-
-            Farlor::Vector3 evalVector = Farlor::Vector3(ss * cos(theta), ss * sin(theta), s).Normalized();
-            // Function eval 
-            double functionEval = G_4(q - evalVector, evalVector, ds, alpha, n0);
-            result += exp(-alpha) * functionEval * dTheta * dS * exp(alpha * beta.Dot(evalVector));
-        }
-        if (thetaIdx % (100 / 10) == 0)
-        {
-            std::cout << "G5 Percent: " << (thetaIdx / 100.0 * 100.0) << std::endl;
-        }
-    }
-    return result;
-}
+//
+//// Spherical coordinates used for integeration
+//// https://tutorial.math.lamar.edu/classes/calcii/sphericalcoords.aspx
+//double G_5(const Farlor::Vector3& q, const Farlor::Vector3& beta, double ds, double alpha, const Farlor::Vector3& n0)
+//{
+//    const uint32_t numThetaSteps = 100;
+//    const double thetaMin = 0.0;
+//    const double thetaMax = 2.0 * M_PI;
+//    const double thetaStepSize = (thetaMax - thetaMin) / (numThetaSteps - 1);
+//
+//    const double dTheta = ((thetaMax - thetaMin) / numThetaSteps);
+//
+//    const uint32_t numSSteps = 100;
+//    const double sMin = -1.0;
+//    const double sMax = 1.0;
+//    const double sStepSize = (sMax - sMin) / (numSSteps - 1);
+//
+//    const double dS = ((sMax - sMin) / numSSteps);
+//
+//    double result = 0.0;
+//
+//    for (uint32_t thetaIdx = 0; thetaIdx < numThetaSteps; thetaIdx++)
+//    {
+//        const double theta = thetaMin + thetaIdx * thetaStepSize;
+//        for (uint32_t sIdx = 0; sIdx < numSSteps; sIdx++)
+//        {
+//            const double s = sMin + sIdx * sStepSize;
+//            const double ss = sqrt(1.0 - s * s);
+//
+//            Farlor::Vector3 evalVector = Farlor::Vector3(ss * cos(theta), ss * sin(theta), s).Normalized();
+//            // Function eval 
+//            double functionEval = G_4(q - evalVector, evalVector, ds, alpha, n0);
+//            result += exp(-alpha) * functionEval * dTheta * dS * exp(alpha * beta.Dot(evalVector));
+//        }
+//        if (thetaIdx % (100 / 10) == 0)
+//        {
+//            std::cout << "G5 Percent: " << (thetaIdx / 100.0 * 100.0) << std::endl;
+//        }
+//    }
+//    return result;
+//}
 
 int main(int argc, char* argv[])
 {
@@ -258,7 +258,7 @@ int main(int argc, char* argv[])
 
       Farlor::Vector3 evalVector = Farlor::Vector3(ss * cos(theta), ss * sin(theta), s).Normalized();
 
-      double g4Result = G_5(q, evalVector, ds, alpha, startDir);
+      double g4Result = G_4(q, evalVector, ds, alpha, startDir);
 
       ofs << s << ", " << g4Result << std::endl;
 

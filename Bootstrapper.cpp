@@ -101,7 +101,13 @@ namespace twisty
         // We should have an even number of segments remaining
         assert((remainingSegmentCount % 2) == 0);
         const double hypot = remainingSegmentCount * 0.5 * ds;
-        const double D_2 = (m_endPos - x_s).Magnitude() * 0.5;
+        const double D_2 = (x_em1 - x_s).Magnitude() * 0.5;
+
+        if (D_2 > hypot) {
+            std::cout << "Error, we have an invalid environment parameter. No possible curve fits constraints" << std::endl;
+            std::exit(1);
+        }
+
         const double distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
         const Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
 
@@ -121,18 +127,20 @@ namespace twisty
         if (evenNumberOfSegments)
         {
             m_upCachedCurve->m_positions[0] = m_startPos;
-            m_upCachedCurve->m_positions[1] = x_1;
-            m_upCachedCurve->m_positions[2] = x_s;
-            xsPos = 2;
+            m_upCachedCurve->m_positions[1] = x_s;
+            xsPos = 1;
         }
         else
         {
             m_upCachedCurve->m_positions[0] = m_startPos;
-            m_upCachedCurve->m_positions[1] = x_s;
-            xsPos = 1;
+            m_upCachedCurve->m_positions[1] = x_sp1;
+            m_upCachedCurve->m_positions[2] = x_s;
+            xsPos = 2;
         }
 
+        // Lock the last segment
         {
+            m_upCachedCurve->m_positions[numSegments - 1] = x_em1;
             m_upCachedCurve->m_positions[numSegments] = m_endPos;
         }
         
@@ -143,7 +151,7 @@ namespace twisty
             m_upCachedCurve->m_positions[leftIdx + xsPos] = x_s + leftIdx * ds* leftDir;
         }
 
-        const Farlor::Vector3 rightDir = (m_endPos - x_t).Normalized();
+        const Farlor::Vector3 rightDir = (x_em1 - x_t).Normalized();
         for (uint32_t rightIdx = 1; rightIdx <= remainingSegmentCountDiv2; ++rightIdx)
         {
             m_upCachedCurve->m_positions[rightIdx + xsPos + remainingSegmentCountDiv2] = x_t + rightIdx * ds * rightDir;

@@ -32,7 +32,8 @@ namespace twisty
                 auto& tanLeft = pTangents[i];
                 auto& tanRight = pTangents[i + 1];
                 {
-                    const float curvature = ((tanRight - tanLeft) * (1.0f / ds)).Magnitude();
+                    const float curvature = tanRight.Normalized().Dot(tanLeft.Normalized());
+                    //const float curvature = ((tanRight - tanLeft) * (1.0f / ds)).Magnitude();
                     pCurvatures[i] = curvature;
                 }
             }

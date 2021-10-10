@@ -978,7 +978,7 @@ namespace twisty
 
                 numPathsAccepted++;
 
-                double pathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                double pathWeightLog10 = twisty::PathWeighting::SimpleWeightCurveViaTangentDotProductLog10(&(globalTans[CurrentThreadTanStartIdx]),
                     numSegmentsPerCurve, weightingIntegral);
 
                 if (pathCount < numPathsToSkipPerThread)

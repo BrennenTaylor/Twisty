@@ -408,12 +408,14 @@ namespace twisty
 
         // We have to calculate the "curvature" a different way for the simple weight case.
         // The actual value used is the dot product between two neighboring tangents
-        double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangentsStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral)
+        double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangentsStart, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral)
         {
-            if (!pTangentsStart || (numCurvatures == 0))
+            if (!pTangentsStart || (numSegments == 0))
             {
                 return 0.0;
             }
+
+            uint32_t numScatterEvents = numSegments - 1;
 
             double ds = weightIntegral.GetDs();
             const auto& weightingParams = weightIntegral.GetWeightingParams();
@@ -428,7 +430,7 @@ namespace twisty
 
             // Calculate value
             double runningPathWeightLog10 = 0.0;
-            for (int64_t segIdx = 0; segIdx < numCurvatures; ++segIdx)
+            for (int64_t segIdx = 0; segIdx < numScatterEvents; ++segIdx)
             {
                 // Extract curvature
                 Farlor::Vector3 leftTangent = pTangentsStart[segIdx].Normalized();

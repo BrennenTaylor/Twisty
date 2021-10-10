@@ -165,7 +165,7 @@ namespace twisty
         double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
 
 
-        double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
+        double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral);
 
         namespace NormalizerStuff
         {
