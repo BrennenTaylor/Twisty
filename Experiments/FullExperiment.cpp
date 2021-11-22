@@ -1,12 +1,16 @@
 #include "FullExperimentRunnerOptimalPerturb.h"
 
-#include <libconfig.h++>
+#if defined(USE_CUDA)
+#include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h" 
+#endif
 
-#include "Bootstrapper.h"
-#include "MathConsts.h"
-#include "PathWeightUtils.h"
+#include <Bootstrapper.h>
+#include <MathConsts.h>
+#include <PathWeightUtils.h>
 
 #include <FMath/Vector3.h>
+
+#include <libconfig.h++>
 
 #include <chrono>
 #include <iostream>
@@ -94,10 +98,6 @@ int main(int argc, char *argv[])
         }
 
         twisty::ExperimentRunner::ExperimentParameters experimentParams = ParseExperimentParamsFromConfig(experimentConfig);
-
-        // Override params
-        //experimentParams.numPathsInExperiment = 10000;
-        //experimentParams.numPathsToSkip = 100;
 
         if (!std::filesystem::exists(experimentParams.experimentDirPath))
         {

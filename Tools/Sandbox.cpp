@@ -1,6 +1,7 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <string>
 #include <vector>

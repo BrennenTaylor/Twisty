@@ -61,11 +61,6 @@ add_library(Twisty
 
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
-    # FullExperimentRunnerOptimalPerturbOptimized.cpp
-    # FullExperimentRunnerOptimalPerturbOptimized.h
-
-    # FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
-    # FullExperimentRunnerOptimalPerturbOptimized_GPU.h
 
     Integrate.h
     MathConsts.h
@@ -84,8 +79,6 @@ target_sources(Twisty
 target_compile_definitions(Twisty
     PUBLIC USE_CUDA
 )
-
-# set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES "35;50;72")
 
 endif (USE_CUDA)
 
@@ -126,174 +119,8 @@ target_link_libraries(Twisty
     PUBLIC shlwapi
 )
 
-
-
 if (WIN32)
-add_executable(FullExperiment
-    FullExperiment.cpp
-)
-else()
-add_executable(FullExperiment
-    FullExperiment.cpp
-)
-endif (WIN32)
-
-target_compile_features(FullExperiment
-    PUBLIC cxx_static_assert
-    PUBLIC cxx_std_17
-)
-
-target_link_libraries(FullExperiment
-    PUBLIC Twisty
-    PUBLIC glm
-    PUBLIC libconfig++
-    PUBLIC shlwapi
-)
-
-if (WIN32)
-else()
-target_compile_options(FullExperiment
-    PUBLIC -lstdc++fs
-    PUBLIC -std=c++17
-)
-target_link_options(FullExperiment
-    PUBLIC -pthread
-    PUBLIC -lstdc++fs
-)
-endif (WIN32)
-
-
-# if (WIN32)
-# add_executable(RingBenchmark
-#     RingBenchmark.cpp
-# )
-# else()
-# add_executable(RingBenchmark
-#     RingBenchmark.cpp
-# )
-# endif (WIN32)
-
-# target_compile_features(RingBenchmark
-#     PUBLIC cxx_static_assert
-#     PUBLIC cxx_std_17
-# )
-
-# target_link_libraries(RingBenchmark
-#     PUBLIC Twisty
-#     PUBLIC glm
-#     PUBLIC libconfig++
-#     PUBLIC shlwapi
-# )
-
-# if (WIN32)
-# else()
-# target_compile_options(RingBenchmark
-#     PUBLIC -lstdc++fs
-#     PUBLIC -std=c++17
-# )
-# target_link_options(RingBenchmark
-#     PUBLIC -pthread
-#     PUBLIC -lstdc++fs
-# )
-# endif (WIN32)
-
-
-# Combined initial curve full experiment
-# if (WIN32)
-# add_executable(FullExperiment_CombinedInitialCurves
-#     FullExperiment_CombinedInitialCurves.cpp
-# )
-# else()
-# add_executable(FullExperiment_CombinedInitialCurves
-#     FullExperiment_CombinedInitialCurves.cpp
-# )
-# endif (WIN32)
-
-# target_compile_features(FullExperiment_CombinedInitialCurves
-#     PUBLIC cxx_static_assert
-#     PUBLIC cxx_std_17
-# )
-
-# target_link_libraries(FullExperiment_CombinedInitialCurves
-#     PUBLIC Twisty
-#     PUBLIC glm
-# )
-
-# if (WIN32)
-# else()
-# target_compile_options(FullExperiment_CombinedInitialCurves
-#     PUBLIC -lstdc++fs
-#     PUBLIC -std=c++17
-# )
-# target_link_options(FullExperiment_CombinedInitialCurves
-#     PUBLIC -pthread
-#     PUBLIC -lstdc++fs
-# )
-# endif (WIN32)
-
-
-
-#  Freeze frame experiment
-
-# add_executable(FreezeFrameExperiment
-#     FreezeFrameExperiment.cpp
-# )
-
-# target_link_libraries(FreezeFrameExperiment
-#     PUBLIC Twisty
-#     PUBLIC glm
-# )
-
-
-# add_executable(FreezeFrameExperiment2
-#     FreezeFrameExperiment2.cpp
-# )
-
-# target_link_libraries(FreezeFrameExperiment2
-#     PUBLIC Twisty
-#     PUBLIC glm
-# )
-
-# add_executable(NoisyCircleExperiment
-#     NoisyCircleExperiment.cpp
-# )
-
-# target_link_libraries(NoisyCircleExperiment
-#     PUBLIC Twisty
-#     PUBLIC glm
-# )
-
-# add_executable(NoisyCircleExperimentHalf
-#     NoisyCircleExperimentHalf.cpp
-# )
-
-# target_link_libraries(NoisyCircleExperimentHalf
-#     PUBLIC Twisty
-#     PUBLIC glm
-# )
-
-
-# add_executable(DifferentNormalSThetaExperiment
-#     DifferentNormalSThetaExperiment.cpp
-# )
-
-# target_link_libraries(DifferentNormalSThetaExperiment
-#     PUBLIC Twisty
-#     PUBLIC glm
-# )
-
-
-# add_executable(Benchmark_5_1
-#     Benchmark_5_1.cpp
-# )
-
-# target_link_libraries(Benchmark_5_1
-#     PUBLIC Twisty
-#     PUBLIC glm
-# )
-
-if (WIN32)
-# add_subdirectory(Experiments)
+add_subdirectory(Experiments)
 add_subdirectory(Tools)
 add_subdirectory(Viewer)
 add_subdirectory(unitweights)
