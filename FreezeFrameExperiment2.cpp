@@ -5,7 +5,7 @@
 #include "GpuFullExperimentRunnerGeneral.h"
 #endif
 
-#include "GeometryBootstrapper.h"
+#include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "Range.h"
@@ -45,7 +45,7 @@ const float distanceFromPlane = 10.0f;
 //#endif
 //}
 
-ExperimentRunner::ExperimentResults CalculateDipoleTransportKernel(const GeometryBootstrapper& geomBootstrapper,
+ExperimentRunner::ExperimentResults CalculateDipoleTransportKernel(const Bootstrapper& geomBootstrapper,
     const ExperimentRunner::ExperimentParameters& experimentParams,
     const double s)
 {
@@ -256,7 +256,7 @@ int main(int argc, char *argv[])
 
 
 //                     {
-//                         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
+//                         Bootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
 // #if defined(ExportGeometryInfo) && defined(ExportArclengths)
 //                         twisty::Curve* pCurve = upExperimentRunner->GetInitialCurvePtr();
 //                         float arclength = pCurve->m_arclength;

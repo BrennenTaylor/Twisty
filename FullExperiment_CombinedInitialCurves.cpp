@@ -8,7 +8,7 @@
 //#include "GpuFullExperimentRunnerGeneral2.h"
 //#endif
 
-#include "GeometryBootstrapper.h"
+#include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 
             RayGeometry rayReciever(recieverPos, recieverDir);
 
-            GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
+            Bootstrapper bootstrapper(rayEmitter, rayReciever);
 
             std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
 

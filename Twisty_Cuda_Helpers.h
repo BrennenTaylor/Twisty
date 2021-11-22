@@ -1,7 +1,7 @@
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
 #include <cuda_occupancy.h>
-#include <device_functions.h>
+#include <cuda_runtime_api.h>
 #include <device_launch_parameters.h>
 
 #include <string>

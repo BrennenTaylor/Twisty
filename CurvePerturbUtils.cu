@@ -9,7 +9,7 @@ namespace twisty
     __host__ __device__ void NormalizeVector3f(float* pVector3f)
     {
         float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
-        normalizer = 1.0 / std::sqrt(normalizer);
+        normalizer = 1.0f / std::sqrt(normalizer);
         pVector3f[0] *= normalizer;
         pVector3f[1] *= normalizer;
         pVector3f[2] *= normalizer;

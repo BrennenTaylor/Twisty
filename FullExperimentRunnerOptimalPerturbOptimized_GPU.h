@@ -12,7 +12,6 @@
 #include <cuda_runtime_api.h>
 
 #include "ExperimentRunner.h"
-#include "Range.h"
 #include "PathWeightUtils.h"
 #include "PerturbUtils.h"
 
@@ -219,7 +218,7 @@ namespace twisty
         FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
         //float segmentLength,
         //const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
-        const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         double* pLookupTable
         //const PathWeighting::NormalizerStuff::FN& fn
     );

@@ -165,7 +165,7 @@ namespace twisty
         std::vector<double>& cachedSegmentWeights,
         float segmentLength,
         const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
-        const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         const PathWeighting::NormalizerStuff::FN& fn
     )
     {
@@ -1494,7 +1494,7 @@ namespace twisty
         const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
         twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
-        twisty::PerturbUtils::BoundrayConditions boundaryConditions;
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
         boundaryConditions.m_startPos = m_upInitialCurve->m_basePos;
         boundaryConditions.m_startDir = m_upInitialCurve->m_baseTangent;

@@ -64,7 +64,7 @@ namespace twisty
             std::vector<double>& cachedSegmentWeights,
             float segmentLength,
             const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
-            const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
             const PathWeighting::NormalizerStuff::FN& fn
         );
 

@@ -9,7 +9,7 @@ namespace twisty
 #ifndef USE_BETTER_CURVATURE
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
         void RecalculateTangentsCurvaturesFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
-            float* pCurvatures, const uint32_t numSegments, const BoundrayConditions& boundaryConditions)
+            float* pCurvatures, const uint32_t numSegments, const BoundaryConditions& boundaryConditions)
         {
             const float ds = boundaryConditions.arclength / numSegments;
 
@@ -42,7 +42,7 @@ namespace twisty
         // Note: This version uses the symetric difference of tangents for curvature
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
         void RecalculateTangentsCurvaturesFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
-            float* pCurvatures, const uint32_t numSegments, const BoundrayConditions& boundaryConditions)
+            float* pCurvatures, const uint32_t numSegments, const BoundaryConditions& boundaryConditions)
         {
             const float ds = boundaryConditions.arclength / numSegments;
 

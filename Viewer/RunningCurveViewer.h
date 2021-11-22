@@ -13,6 +13,7 @@
 #include "PathPerturbViewerWidget.h"
 
 #include <filesystem>
+#include <random>
 #include <vector>
 
 class RunningCurveViewer : public QOpenGLWidget, public QOpenGLFunctions

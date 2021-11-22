@@ -12,39 +12,53 @@
 
 namespace twisty
 {
-    Bootstrapper::Bootstrapper()
-        : m_startPos(0.0f, 0.0f, 0.0f)
-        , m_startDir(0.0f, 0.0f, 0.0f)
-        , m_endPos(0.0f, 0.0f, 0.0f)
-        , m_endDir(0.0f, 0.0f, 0.0f)
-        , m_isCached(false)
-        , m_upCachedCurve(nullptr)
-        , m_cachedTValues()
-        , m_cachedSegmentPositions()
-        , m_cachedSegmentFrames()
-        , m_upCachedBezierInfo(nullptr)
-        , m_upCachedBezier(nullptr)
+    Bootstrapper::RayGeometry::RayGeometry(Farlor::Vector3 start, Farlor::Vector3 dir)
+        : m_pos(start)
+        , m_dir(dir)
     {
+    }
+
+    Bootstrapper::Geometry::SampleRay Bootstrapper::RayGeometry::GetSampleRay() const
+    {
+        return SampleRay{ m_pos, m_dir };
+    }
+
+    Bootstrapper::SphereGeometry::SphereGeometry(Farlor::Vector3 pos, float radius, float fov)
+        : m_pos{ pos }
+        , m_radius{ radius }
+        , m_fov{ fov }
+    {
+    }
+
+    Bootstrapper::Geometry::SampleRay Bootstrapper::SphereGeometry::GetSampleRay() const
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dist(0.0f, 1.0f);
+        float rand0 = static_cast<float>(dist(gen));
+        float rand1 = static_cast<float>(dist(gen));
+        Farlor::Vector3 sphereSample = Sample::SampleUnitSphere(rand0, rand1);
+        return SampleRay{ m_pos, sphereSample.Normalized() };
+    }
+
+    Bootstrapper::Bootstrapper()
+    {
+    }
+
+    Bootstrapper::Bootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry)
+    {
+        const Geometry::SampleRay& emitterRay = emitterGeometry.GetSampleRay();
+        const Geometry::SampleRay& recieverRay = recieverGeometry.GetSampleRay();
+        m_startPos = emitterRay.m_pos;
+        m_startDir = emitterRay.m_dir;
+        m_endPos = recieverRay.m_pos;
+        m_endDir = recieverRay.m_dir;
     }
 
     Bootstrapper::~Bootstrapper()
     {
     }
 
-    void Bootstrapper::Reset()
-    {
-        BeginReset();
-
-        m_isCached = false;
-        m_upCachedCurve = nullptr;
-        m_cachedTValues.clear();
-        m_cachedSegmentPositions.clear();
-        m_cachedSegmentFrames.clear();
-        m_upCachedBezierInfo = nullptr;
-        m_upCachedBezier = nullptr;
-
-        EndReset();
-    }
 
     Farlor::Vector3 Bootstrapper::GetStartPosition() const
     {
@@ -68,8 +82,8 @@ namespace twisty
         // TODO: Add assertion for minimal number of segments!
 
         std::cout << "\nBegin generating curve" << std::endl;
-        const double arclength = targetArclength;
-        const double ds = arclength / numSegments;
+        const float arclength = targetArclength;
+        const float ds = arclength / numSegments;
 
         // If we have an odd number of segments, we want to place two segments right at the beginning
         // TODO: The second segment really should be flexible in its placement for allowing the most environment configurations
@@ -100,25 +114,25 @@ namespace twisty
         const int remainingSegmentCount = evenNumberOfSegments ? numSegments - 2 : numSegments - 3;
         // We should have an even number of segments remaining
         assert((remainingSegmentCount % 2) == 0);
-        const double hypot = remainingSegmentCount * 0.5 * ds;
-        const double D_2 = (x_em1 - x_s).Magnitude() * 0.5;
+        const float hypot = remainingSegmentCount * 0.5f * ds;
+        const float D_2 = (x_em1 - x_s).Magnitude() * 0.5f;
 
         if (D_2 > hypot) {
             std::cout << "Error, we have an invalid environment parameter. No possible curve fits constraints" << std::endl;
             std::exit(1);
         }
 
-        const double distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
+        const float distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
         const Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
 
-        m_upCachedCurve = std::make_unique<Curve>(numSegments);
-        m_upCachedCurve->m_arclength = arclength;
-        m_upCachedCurve->m_numSegments = numSegments;
-        m_upCachedCurve->m_segmentLength = ds;
-        m_upCachedCurve->m_basePos = GetStartPosition();
-        m_upCachedCurve->m_baseTangent = GetStartNormal();
-        m_upCachedCurve->m_targetPos = GetTargetPosition();
-        m_upCachedCurve->m_targetTangent = GetTargetNormal();
+        std::unique_ptr<Curve> upGeneratedCurve = std::make_unique<Curve>(numSegments);
+        upGeneratedCurve->m_arclength = arclength;
+        upGeneratedCurve->m_numSegments = numSegments;
+        upGeneratedCurve->m_segmentLength = ds;
+        upGeneratedCurve->m_basePos = GetStartPosition();
+        upGeneratedCurve->m_baseTangent = GetStartNormal();
+        upGeneratedCurve->m_targetPos = GetTargetPosition();
+        upGeneratedCurve->m_targetTangent = GetTargetNormal();
         
         int remainingSegmentCountDiv2 = remainingSegmentCount / 2;
 
@@ -126,66 +140,65 @@ namespace twisty
         int xsPos = 0;
         if (evenNumberOfSegments)
         {
-            m_upCachedCurve->m_positions[0] = m_startPos;
-            m_upCachedCurve->m_positions[1] = x_s;
+            upGeneratedCurve->m_positions[0] = m_startPos;
+            upGeneratedCurve->m_positions[1] = x_s;
             xsPos = 1;
         }
         else
         {
-            m_upCachedCurve->m_positions[0] = m_startPos;
-            m_upCachedCurve->m_positions[1] = x_sp1;
-            m_upCachedCurve->m_positions[2] = x_s;
+            upGeneratedCurve->m_positions[0] = m_startPos;
+            upGeneratedCurve->m_positions[1] = x_sp1;
+            upGeneratedCurve->m_positions[2] = x_s;
             xsPos = 2;
         }
 
         // Lock the last segment
         {
-            m_upCachedCurve->m_positions[numSegments - 1] = x_em1;
-            m_upCachedCurve->m_positions[numSegments] = m_endPos;
+            upGeneratedCurve->m_positions[numSegments - 1] = x_em1;
+            upGeneratedCurve->m_positions[numSegments] = m_endPos;
         }
         
         const Farlor::Vector3 leftDir = (x_t - x_s).Normalized();
-        for (uint32_t leftIdx = 1; leftIdx <= remainingSegmentCountDiv2; ++leftIdx)
+        for (int leftIdx = 1; leftIdx <= remainingSegmentCountDiv2; ++leftIdx)
         {
             // We want leftIdx 0 to be 1 step away, thus the + 1
-            m_upCachedCurve->m_positions[leftIdx + xsPos] = x_s + leftIdx * ds* leftDir;
+            upGeneratedCurve->m_positions[leftIdx + xsPos] = x_s + leftIdx * ds* leftDir;
         }
 
         const Farlor::Vector3 rightDir = (x_em1 - x_t).Normalized();
-        for (uint32_t rightIdx = 1; rightIdx <= remainingSegmentCountDiv2; ++rightIdx)
+        for (int rightIdx = 1; rightIdx <= remainingSegmentCountDiv2; ++rightIdx)
         {
-            m_upCachedCurve->m_positions[rightIdx + xsPos + remainingSegmentCountDiv2] = x_t + rightIdx * ds * rightDir;
+            upGeneratedCurve->m_positions[rightIdx + xsPos + remainingSegmentCountDiv2] = x_t + rightIdx * ds * rightDir;
         }
         
-        twisty::PerturbUtils::BoundrayConditions boundaryConditions;
-        boundaryConditions.arclength = m_upCachedCurve->m_arclength;
-        boundaryConditions.m_startPos = m_upCachedCurve->m_basePos;
-        boundaryConditions.m_startDir = m_upCachedCurve->m_baseTangent;
-        boundaryConditions.m_endPos = m_upCachedCurve->m_targetPos;
-        boundaryConditions.m_endDir = m_upCachedCurve->m_targetTangent;
-        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(m_upCachedCurve->m_positions.data(), m_upCachedCurve->m_tangents.data(),
-            m_upCachedCurve->m_curvatures.data(), m_upCachedCurve->m_numSegments, boundaryConditions);
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
+        boundaryConditions.arclength = upGeneratedCurve->m_arclength;
+        boundaryConditions.m_startPos = upGeneratedCurve->m_basePos;
+        boundaryConditions.m_startDir = upGeneratedCurve->m_baseTangent;
+        boundaryConditions.m_endPos = upGeneratedCurve->m_targetPos;
+        boundaryConditions.m_endDir = upGeneratedCurve->m_targetTangent;
+        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(upGeneratedCurve->m_positions.data(),
+            upGeneratedCurve->m_tangents.data(),
+            upGeneratedCurve->m_curvatures.data(),
+            upGeneratedCurve->m_numSegments,
+            boundaryConditions
+        );
 
 
         double totalDistance = 0.0;
         // Calculate the actual length of the segment based curve
-        for (uint32_t i = 0; i < m_upCachedCurve->m_numSegments - 1; ++i)
+        for (uint32_t i = 0; i < upGeneratedCurve->m_numSegments - 1; ++i)
         {
-            totalDistance += (m_upCachedCurve->m_positions[i + 1] - m_upCachedCurve->m_positions[i]).Magnitude();
+            totalDistance += (upGeneratedCurve->m_positions[i + 1] - upGeneratedCurve->m_positions[i]).Magnitude();
         }
         // And handle last segment
         {
-            totalDistance += (m_upCachedCurve->m_targetPos - m_upCachedCurve->m_positions[m_upCachedCurve->m_numSegments - 1]).Magnitude();
+            totalDistance += (upGeneratedCurve->m_targetPos - upGeneratedCurve->m_positions[upGeneratedCurve->m_numSegments - 1]).Magnitude();
         }
         std::cout << "\tSegment Curve Distance: " << totalDistance << std::endl;
-        std::cout << "\tTarget Arclength: " << m_upCachedCurve->m_arclength << std::endl;
+        std::cout << "\tTarget Arclength: " << upGeneratedCurve->m_arclength << std::endl;
 
-        // We need to return a copy
-        m_isCached = true;
-
-        auto upReturnCurve = std::make_unique<Curve>(m_upCachedCurve->m_numSegments);
-        *upReturnCurve = *m_upCachedCurve;
-        return upReturnCurve;
+        return upGeneratedCurve;
     }
 
     
@@ -194,7 +207,7 @@ namespace twisty
         std::cout << "Error: Dont use this version of the curve creator" << std::endl;
         assert(false);
         std::cout << "\nBegin generating curve" << std::endl;
-        const uint32_t bootstrapSeed = (generationSeed != 0) ? generationSeed : static_cast<uint64_t>(time(0));
+        const uint32_t bootstrapSeed = (generationSeed != 0) ? generationSeed : static_cast<uint32_t>(time(0));
         std::mt19937_64 randomGen(bootstrapSeed);
 
         std::cout << "\tBoundary conditions: " << std::endl;
@@ -207,7 +220,7 @@ namespace twisty
         const float requestedArclength = targetArclength;
 
         const float minL2 = 0.0f;
-        const float maxL2 = pow(10.0f, 5);
+        const float maxL2 = std::pow(10.0f, 5.0);
 
         const Farlor::Vector3 x1x0 = m_endPos - m_startPos;
         const float length = x1x0.Magnitude();
@@ -228,21 +241,19 @@ namespace twisty
         std::cout << "\t(l0, l1): (" << l0 << ", " << l1 << ")" << std::endl;
 #endif
 
-        m_upCachedBezier = std::make_unique<BezierCurve5>();
-        m_upCachedBezier->m_controlPts[0] = m_startPos;
-        m_upCachedBezier->m_controlPts[1] = m_startPos + l0 * m_startDir;
-        m_upCachedBezier->m_controlPts[2] = (m_startPos + m_endPos) * 0.5f;
-        m_upCachedBezier->m_controlPts[3] = m_endPos - l1 * m_endDir;
-        m_upCachedBezier->m_controlPts[4] = m_endPos;
+        BezierCurve5 newBezierCurve;
+        newBezierCurve.m_controlPts[0] = m_startPos;
+        newBezierCurve.m_controlPts[1] = m_startPos + l0 * m_startDir;
+        newBezierCurve.m_controlPts[2] = (m_startPos + m_endPos) * 0.5f;
+        newBezierCurve.m_controlPts[3] = m_endPos - l1 * m_endDir;
+        newBezierCurve.m_controlPts[4] = m_endPos;
         
         // This is the actual smallest arclength that we are able to generate
-        const float shortestArclengthPossible = m_upCachedBezier->CalculateArclength(0.0f, 1.0f);
-
+        const float shortestArclengthPossible = newBezierCurve.CalculateArclength(0.0f, 1.0f);
 
 #if defined(DetailedCurveGen)
         std::cout << "\tShortest Arclength Before Moving cp2: " << shortestArclengthPossible << std::endl;
 #endif
-
 
         std::uniform_real_distribution<float> uniformZeroToOne(0.0f, 1.0f);
         const float e0 = uniformZeroToOne(randomGen);
@@ -256,13 +267,13 @@ namespace twisty
         // Captures by references, so the actual bezier curve is temporarily modified
         auto TestL2Arclength = [&](float testL2) -> float
         {
-            const Farlor::Vector3 previous = m_upCachedBezier->m_controlPts[2];
-            m_upCachedBezier->m_controlPts[2] = previous + n2 * testL2;
+            const Farlor::Vector3 previous = newBezierCurve.m_controlPts[2];
+            newBezierCurve.m_controlPts[2] = previous + n2 * testL2;
 
             const float minVal = 0.0f;
             const float maxVal = 1.0f;
-            const float arclength = m_upCachedBezier->CalculateArclength(minVal, maxVal);
-            m_upCachedBezier->m_controlPts[2] = previous;
+            const float arclength = newBezierCurve.CalculateArclength(minVal, maxVal);
+            newBezierCurve.m_controlPts[2] = previous;
             return arclength;
         };
 
@@ -304,9 +315,6 @@ namespace twisty
             float bVal = TestL2Arclength(b) - targetArclength;
             float guessArclength = TestL2Arclength(guessVal);
             float guessError = guessArclength - targetArclength;
-            //std::cout << "\t\tGuess: " << guessVal << std::endl;
-            //std::cout << "\t\tGuess Arclength: " << guessArclength << std::endl;
-            //std::cout << "\t\tGuess Error: " << guessError << std::endl;
             if (std::abs(guessError) < errorThresh)
             {
                 // Guess works
@@ -333,10 +341,10 @@ namespace twisty
         // std::cout << "\tCurrent Iteration Count: " << currentIterationCount << std::endl;
         // printf("\tFinal L2: %.10f\n", guessVal);
         // Use our guess
-        m_upCachedBezier->m_controlPts[2] = m_upCachedBezier->m_controlPts[2] + n2 * guessVal;
+        newBezierCurve.m_controlPts[2] = newBezierCurve.m_controlPts[2] + n2 * guessVal;
         const float minBound = 0.0f;
         const float maxBound = 1.0f;
-        const float finalArclength = m_upCachedBezier->CalculateArclength(minBound, maxBound);
+        const float finalArclength = newBezierCurve.CalculateArclength(minBound, maxBound);
 
 #if defined(DetailedCurveGen)
         std::cout << "\tFinal arc length: " << finalArclength << std::endl;
@@ -344,33 +352,11 @@ namespace twisty
         std::cout << "\tFinal bezier error: " << std::abs(finalArclength - targetArclength) << std::endl;
 #endif
 
-        // Cached that bezier info for retrieval later
-        m_upCachedBezierInfo = std::make_unique<Bootstrapper::BezierInfo>();
-        m_upCachedBezierInfo->m_controlPt0 = m_upCachedBezier->m_controlPts[0];
-        m_upCachedBezierInfo->m_controlPt1 = m_upCachedBezier->m_controlPts[1];
-        m_upCachedBezierInfo->m_controlPt2 = m_upCachedBezier->m_controlPts[2];
-        m_upCachedBezierInfo->m_controlPt3 = m_upCachedBezier->m_controlPts[3];
-        m_upCachedBezierInfo->m_controlPt4 = m_upCachedBezier->m_controlPts[4];
-
-        return ToDiscreteFSCurve(numSegments, *m_upCachedBezier);
-    }
-    
-
-    std::unique_ptr<Curve> Bootstrapper::GetCachedCurve()
-    {
-        if (m_isCached)
-        {
-            auto upCurve = std::make_unique<Curve>(m_upCachedCurve->m_numSegments);
-            *upCurve = *m_upCachedCurve;
-            return upCurve;
-        }
-        return nullptr;
+        return ToDiscreteFSCurve(numSegments, newBezierCurve);
     }
 
     std::unique_ptr<Curve> Bootstrapper::ToDiscreteFSCurve(uint32_t numSegments, BezierCurve5& bezierCurve)
     {
-        // printf("Bezier to Discrete FS Curve info:\n");
-
         const float minT = 0.0f;
         const float maxT = 1.0f;
         const float initialArclength = bezierCurve.CalculateArclength(minT, maxT);
@@ -378,23 +364,16 @@ namespace twisty
         // ds is going to be in arclength parameterization
         const float ds = initialArclength / numSegments;
 
-        // printf("\tFull curve arclength: %f\n", fullCurveArcLength);
-        // printf("\tds: %f\n", ds);
-
-        m_upCachedCurve = std::make_unique<Curve>(numSegments);
-        m_upCachedCurve->m_arclength = initialArclength;
-        m_upCachedCurve->m_numSegments = numSegments;
-        m_upCachedCurve->m_basePos = GetStartPosition();
-        m_upCachedCurve->m_baseTangent = GetStartNormal();
-        m_upCachedCurve->m_targetPos = GetTargetPosition();
-        m_upCachedCurve->m_targetTangent = GetTargetNormal();
+        std::unique_ptr<Curve> upGeneratedCurve = std::make_unique<Curve>(numSegments);
+        upGeneratedCurve->m_arclength = initialArclength;
+        upGeneratedCurve->m_numSegments = numSegments;
+        upGeneratedCurve->m_basePos = GetStartPosition();
+        upGeneratedCurve->m_baseTangent = GetStartNormal();
+        upGeneratedCurve->m_targetPos = GetTargetPosition();
+        upGeneratedCurve->m_targetTangent = GetTargetNormal();
 
         // Initialize base position and frame
-        Farlor::Vector3 x_0 = m_upCachedCurve->m_basePos;
-
-        m_cachedTValues.clear();
-        // We always wand the first one
-        m_cachedTValues.push_back(0.0f);
+        Farlor::Vector3 x_0 = upGeneratedCurve->m_basePos;
 
         const uint32_t numSteps = 10000;
         // Actually cache the values for the tvalue lookup in the next steps
@@ -403,20 +382,20 @@ namespace twisty
         const float halfDS = ds * 1.0f;
 
         static int bezierSegIdx = 0;
-        m_upCachedCurve->m_segmentLength = ds;
+        upGeneratedCurve->m_segmentLength = ds;
         // First Position. Seeded by problem
         {
-            m_upCachedCurve->m_positions[0] = m_startPos;
-            m_upCachedCurve->m_tangents[0] = m_startDir;
+            upGeneratedCurve->m_positions[0] = m_startPos;
+            upGeneratedCurve->m_tangents[0] = m_startDir;
             bezierSegIdx++;
         }
         // Second position, fixed by construction
         {
-            m_upCachedCurve->m_positions[1] = m_startPos + m_startDir * m_upCachedCurve->m_segmentLength;
+            upGeneratedCurve->m_positions[1] = m_startPos + m_startDir * upGeneratedCurve->m_segmentLength;
         }
         // Last position, defined by problem
         {
-            m_upCachedCurve->m_positions[numSegments] = m_endPos;
+            upGeneratedCurve->m_positions[numSegments] = m_endPos;
         }
 
         // All other segments than first one
@@ -474,97 +453,50 @@ namespace twisty
                 currentIterationCount++;
             }
 
-            m_cachedTValues.push_back(guessVal);
-
             // Lets get all segment information
             // Sample this from the curve
-
             Farlor::Vector3 segmentPosition = bezierCurve.GetPosition(guessVal);
-            m_upCachedCurve->m_positions[i] = segmentPosition;
+            upGeneratedCurve->m_positions[i] = segmentPosition;
             bezierSegIdx++;
         }
 
         // Caclulate the cached tangents here
-        for (uint32_t i = 0; i < m_upCachedCurve->m_numSegments; ++i)
+        for (uint32_t i = 0; i < upGeneratedCurve->m_numSegments; ++i)
         {
-            Farlor::Vector3 diff = (m_upCachedCurve->m_positions[i + 1] - m_upCachedCurve->m_positions[i]);
-            m_upCachedCurve->m_tangents[i] = diff.Normalized();
+            Farlor::Vector3 diff = (upGeneratedCurve->m_positions[i + 1] - upGeneratedCurve->m_positions[i]);
+            upGeneratedCurve->m_tangents[i] = diff.Normalized();
         }
 
         // Write final tangent here
         {
-            m_upCachedCurve->m_tangents[numSegments] = m_endDir.Normalized();
+            upGeneratedCurve->m_tangents[numSegments] = m_endDir.Normalized();
         }
 
         // All but the last segment. We do that one manually
         for (uint32_t i = 0; i < numSegments; ++i)
         {
-            auto& tanLeft = m_upCachedCurve->m_tangents[i];
-            auto& tanRight = m_upCachedCurve->m_tangents[i + 1];
+            auto& tanLeft = upGeneratedCurve->m_tangents[i];
+            auto& tanRight = upGeneratedCurve->m_tangents[i + 1];
 
             {
                 float curvature = ((tanRight - tanLeft) * (1.0f / ds)).Magnitude();
-                m_upCachedCurve->m_curvatures[i] = curvature;
+                upGeneratedCurve->m_curvatures[i] = curvature;
             }
         }
 
         float totalDistance = 0.0f;
         // Calculate the actual length of the segment based curve
-        for (uint32_t i = 0; i < m_upCachedCurve->m_numSegments - 1; ++i)
+        for (uint32_t i = 0; i < upGeneratedCurve->m_numSegments - 1; ++i)
         {
-            totalDistance += (m_upCachedCurve->m_positions[i + 1] - m_upCachedCurve->m_positions[i]).Magnitude();
+            totalDistance += (upGeneratedCurve->m_positions[i + 1] - upGeneratedCurve->m_positions[i]).Magnitude();
         }
         // And handle last segment
         {
-            totalDistance += (m_upCachedCurve->m_targetPos - m_upCachedCurve->m_positions[m_upCachedCurve->m_numSegments - 1]).Magnitude();
+            totalDistance += (upGeneratedCurve->m_targetPos - upGeneratedCurve->m_positions[upGeneratedCurve->m_numSegments - 1]).Magnitude();
         }
         std::cout << "\tSegment Curve Distance: " << totalDistance << std::endl;
-        std::cout << "\tTarget Arclength: " << m_upCachedCurve->m_arclength << std::endl;
+        std::cout << "\tTarget Arclength: " << upGeneratedCurve->m_arclength << std::endl;
 
-        // We need to return a copy
-        m_isCached = true;
-
-        auto upReturnCurve = std::make_unique<Curve>(m_upCachedCurve->m_numSegments);
-        *upReturnCurve = *m_upCachedCurve;
-        return upReturnCurve;
-    }
-
-    std::unique_ptr<Bootstrapper::BezierInfo> Bootstrapper::GetBezierInfo() const
-    {
-        if (m_isCached)
-        {
-            auto upBezierInfo = std::make_unique<Bootstrapper::BezierInfo>();
-            *upBezierInfo = *m_upCachedBezierInfo;
-            return upBezierInfo;
-        }
-        return nullptr;
-    }
-
-    std::vector<Farlor::Vector3> Bootstrapper::GetTValuePositions() const
-    {
-        std::vector<Farlor::Vector3> positions;
-        if (m_isCached)
-        {
-            for (auto value : m_cachedTValues)
-            {
-                positions.push_back(m_upCachedBezier->GetPosition(value));
-            }
-        }
-        return positions;
-    }
-
-    std::vector<Farlor::Vector3> Bootstrapper::GetTValueFrames() const
-    {
-        std::vector<Farlor::Vector3> tangents;
-        if (m_isCached)
-        {
-            for (auto value : m_cachedTValues)
-            {
-                Farlor::Vector3 tangent;
-                tangent = m_upCachedBezier->Tangent(value).Normalized();
-                tangents.push_back(tangent);
-            }
-        }
-        return tangents;
+        return upGeneratedCurve;
     }
 }

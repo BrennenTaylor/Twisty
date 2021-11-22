@@ -4,7 +4,6 @@
 #include "CurveViewer.h"
 
 #include "CurveUtils.h"
-#include "Geometry.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
@@ -91,7 +90,7 @@ int main(int argc, char *argv[])
     std::ifstream seedCurveFS(seedCurvePath, std::ios::binary);
     if (!seedCurveFS.is_open())
     {
-        printf("Failed to open %s\n", seedCurvePath.string());
+        printf("Failed to open %s\n", seedCurvePath.string().c_str());
         return false;
     }
 

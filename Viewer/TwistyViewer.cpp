@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
 
             const twisty::Range arclengthRange = { 10.0f, 30.0f };
 
-            twisty::GeometryBootstrapper bootstrapper(rayEmitter, sphereReciever, arclengthRange, 0);
+            twisty::Bootstrapper bootstrapper(rayEmitter, sphereReciever);
 
             std::unique_ptr<twisty::Curve> upInitialCurve = bootstrapper.CreateCurve(numSegments);
             if (!upInitialCurve)
@@ -110,24 +110,6 @@ int main(int argc, char* argv[])
             upInitialCurve->ExportCurve("Exported_Curve");
 
             window.SetInitialCurve(*upInitialCurve);
-
-            auto upBezierInfo = bootstrapper.GetBezierInfo();
-            if (upBezierInfo)
-            {
-                window.SetBezierInfo(*upBezierInfo);
-            }
-
-            auto bezierPositions = bootstrapper.GetTValuePositions();
-            if (bezierPositions.size() > 0)
-            {
-                window.SetGtPositions(bezierPositions);
-            }
-
-            auto bezierFrames = bootstrapper.GetTValueFrames();
-            if (bezierFrames.size() > 0)
-            {
-                window.SetGtFrames(bezierFrames);
-            }
         }
 
         // Linear bootstrapper
@@ -144,84 +126,6 @@ int main(int argc, char* argv[])
 
         //    window.AddCurve(*upInitialCurve);
 
-        //    auto upBezierInfo = bootstrapper.GetBezierInfo();
-        //    if (upBezierInfo)
-        //    {
-        //        window.AddBezierInfo(*upBezierInfo);
-        //    }
-
-        //    auto bezierPositions = bootstrapper.GetTValuePositions();
-        //    if (bezierPositions.size() > 0)
-        //    {
-        //        window.SetBezierPositions(bezierPositions);
-        //    }
-
-        //    auto bezierFrames = bootstrapper.GetTValueFrames();
-        //    if (bezierFrames.size() > 0)
-        //    {
-        //        window.SetBezierFrames(bezierFrames);
-        //    }
-        //}
-
-        // Quadratic bootstrapper
-        //{
-        //    // Bootstrap method
-        //    twisty::testing::QuadraticBootstrapper bootstrapper;
-
-        //    std::unique_ptr<twisty::Curve> upInitialCurve = bootstrapper.CreateCurve(numSegments);
-        //    if (!upInitialCurve)
-        //    {
-        //        printf("Failed to create bootstrap curve.\n");
-        //        return false;
-        //    }
-
-        //    window.SetCurve(*upInitialCurve);
-
-        //    auto upBezierInfo = bootstrapper.GetBezierInfo();
-        //    if (upBezierInfo)
-        //    {
-        //        window.SetBezierInfo(*upBezierInfo);
-        //    }
-
-        //    auto bezierPositions = bootstrapper.GetTValuePositions();
-        //    if (bezierPositions.size() > 0)
-        //    {
-        //        window.SetGtPositions(bezierPositions);
-        //    }
-
-        //    auto bezierFrames = bootstrapper.GetTValueFrames();
-        //    if (bezierFrames.size() > 0)
-        //    {
-        //        window.SetGtFrames(bezierFrames);
-        //    }
-        //}
-
-        // Circle bootstrapper
-        //{
-        //    // Bootstrap method
-        //    twisty::testing::CircleBootstrapper bootstrapper;
-
-        //    std::unique_ptr<twisty::Curve> upInitialCurve = bootstrapper.CreateCurve(numSegments);
-        //    if (!upInitialCurve)
-        //    {
-        //        printf("Failed to create bootstrap curve.\n");
-        //        return false;
-        //    }
-
-        //    window.SetCurve(*upInitialCurve);
-
-        //    auto bezierPositions = bootstrapper.GetTValuePositions();
-        //    if (bezierPositions.size() > 0)
-        //    {
-        //        window.SetGtPositions(bezierPositions);
-        //    }
-
-        //    auto bezierFrames = bootstrapper.GetTValueFrames();
-        //    if (bezierFrames.size() > 0)
-        //    {
-        //        window.SetGtFrames(bezierFrames);
-        //    }
-        //}
         return true;
     };
 

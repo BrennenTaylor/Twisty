@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     const twisty::Range arclengthRange = { 10.0f, 30.0f };
 
     const uint32_t randomSeed = 0;
-    twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
+    twisty::Bootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
 
     uint32_t numPathsToSkip = 0;
     uint32_t numPathsToGenerate = std::stoi(argv[1]);

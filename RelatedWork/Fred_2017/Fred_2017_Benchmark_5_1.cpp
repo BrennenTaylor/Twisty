@@ -1,6 +1,6 @@
 #include <FMath/Vector3.h>
 
-#include <GeometryBootstrapper.h>
+#include <Bootstrapper.h>
 
 #include <chrono>
 #include <iostream>
@@ -28,7 +28,7 @@ double GreensFunctionApprox(double scatteringCoefficient, double absorbtionCoeff
 
     const double p = scatteringCoefficient / 2.0;
 
-    const Farlor::Vector3 r = p * (x2 - x1);
+    const Farlor::Vector3 r = (float)p * (x2 - x1);
     const double A = pow((p * s - tanh(p * s)), -1);
     const double B = tanh(p * s) / 2.0;
     const double C = 9.0 / (2.0 * p * s);
@@ -58,9 +58,9 @@ Farlor::Vector3 UniformlySampleHemisphereFacingNegativeX(const float u, const fl
 {
     float z = u;
     float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
-    float phi = 2.0f * M_PI * v;
+    float phi = 2.0f * (float)M_PI * v;
 
-    return Farlor::Vector3(-1.0 * r * std::sin(phi), r * std::cos(phi), z).Normalized();
+    return Farlor::Vector3(-1.0f * r * std::sin(phi), r * std::cos(phi), z).Normalized();
 }
 
 int main(int argc, char* argv[])
@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
     // Ok, we want the ray emitter
     const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
     const Farlor::Vector3 emitterDir = Farlor::Vector3(0.0f, 0.0f, 1.0f).Normalized();
-    twisty::RayGeometry rayEmitter(emitterStart, emitterDir);
+    twisty::Bootstrapper::RayGeometry rayEmitter(emitterStart, emitterDir);
 
     const double scatteringCoefficient = 0.99;
     const double absorbtionCoefficient = 1.0 - scatteringCoefficient;

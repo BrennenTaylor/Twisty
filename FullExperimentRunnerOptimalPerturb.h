@@ -52,7 +52,7 @@ namespace twisty
             float segmentLength,
             std::vector<twisty::PathWeighting::SimpleWeightLookupTable*> weightingIntegrals,
             //const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
-            const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
             const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
         );
 

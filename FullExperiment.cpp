@@ -2,7 +2,7 @@
 
 #include <libconfig.h++>
 
-#include "GeometryBootstrapper.h"
+#include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         
         Farlor::Vector3 startPos(0.0f, 0.0f, 0.0f);
         Farlor::Vector3 startDir(0.0f, 0.0f, 1.0f);
-        const twisty::RayGeometry rayEmitter(startPos, startDir);
+        const twisty::Bootstrapper::RayGeometry rayEmitter(startPos, startDir);
 
         const uint32_t numSSteps = numEmitterDirections;
         const double sMin = -1.0;
@@ -139,9 +139,9 @@ int main(int argc, char *argv[])
 
             Farlor::Vector3 endPos(0.0f, 0.0f, distanceFromPlane);
             Farlor::Vector3 evalVector = Farlor::Vector3(ss * cos(theta), ss * sin(theta), s).Normalized();
-            twisty::RayGeometry rayReciever(endPos, evalVector);
+            twisty::Bootstrapper::RayGeometry rayReciever(endPos, evalVector);
 
-            twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
+            twisty::Bootstrapper bootstrapper(rayEmitter, rayReciever);
 
             std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment << std::endl;
 

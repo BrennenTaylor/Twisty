@@ -42,11 +42,8 @@ namespace twisty
         double SimpleGaussianPhase(double evalLocation, double mu);
         double GaussianPhase(double evalLocation, double mu);
 
-
-
         // Simple Weight Function, for small segment work!
         double SimpleWeightFunction(double curvature);
-
 
         // TODO: Describe this with a useful comment
         //class IntegralStrategy
@@ -253,7 +250,7 @@ namespace twisty
             NormalizerDoubleType likelihood(const BaseNormalizer&fn, int numSegments, const double arclength, const Farlor::Vector3& endPosition, const Farlor::Vector3& startPosition,
                 const Farlor::Vector3& N, const Farlor::Vector3& Np, const std::vector<Farlor::Vector3> &beta0, const std::vector<Farlor::Vector3> &betastar);
 
-            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
                 std::vector<Farlor::Vector3>& oldTangents, std::vector<Farlor::Vector3>& newTangents);
 
 

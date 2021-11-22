@@ -12,7 +12,7 @@
 //#include "GpuFullExperimentRunnerGeneral2.h"
 //#endif
 
-#include "GeometryBootstrapper.h"
+#include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
         float targetArclength = (recieverPos - emitterStart).Magnitude() * 1.1f;
         targetArclength = std::max(targetArclength, 3.0f);
 
-        GeometryBootstrapper bootstrapper(rayEmitter, rayReciever);
+        Bootstrapper bootstrapper(rayEmitter, rayReciever);
 
         std::cout << "Experiment Path Count: " << numPathsToGenerate << std::endl;
 

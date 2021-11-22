@@ -2,7 +2,7 @@
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
-#include "GeometryBootstrapper.h"
+#include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
                             
 //                             experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-//                             twisty::GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, initialCurveSeed);
+//                             twisty::Bootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, initialCurveSeed);
 //                             std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
 //                             //std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper);
 //                             bool result = upExperimentRunner->Setup();

@@ -6,7 +6,7 @@ namespace twisty
 {
     namespace PerturbUtils
     {
-        struct BoundrayConditions
+        struct BoundaryConditions
         {
             Farlor::Vector3 m_startPos = Farlor::Vector3(0.0, 0.0, 0.0);
             Farlor::Vector3 m_startDir = Farlor::Vector3(1.0, 0.0, 0.0);
@@ -16,6 +16,6 @@ namespace twisty
         };
 
         void RecalculateTangentsCurvaturesFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
-            float* pCurvatures, const uint32_t numSegments, const BoundrayConditions& boundaryConditions);
+            float* pCurvatures, const uint32_t numSegments, const BoundaryConditions& boundaryConditions);
     }
 }

@@ -4,7 +4,7 @@
 #include "GpuFullExperimentRunnerGeneral.h"
 #endif
 
-#include "GeometryBootstrapper.h"
+#include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "Range.h"
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 //                     {
 //                         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-//                         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
+//                         Bootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
 //                         std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper);
 //                         bool result = upExperimentRunner->Setup();
 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
 //                         experimentParams.rotateInitialSeedCurveRadians = TwistyPi;
 
 //                         // NOTE: This is tuned to maximize purturb kernel
-//                         GeometryBootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
+//                         Bootstrapper bootstrapper(rayEmitter, rayReciever, arclengthRange, randomSeed);
 //                         std::unique_ptr<ExperimentRunner> upExperimentRunner = std::make_unique<FullExperimentRunner2>(experimentParams, bootstrapper);
 //                         bool result = upExperimentRunner->Setup();
 //                         if (!result)

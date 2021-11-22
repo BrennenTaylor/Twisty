@@ -43,33 +43,60 @@ const int64_t ExportPathBatchCacheSize = 1000000;
 
 #endif
 
-static Farlor::Matrix3x3 RotationMatrixAroundAxis(float angle, Farlor::Vector3 axis)
-{
-    // Ensure its normalized
-    axis.Normalize();
-
-    Farlor::Matrix3x3 rotation(
-        Farlor::Vector3(
-            cos(angle) + axis.x * axis.x * (1.0f - cos(angle)),
-            axis.x * axis.y * (1.0f - cos(angle)) - axis.z * sin(angle),
-            axis.x * axis.z * (1.0f - cos(angle)) + axis.y * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.y * axis.x * (1.0f - cos(angle)) + axis.z * sin(angle),
-            cos(angle) + axis.y * axis.y * (1 - cos(angle)),
-            axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.z * axis.x * (1 - cos(angle)) - axis.y * sin(angle),
-            axis.z * axis.y * (1 - cos(angle)) + axis.x * sin(angle),
-            cos(angle) + axis.z * axis.z * (1 - cos(angle))
-        )
-    );
-    return rotation;
-}
-
 namespace twisty
 {
+        // Assumes pVector3f is an array of 3 floats
+    static void NormalizeVector3f(float* pVector3f)
+    {
+        float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
+        normalizer = 1.0 / sqrt(normalizer);
+        pVector3f[0] *= normalizer;
+        pVector3f[1] *= normalizer;
+        pVector3f[2] *= normalizer;
+    }
+
+    // This has an out parameter
+    static void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3)
+    {
+        // Ensure its normalized
+        NormalizeVector3f(pAxisVector3f);
+
+        pMatrix3x3[0] = cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - cos(angle));
+        pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - cos(angle)) - pAxisVector3f[2] * sin(angle);
+        pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - cos(angle)) + pAxisVector3f[1] * sin(angle);
+
+        pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - cos(angle)) + pAxisVector3f[2] * sin(angle);
+        pMatrix3x3[4] = cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - cos(angle));
+        pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - cos(angle)) - pAxisVector3f[0] * sin(angle);
+
+        pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - cos(angle)) - pAxisVector3f[1] * sin(angle);
+        pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - cos(angle)) + pAxisVector3f[0] * sin(angle);
+        pMatrix3x3[8] = cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - cos(angle));
+    }
+
+    static float DotVector3fVector3f(float* lhs, float* rhs)
+    {
+        return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
+    }
+
+    static float MagVector3f(float* pVec)
+    {
+        return sqrt(pVec[0] * pVec[0] + pVec[1] * pVec[1] + pVec[2] * pVec[2]);
+    }
+
+    static void RotateVectorByMatrix(float* pRotationMatrix, float* pVector)
+    {
+        float val[3];
+        val[0] = DotVector3fVector3f(pRotationMatrix, pVector);
+        val[1] = DotVector3fVector3f(pRotationMatrix + 3, pVector);
+        val[2] = DotVector3fVector3f(pRotationMatrix + 6, pVector);
+        
+        // Write it back to pVector
+        pVector[0] = val[0];
+        pVector[1] = val[1];
+        pVector[2] = val[2];
+    }
+
     FullExperimentRunnerOptimalPerturb::FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams,
         Bootstrapper& bootstrapper)
         : ExperimentRunner(experimentParams, bootstrapper)
@@ -173,7 +200,7 @@ namespace twisty
 
         //twisty::PathWeighting::SimpleWeightLookupTable lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
-        twisty::PerturbUtils::BoundrayConditions boundaryConditions;
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
         boundaryConditions.m_startPos = m_upInitialCurve->m_basePos;
         boundaryConditions.m_startDir = m_upInitialCurve->m_baseTangent;
@@ -636,7 +663,7 @@ namespace twisty
         float segmentLength,
         std::vector<twisty::PathWeighting::SimpleWeightLookupTable*> weightingIntegrals,
         //const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
-        const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
     )
     {

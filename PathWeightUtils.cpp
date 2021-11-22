@@ -576,37 +576,23 @@ namespace twisty
             {
                 // Get the stored dataset for the specific order
                 const std::vector<NormalizerDoubleType>& data = fNsets.at(order);
+                const long double dr = (rmax - rmin) / (nb_samples - 1);
                 // Next, find the bucket tp the left
-                long double rrr = (r - rmin) * (nb_samples - 1) / (rmax - rmin);
-                int ii = rrr;
-                long double weight = rrr - ii;
+                int leftIdx = (int)(r - rmin) / dr;
                 // Bind weights to the known table
-                if (ii < 0)
-                {
-                    //std::cout << "Warning: Left clamped up to 0: " << r << std::endl;
-                    ii = 0;
-                }
-                if (ii >= nb_samples)
-                {
-                    //std::cout << "Warning: Left clamped down to " << (nb_samples - 1) << ": " << r << std::endl;
-                    ii = nb_samples - 1;
-                }
+                leftIdx = std::min(leftIdx, nb_samples - 1);
+                leftIdx = std::max(leftIdx, 0);
 
                 // Calculate right side value and bind to table as well
-                int iii = ii + 1;
-                if (iii < 0)
-                {
-                    //std::cout << "Warning: Right clamped up to 0: " << r << std::endl;
-                    iii = 0;
-                }
-                if (iii >= nb_samples)
-                {
-                    //std::cout << "Warning: Right clamped down to " << (nb_samples - 1) << ": " << r << std::endl;
-                    iii = nb_samples - 1;
-                }
+                int rightIdx = leftIdx + 1;
+                rightIdx = std::min(rightIdx, nb_samples - 1);
+                rightIdx = std::max(rightIdx, 0);
+
+                double distance = r - rmin;
+                double leftDist = distance - (leftIdx * dr);
 
                 // Finally, our datapoint is a bilinear interpolation
-                return data[ii] * (1.0 - weight) + data[iii] * weight;
+                return data[leftIdx] * (1.0f - leftDist) + data[rightIdx] * leftDist;
             }
 
             NormalizerDoubleType psd_one(const BaseNormalizer& fn, int M, const double s, const Farlor::Vector3& X, const Farlor::Vector3& N, const Farlor::Vector3& Np,
@@ -711,12 +697,7 @@ namespace twisty
                 return result;
             }
 
-            Farlor::Vector3 makeVector(double a, double b, double c)
-            {
-                return Farlor::Vector3(a, b, c);
-            }
-
-            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+            NormalizerDoubleType CalculateLikelihood(const BaseNormalizer& fn, int numSegments, const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
                 std::vector<Farlor::Vector3>& oldBetas, std::vector<Farlor::Vector3>& newBetas)
             {
                 // We store 1 tangent per segement plus an addition one for end.

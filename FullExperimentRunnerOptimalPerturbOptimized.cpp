@@ -27,33 +27,34 @@
 // TODO: Make this modifiable
 const uint32_t PathsPerScaledWeightValue = 100000;
 
-static Farlor::Matrix3x3 RotationMatrixAroundAxis(float angle, Farlor::Vector3 axis)
-{
-    // Ensure its normalized
-    axis.Normalize();
-
-    Farlor::Matrix3x3 rotation(
-        Farlor::Vector3(
-            cos(angle) + axis.x * axis.x * (1.0f - cos(angle)),
-            axis.x * axis.y * (1.0f - cos(angle)) - axis.z * sin(angle),
-            axis.x * axis.z * (1.0f - cos(angle)) + axis.y * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.y * axis.x * (1.0f - cos(angle)) + axis.z * sin(angle),
-            cos(angle) + axis.y * axis.y * (1 - cos(angle)),
-            axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.z * axis.x * (1 - cos(angle)) - axis.y * sin(angle),
-            axis.z * axis.y * (1 - cos(angle)) + axis.x * sin(angle),
-            cos(angle) + axis.z * axis.z * (1 - cos(angle))
-        )
-    );
-    return rotation;
-}
-
 namespace twisty
 {
+    static Farlor::Matrix3x3 RotationMatrixAroundAxis(float angle, Farlor::Vector3 axis)
+    {
+        // Ensure its normalized
+        axis.Normalize();
+
+        Farlor::Matrix3x3 rotation(
+            Farlor::Vector3(
+                cos(angle) + axis.x * axis.x * (1.0f - cos(angle)),
+                axis.x * axis.y * (1.0f - cos(angle)) - axis.z * sin(angle),
+                axis.x * axis.z * (1.0f - cos(angle)) + axis.y * sin(angle)
+            ),
+            Farlor::Vector3(
+                axis.y * axis.x * (1.0f - cos(angle)) + axis.z * sin(angle),
+                cos(angle) + axis.y * axis.y * (1 - cos(angle)),
+                axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle)
+            ),
+            Farlor::Vector3(
+                axis.z * axis.x * (1 - cos(angle)) - axis.y * sin(angle),
+                axis.z * axis.y * (1 - cos(angle)) + axis.x * sin(angle),
+                cos(angle) + axis.z * axis.z * (1 - cos(angle))
+            )
+        );
+        return rotation;
+    }
+
+
     FullExperimentRunnerOptimalPerturbOptimized::FullExperimentRunnerOptimalPerturbOptimized(ExperimentRunner::ExperimentParameters& experimentParams,
         Bootstrapper& bootstrapper, uint32_t numCombinedValuesForAvg, uint32_t numCombinedValuesForMax)
         : ExperimentRunner(experimentParams, bootstrapper)
@@ -114,7 +115,7 @@ namespace twisty
         const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
         twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
-        twisty::PerturbUtils::BoundrayConditions boundaryConditions;
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
         boundaryConditions.m_startPos = m_upInitialCurve->m_basePos;
         boundaryConditions.m_startDir = m_upInitialCurve->m_baseTangent;
@@ -376,7 +377,7 @@ namespace twisty
         std::vector<double>& cachedSegmentWeights,
         float segmentLength,
         const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
-        const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         const PathWeighting::NormalizerStuff::BaseNormalizer& fn
     )
     {

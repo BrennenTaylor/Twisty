@@ -31,35 +31,63 @@ const uint32_t PathsPerScaledWeightValue = 1000000;
 const uint32_t PerturbWarpSize = 32;
 const uint32_t PerturbGridSize = 20;
 
-static Farlor::Matrix3x3 RotationMatrixAroundAxis(float angle, Farlor::Vector3 axis)
-{
-    // Ensure its normalized
-    axis.Normalize();
-
-    Farlor::Matrix3x3 rotation(
-        Farlor::Vector3(
-            cos(angle) + axis.x * axis.x * (1.0f - cos(angle)),
-            axis.x * axis.y * (1.0f - cos(angle)) - axis.z * sin(angle),
-            axis.x * axis.z * (1.0f - cos(angle)) + axis.y * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.y * axis.x * (1.0f - cos(angle)) + axis.z * sin(angle),
-            cos(angle) + axis.y * axis.y * (1 - cos(angle)),
-            axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.z * axis.x * (1 - cos(angle)) - axis.y * sin(angle),
-            axis.z * axis.y * (1 - cos(angle)) + axis.x * sin(angle),
-            cos(angle) + axis.z * axis.z * (1 - cos(angle))
-        )
-    );
-    return rotation;
-}
-
 namespace twisty
 {
-    FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(ExperimentRunner::ExperimentParameters& experimentParams,
-        Bootstrapper& bootstrapper)
+
+            // Assumes pVector3f is an array of 3 floats
+    static __host__ __device__ void NormalizeVector3f(float* pVector3f)
+    {
+        float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
+        normalizer = 1.0 / sqrt(normalizer);
+        pVector3f[0] *= normalizer;
+        pVector3f[1] *= normalizer;
+        pVector3f[2] *= normalizer;
+    }
+
+    // This has an out parameter
+    static __host__ __device__  void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3)
+    {
+        // Ensure its normalized
+        NormalizeVector3f(pAxisVector3f);
+
+        pMatrix3x3[0] = cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - cos(angle));
+        pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - cos(angle)) - pAxisVector3f[2] * sin(angle);
+        pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - cos(angle)) + pAxisVector3f[1] * sin(angle);
+
+        pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - cos(angle)) + pAxisVector3f[2] * sin(angle);
+        pMatrix3x3[4] = cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - cos(angle));
+        pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - cos(angle)) - pAxisVector3f[0] * sin(angle);
+
+        pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - cos(angle)) - pAxisVector3f[1] * sin(angle);
+        pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - cos(angle)) + pAxisVector3f[0] * sin(angle);
+        pMatrix3x3[8] = cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - cos(angle));
+    }
+
+    static __host__ __device__  float DotVector3fVector3f(float* lhs, float* rhs)
+    {
+        return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
+    }
+
+    static __host__ __device__  float MagVector3f(float* pVec)
+    {
+        return sqrt(pVec[0] * pVec[0] + pVec[1] * pVec[1] + pVec[2] * pVec[2]);
+    }
+
+    static __host__ __device__  void RotateVectorByMatrix(float* pRotationMatrix, float* pVector)
+    {
+        float val[3];
+        val[0] = DotVector3fVector3f(pRotationMatrix, pVector);
+        val[1] = DotVector3fVector3f(pRotationMatrix + 3, pVector);
+        val[2] = DotVector3fVector3f(pRotationMatrix + 6, pVector);
+        
+        // Write it back to pVector
+        pVector[0] = val[0];
+        pVector[1] = val[1];
+        pVector[2] = val[2];
+    }
+
+
+    FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper)
         : ExperimentRunner(experimentParams, bootstrapper)
     {
     }
@@ -70,27 +98,24 @@ namespace twisty
 
     bool FullExperimentRunnerOptimalPerturbOptimized_GPU::Setup()
     {
-        bool result = SetupCudaDevice();
-        if (!result)
-        {
-            printf("Failed to setup cuda device\n");
-            return false;
-        }
+        std::cout << "Random Seeds: " << std::endl;
+        std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
+        std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
 
         // Ask the bootstrapper to generate a discrete curve.
         // If we fail, we want to exit the experiment.
         bool successfulGen = false;
         while (!successfulGen)
         {
-            m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve);
+            m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
             if (!m_upInitialCurve)
             {
-                printf("Failed to create bootstrap curve.\n");
+                printf("Both bootstrap versions failed, now we have to error out.\n");
                 return false;
             }
 
             // Lets also get the error of the initial curve, just to know
-            const float curveError = CurveUtils::CalculateCurveError(*m_upInitialCurve);
+            float curveError = CurveUtils::CalculateCurveError(*m_upInitialCurve);
             std::cout << "Seed curve error: " << curveError << std::endl;
 
             if (curveError < m_experimentParams.maximumBootstrapCurveError)
@@ -103,6 +128,13 @@ namespace twisty
         if (!std::filesystem::exists(experimentDirPath))
         {
             std::filesystem::create_directories(experimentDirPath);
+        }
+
+        bool result = SetupCudaDevice();
+        if (!result)
+        {
+            printf("Failed to setup cuda device\n");
+            return false;
         }
 
         return true;
@@ -172,7 +204,7 @@ namespace twisty
         const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
         twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
-        twisty::PerturbUtils::BoundrayConditions boundaryConditions;
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
         boundaryConditions.m_startPos = m_upInitialCurve->m_basePos;
         boundaryConditions.m_startDir = m_upInitialCurve->m_baseTangent;
@@ -331,7 +363,7 @@ namespace twisty
         }
 
         ExperimentResults results;
-        results.experimentWeight = bigTotalExperimentWeight;
+        results.experimentWeights.push_back(bigTotalExperimentWeight);
         results.totalPathsGenerated = numCombinedWeightValuesTotal * MaxNumberOfPaths;
         results.numFailedPaths = 0;
         return results;
@@ -513,7 +545,7 @@ namespace twisty
         // Copy that data over to the gpu
         
         // Setup data structures
-        twisty::PerturbUtils::BoundrayConditions boundaryConditions;
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
         boundaryConditions.m_startPos = m_upInitialCurve->m_basePos;
         boundaryConditions.m_startDir = m_upInitialCurve->m_baseTangent;
@@ -834,7 +866,7 @@ namespace twisty
         FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
         //float segmentLength,
         //const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
-        const twisty::PerturbUtils::BoundrayConditions& boundaryConditions,
+        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         double* pLookupTable
         
         //const PathWeighting::NormalizerStuff::FN& fn
