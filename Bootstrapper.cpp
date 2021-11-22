@@ -1,7 +1,6 @@
 #include "Bootstrapper.h"
 
 #include "PerturbUtils.h"
-#include "Sample.h"
 
 #include <assert.h>
 #include <cmath>
@@ -30,6 +29,17 @@ namespace twisty
     {
     }
 
+    static Farlor::Vector3 SampleUnitSphere(const float rand0, const float rand1)
+    {
+        float theta = 2.0f * M_PI * rand0;
+        float phi = std::acos(1.0f - 2.0f * rand1);
+        float x = std::sin(phi) * std::cos(theta);
+        float y = std::sin(phi) * std::sin(theta);
+        float z = std::cos(phi);
+        Farlor::Vector3 normal(x, y, z);
+        return normal.Normalized();
+    }
+
     Bootstrapper::Geometry::SampleRay Bootstrapper::SphereGeometry::GetSampleRay() const
     {
         std::random_device rd;
@@ -37,7 +47,7 @@ namespace twisty
         std::uniform_real_distribution<> dist(0.0f, 1.0f);
         float rand0 = static_cast<float>(dist(gen));
         float rand1 = static_cast<float>(dist(gen));
-        Farlor::Vector3 sphereSample = Sample::SampleUnitSphere(rand0, rand1);
+        Farlor::Vector3 sphereSample = SampleUnitSphere(rand0, rand1);
         return SampleRay{ m_pos, sphereSample.Normalized() };
     }
 
@@ -258,7 +268,7 @@ namespace twisty
         std::uniform_real_distribution<float> uniformZeroToOne(0.0f, 1.0f);
         const float e0 = uniformZeroToOne(randomGen);
         const float e1 = uniformZeroToOne(randomGen);
-        Farlor::Vector3 n2 = Sample::SampleUnitSphere(e0, e1);
+        Farlor::Vector3 n2 = SampleUnitSphere(e0, e1);
         
 #if defined(DetailedCurveGen)
         std::cout << "\tn2: " << n2 << std::endl;

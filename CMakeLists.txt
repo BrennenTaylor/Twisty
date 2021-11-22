@@ -73,10 +73,6 @@ add_library(Twisty
     PathWeightUtils.cpp
     PerturbUtils.h
     PerturbUtils.cpp
-    Sample.h
-    Sample.cpp
-    Twisty_Cuda_Helpers.cu
-    Twisty_Cuda_Helpers.h
 )
 
 if (USE_CUDA)

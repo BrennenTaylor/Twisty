@@ -12,9 +12,6 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
-
-const double M_PI = 3.141592;
-
 const float distanceFromPlane = 10.0f;
 
 const double zMin = 0.0;

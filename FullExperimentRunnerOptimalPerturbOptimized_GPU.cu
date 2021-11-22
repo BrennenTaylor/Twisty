@@ -7,8 +7,6 @@
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
-#include "Twisty_Cuda_Helpers.h"
-
 #include <curand.h>
 
 #include <omp.h>
@@ -27,18 +25,26 @@
 #include <stdlib.h>
 #include <memory>
 
-const uint32_t PathsPerScaledWeightValue = 1000000;
 const uint32_t PerturbWarpSize = 32;
 const uint32_t PerturbGridSize = 20;
 
 namespace twisty
 {
+    static void CudaSafeErrorCheck(cudaError_t error, std::string message)
+    {
+        if (error != cudaSuccess)
+        {
+            std::string errorString(cudaGetErrorString(error));
+            fprintf(stderr, "ERROR: %s : %s\n", message.c_str(), errorString.c_str());
+            assert(false);
+        }
+    }
 
             // Assumes pVector3f is an array of 3 floats
     static __host__ __device__ void NormalizeVector3f(float* pVector3f)
     {
         float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
-        normalizer = 1.0 / sqrt(normalizer);
+        normalizer = 1.0f / sqrt(normalizer);
         pVector3f[0] *= normalizer;
         pVector3f[1] *= normalizer;
         pVector3f[2] *= normalizer;
@@ -68,10 +74,11 @@ namespace twisty
         return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
     }
 
-    static __host__ __device__  float MagVector3f(float* pVec)
-    {
-        return sqrt(pVec[0] * pVec[0] + pVec[1] * pVec[1] + pVec[2] * pVec[2]);
-    }
+    // TODO: Check if needed during rewrite
+    // static __host__ __device__  float MagVector3f(float* pVec)
+    // {
+    //     return sqrt(pVec[0] * pVec[0] + pVec[1] * pVec[1] + pVec[2] * pVec[2]);
+    // }
 
     static __host__ __device__  void RotateVectorByMatrix(float* pRotationMatrix, float* pVector)
     {
@@ -170,7 +177,7 @@ namespace twisty
         std::cout << "Perturb Warp Size required: " << PerturbWarpSize << std::endl;
         std::cout << "Perturb Grid Size required: " << PerturbGridSize << std::endl;
 
-        int64_t seed = m_experimentParams.curvePurturbSeed;
+        int32_t seed = m_experimentParams.curvePurturbSeed;
         if (seed == 0)
         {
             seed = time(0);
@@ -1261,10 +1268,10 @@ namespace twisty
                                 numSegmentsPerCurve, boundaryConditions_cuda);
                         }
 
-                        double leftPathWeightLog10;// = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CUDA(&(pPerGlobalThreadLeftScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx]),
+                        double leftPathWeightLog10 = 0.0;// = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CUDA(&(pPerGlobalThreadLeftScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx]),
                             //numSegmentsPerCurve, pLookupTable);
 
-                        double rightPathWeightLog10;// = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CUDA(&(pPerGlobalThreadRightScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx]),
+                        double rightPathWeightLog10 = 0.0;// = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CUDA(&(pPerGlobalThreadRightScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx]),
                             //numSegmentsPerCurve, pLookupTable);
 
                         bool useLeftRotation = (leftPathWeightLog10 >= rightPathWeightLog10);

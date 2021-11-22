@@ -11,6 +11,8 @@
 
 #pragma once
 
+
+#define _USE_MATH_DEFINES
 #include "Curve.h"
 
 #include "BezierCurve.h"
