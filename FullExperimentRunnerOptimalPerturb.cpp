@@ -107,8 +107,13 @@ namespace twisty
     {
     }
 
-    bool FullExperimentRunnerOptimalPerturb::Setup()
+    std::optional<ExperimentRunner::ExperimentResults> FullExperimentRunnerOptimalPerturb::RunExperiment()
     {
+        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
+
+        /* --------------------- */
+        auto setupTimeStart = std::chrono::high_resolution_clock::now();
+
         std::cout << "Random Seeds: " << std::endl;
         std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
         std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
@@ -122,7 +127,7 @@ namespace twisty
             if (!m_upInitialCurve)
             {
                 printf("Both bootstrap versions failed, now we have to error out.\n");
-                return false;
+                return {};
             }
 
             // Lets also get the error of the initial curve, just to know
@@ -140,16 +145,6 @@ namespace twisty
         {
             std::filesystem::create_directories(experimentDirPath);
         }
-
-        return true;
-    }
-
-    ExperimentRunner::ExperimentResults FullExperimentRunnerOptimalPerturb::RunExperiment()
-    {
-        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
-
-        /* --------------------- */
-        auto setupTimeStart = std::chrono::high_resolution_clock::now();
 
 #if defined(ExportPathBatches)
         {
@@ -1121,9 +1116,5 @@ namespace twisty
         std::cout << "Num path unaccepted: " << numPathsUnaccepted << std::endl;
         std::cout << "Num path unaccepted tangents: " << numPathsUnacceptedTangentPdf << std::endl;
         std::cout << "Num path unaccepted curvature: " << numPathsUnacceptedCurvaturePdf << std::endl;
-    }
-
-    void FullExperimentRunnerOptimalPerturb::Shutdown()
-    {
     }
 }

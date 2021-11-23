@@ -111,9 +111,6 @@ int main(int argc, char *argv[])
         }
         const uint32_t numEmitterDirections = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numEmitterDirections");
         const float distanceFromPlane = experimentConfig.lookup("experiment.smallSegmentExperiment.distanceFromPlane");
-
-        const double ds = experimentParams.arclength / experimentParams.numSegmentsPerCurve;
-        const double alpha = 1.0 / (experimentParams.weightingParameters.scatter * experimentParams.weightingParameters.mu * ds);
         
         Farlor::Vector3 startPos(0.0f, 0.0f, 0.0f);
         Farlor::Vector3 startDir(0.0f, 0.0f, 1.0f);
@@ -150,18 +147,17 @@ int main(int argc, char *argv[])
             std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
             upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
 
-            bool result = upExperimentRunner->Setup();
-            if (!result)
-            {
-                upExperimentRunner->Shutdown();
-                std::cout << "Failed to setup experiment runner." << std::endl;
-                return 1;
-            }
             auto start = std::chrono::high_resolution_clock::now();
-            twisty::ExperimentRunner::ExperimentResults results = upExperimentRunner->RunExperiment();
+            std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults = upExperimentRunner->RunExperiment();
             auto end = std::chrono::high_resolution_clock::now();
             auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
             auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+
+            if (!optionalResults.has_value())
+            {
+                std::cout << "Experiment failed: no results returned." << std::endl;
+            }
+            const twisty::ExperimentRunner::ExperimentResults& results = optionalResults.value();
 
             std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
             
@@ -177,7 +173,6 @@ int main(int argc, char *argv[])
             ofs << std::endl;
 
             // Retrieve Data we want from experiment
-            upExperimentRunner->Shutdown();
             upExperimentRunner.reset(nullptr);
 
             std::cout << "\tEnd Dir: " << evalVector << std::endl;

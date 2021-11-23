@@ -26,9 +26,9 @@ namespace twisty
         FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunnerOptimalPerturb();
 
-        virtual bool Setup() override;
-        virtual ExperimentResults RunExperiment() override;
-        virtual void Shutdown() override;
+        // virtual bool Setup() override;
+        virtual std::optional<ExperimentResults> RunExperiment() override;
+        // virtual void Shutdown() override;
 
     private:
         void GeometryPerturb(

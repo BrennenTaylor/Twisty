@@ -25,6 +25,8 @@ add_subdirectory(FMath)
 # Needed for config files
 add_subdirectory(libconfig)
 
+add_subdirectory(tracy)
+
 IF (WIN32)
 add_subdirectory(tinyexr)
 ENDIF()
@@ -56,8 +58,8 @@ add_library(Twisty
     DeviceCurve.h
     ExperimentRunner.cpp
     ExperimentRunner.h
-    FullExperimentRunner.cpp
-    FullExperimentRunner.h
+    # FullExperimentRunner.cpp
+    # FullExperimentRunner.h
 
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h

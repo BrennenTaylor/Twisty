@@ -35,9 +35,7 @@ namespace twisty
         FullExperimentRunner(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunner();
 
-        virtual bool Setup() override;
         virtual ExperimentResults RunExperiment() override;
-        virtual void Shutdown() override;
 
     private:
         /*

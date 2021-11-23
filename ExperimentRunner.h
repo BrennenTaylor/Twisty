@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <iostream>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -35,7 +36,7 @@ namespace twisty
 
         enum class PathNormalizerType
         {
-            Default, // This is a default normalizer of 1
+            None, // This is a default normalizer of 1
             PDF // This is the one derived for the phytra 5 work
         };
 
@@ -72,9 +73,9 @@ namespace twisty
         ExperimentRunner(ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~ExperimentRunner();
 
-        virtual bool Setup() = 0;
-        virtual ExperimentResults RunExperiment() = 0;
-        virtual void Shutdown() = 0;
+        // virtual bool Setup() = 0;
+        virtual std::optional<ExperimentResults> RunExperiment() = 0;
+        // virtual void Shutdown() = 0;
 
         Curve* GetInitialCurvePtr() const
         {

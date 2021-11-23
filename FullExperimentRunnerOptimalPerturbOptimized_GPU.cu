@@ -103,8 +103,18 @@ namespace twisty
     {
     }
 
-    bool FullExperimentRunnerOptimalPerturbOptimized_GPU::Setup()
+    std::optional<ExperimentRunner::ExperimentResults> FullExperimentRunnerOptimalPerturbOptimized_GPU::RunExperiment()
     {
+        int64_t numFailures = 0;
+        int64_t totalFailures = 0;
+        int64_t totalSuccess = 0;
+
+        /* --------------------- */
+        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
+        /* --------------------- */
+        auto setupTimeStart = std::chrono::high_resolution_clock::now();
+        /* --------------------- */
+
         std::cout << "Random Seeds: " << std::endl;
         std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
         std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
@@ -118,7 +128,7 @@ namespace twisty
             if (!m_upInitialCurve)
             {
                 printf("Both bootstrap versions failed, now we have to error out.\n");
-                return false;
+                return {};
             }
 
             // Lets also get the error of the initial curve, just to know
@@ -141,24 +151,8 @@ namespace twisty
         if (!result)
         {
             printf("Failed to setup cuda device\n");
-            return false;
+            return {};
         }
-
-        return true;
-    }
-
-    ExperimentRunner::ExperimentResults FullExperimentRunnerOptimalPerturbOptimized_GPU::RunExperiment()
-    {
-        int64_t numFailures = 0;
-        int64_t totalFailures = 0;
-        int64_t totalSuccess = 0;
-
-        /* --------------------- */
-        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
-        /* --------------------- */
-        auto setupTimeStart = std::chrono::high_resolution_clock::now();
-        /* --------------------- */
-
 
         // Calculate number of paths needed to generate
 
@@ -183,7 +177,6 @@ namespace twisty
             seed = time(0);
         }
 
-        bool result = true;
         auto setupCuRandTimeStart = std::chrono::high_resolution_clock::now();
         {
             result = SetupCuRandStates(numGlobalPerturbThreads, seed);
@@ -374,10 +367,6 @@ namespace twisty
         results.totalPathsGenerated = numCombinedWeightValuesTotal * MaxNumberOfPaths;
         results.numFailedPaths = 0;
         return results;
-    }
-
-    void FullExperimentRunnerOptimalPerturbOptimized_GPU::Shutdown()
-    {
     }
 
     bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaDevice()
