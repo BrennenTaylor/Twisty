@@ -16,6 +16,7 @@
 #include "Curve.h"
 
 #include "BezierCurve.h"
+#include "PerturbUtils.h"
 
 #include <FMath/Vector3.h>
 
@@ -83,9 +84,9 @@ namespace twisty
         };
 
     public:
-        Bootstrapper();
+        // Bootstrapper();
         // Samples from geometry
-        Bootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry);
+        Bootstrapper(const twisty::PerturbUtils::BoundaryConditions& problemGeoemtry);
         ~Bootstrapper();
 
         Farlor::Vector3 GetStartPosition() const;
@@ -93,16 +94,13 @@ namespace twisty
         Farlor::Vector3 GetTargetPosition() const;
         Farlor::Vector3 GetTargetNormal() const;
 
-        std::unique_ptr<Curve> CreateCurve(uint32_t numSegments, float targetArclength, uint32_t generationSeed);
-        std::unique_ptr<Curve> CreateCurveGeometricSafe(uint32_t numSegments, float targetArclength);
+        std::unique_ptr<Curve> CreateCurve(uint32_t numSegments, float targetArclength, uint32_t generationSeed) const;
+        std::unique_ptr<Curve> CreateCurveGeometricSafe(uint32_t numSegments, float targetArclength) const;
 
     private:
-        std::unique_ptr<Curve> ToDiscreteFSCurve(uint32_t m_numSegments, BezierCurve5& curve);
+        std::unique_ptr<Curve> ToDiscreteFSCurve(uint32_t m_numSegments, BezierCurve5& curve) const;
 
     private:
-        Farlor::Vector3 m_startPos = Farlor::Vector3(0.0f, 0.0f, 0.0f);
-        Farlor::Vector3 m_startDir = Farlor::Vector3(0.0f, 0.0f, 0.0f);
-        Farlor::Vector3 m_endPos = Farlor::Vector3(0.0f, 0.0f, 0.0f);
-        Farlor::Vector3 m_endDir = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+        twisty::PerturbUtils::BoundaryConditions m_experimentGeometry;
     };
 }

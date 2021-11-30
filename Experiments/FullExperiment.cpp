@@ -112,71 +112,73 @@ int main(int argc, char *argv[])
         const uint32_t numEmitterDirections = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numEmitterDirections");
         const float distanceFromPlane = experimentConfig.lookup("experiment.smallSegmentExperiment.distanceFromPlane");
         
-        Farlor::Vector3 startPos(0.0f, 0.0f, 0.0f);
-        Farlor::Vector3 startDir(0.0f, 0.0f, 1.0f);
-        const twisty::Bootstrapper::RayGeometry rayEmitter(startPos, startDir);
+        twisty::PerturbUtils::BoundaryConditions experimentGeometry;
+        {
+            float x = (float)experimentConfig.lookup("experiment.geometry.startPos.x");
+            float y = (float)experimentConfig.lookup("experiment.geometry.startPos.y");
+            float z = (float)experimentConfig.lookup("experiment.geometry.startPos.z");
+            experimentGeometry.m_startPos = Farlor::Vector3(x, y, z);
+        }
+        {
+            float x = (float)experimentConfig.lookup("experiment.geometry.startDir.x");
+            float y = (float)experimentConfig.lookup("experiment.geometry.startDir.y");
+            float z = (float)experimentConfig.lookup("experiment.geometry.startDir.z");
+            experimentGeometry.m_startDir = Farlor::Vector3(x, y, z).Normalized();
+        }
 
-        const uint32_t numSSteps = numEmitterDirections;
-        const double sMin = -1.0;
-        const double sMax = 1.0;
-        const double sStepSize = (sMax - sMin) / (numSSteps - 1);
+        {
+            float x = (float)experimentConfig.lookup("experiment.geometry.endPos.x");
+            float y = (float)experimentConfig.lookup("experiment.geometry.endPos.y");
+            float z = (float)experimentConfig.lookup("experiment.geometry.endPos.z");
+            experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
+        }
+        {
+            float x = (float)experimentConfig.lookup("experiment.geometry.endDir.x");
+            float y = (float)experimentConfig.lookup("experiment.geometry.endDir.y");
+            float z = (float)experimentConfig.lookup("experiment.geometry.endDir.z");
+            experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
+        }
 
+        // We run the experiment as well
         std::string outputDataFilename = std::string(experimentParams.experimentDirPath) + std::string("/Results.dat");
         std::ofstream ofs(outputDataFilename);
 
-        const double theta = 0.0;
-        for (uint32_t sIdx = 0; sIdx < numSSteps; sIdx++)
+        experimentParams.perExperimentDirSubfolder = std::string("main");
+
+        twisty::Bootstrapper bootstrapper(experimentGeometry);
+
+        std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment << std::endl;
+
+        std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
+
+        std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
+        upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults = upExperimentRunner->RunExperiment();
+        auto end = std::chrono::high_resolution_clock::now();
+        auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+
+        if (!optionalResults.has_value())
         {
-            const double s = sMin + sIdx * sStepSize;
-            const double ss = sqrt(1.0 - s * s);
-
-            std::cout << "S: " << s << std::endl;
-
-            experimentParams.perExperimentDirSubfolder = std::string("s_") + std::to_string(sIdx);
-
-            Farlor::Vector3 endPos(0.0f, 0.0f, distanceFromPlane);
-            Farlor::Vector3 evalVector = Farlor::Vector3(ss * cos(theta), ss * sin(theta), s).Normalized();
-            twisty::Bootstrapper::RayGeometry rayReciever(endPos, evalVector);
-
-            twisty::Bootstrapper bootstrapper(rayEmitter, rayReciever);
-
-            std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment << std::endl;
-
-            std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
-
-            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
-
-            auto start = std::chrono::high_resolution_clock::now();
-            std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults = upExperimentRunner->RunExperiment();
-            auto end = std::chrono::high_resolution_clock::now();
-            auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-
-            if (!optionalResults.has_value())
-            {
-                std::cout << "Experiment failed: no results returned." << std::endl;
-            }
-            const twisty::ExperimentRunner::ExperimentResults& results = optionalResults.value();
-
-            std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
-            
-            auto experimentWeights = results.experimentWeights;
-            
-            for (int scatterIdx = 0; scatterIdx < results.experimentWeights.size(); scatterIdx++)
-            {
-                std::cout << "\tTotal experiment weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] << std::endl;
-                std::cout << "\tAvg path weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
-
-                ofs << s << ", " << results.experimentWeights[scatterIdx];
-            }
-            ofs << std::endl;
-
-            // Retrieve Data we want from experiment
-            upExperimentRunner.reset(nullptr);
-
-            std::cout << "\tEnd Dir: " << evalVector << std::endl;
+            std::cout << "Experiment failed: no results returned." << std::endl;
         }
+        const twisty::ExperimentRunner::ExperimentResults& results = optionalResults.value();
+
+        std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
+        
+        auto experimentWeights = results.experimentWeights;
+        
+        for (int scatterIdx = 0; scatterIdx < results.experimentWeights.size(); scatterIdx++)
+        {
+            std::cout << "\tTotal experiment weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] << std::endl;
+            std::cout << "\tAvg path weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
+        }
+        ofs << std::endl;
+
+        // Retrieve Data we want from experiment
+        upExperimentRunner.reset(nullptr);        
         ofs.close();
     }
 

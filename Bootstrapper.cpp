@@ -51,18 +51,13 @@ namespace twisty
         return SampleRay{ m_pos, sphereSample.Normalized() };
     }
 
-    Bootstrapper::Bootstrapper()
-    {
-    }
+    // Bootstrapper::Bootstrapper()
+    // {
+    // }
 
-    Bootstrapper::Bootstrapper(const Geometry& emitterGeometry, const Geometry& recieverGeometry)
+    Bootstrapper::Bootstrapper(const twisty::PerturbUtils::BoundaryConditions& problemGeometry)
+        : m_experimentGeometry(problemGeometry)
     {
-        const Geometry::SampleRay& emitterRay = emitterGeometry.GetSampleRay();
-        const Geometry::SampleRay& recieverRay = recieverGeometry.GetSampleRay();
-        m_startPos = emitterRay.m_pos;
-        m_startDir = emitterRay.m_dir;
-        m_endPos = recieverRay.m_pos;
-        m_endDir = recieverRay.m_dir;
     }
 
     Bootstrapper::~Bootstrapper()
@@ -72,22 +67,22 @@ namespace twisty
 
     Farlor::Vector3 Bootstrapper::GetStartPosition() const
     {
-        return m_startPos;
+        return m_experimentGeometry.m_startPos;
     }
     Farlor::Vector3 Bootstrapper::GetStartNormal() const
     {
-        return m_startDir;
+        return m_experimentGeometry.m_startDir;
     }
     Farlor::Vector3 Bootstrapper::GetTargetPosition() const
     {
-        return m_endPos;
+        return m_experimentGeometry.m_endPos;
     }
     Farlor::Vector3 Bootstrapper::GetTargetNormal() const
     {
-        return m_endDir;
+        return m_experimentGeometry.m_endDir;
     }
 
-    std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(uint32_t numSegments, float targetArclength)
+    std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(uint32_t numSegments, float targetArclength) const
     {
         // TODO: Add assertion for minimal number of segments!
 
@@ -102,8 +97,8 @@ namespace twisty
         bool evenNumberOfSegments = (numSegments % 2) == 0;
 
         // In the odd case, we place two segments initially
-        const Farlor::Vector3 x_sp1 = m_startPos + ds * m_startDir;
-        const Farlor::Vector3 x_em1 = m_endPos - ds * m_endDir;
+        const Farlor::Vector3 x_sp1 = m_experimentGeometry.m_startPos + ds * m_experimentGeometry.m_startDir;
+        const Farlor::Vector3 x_em1 = m_experimentGeometry.m_endPos - ds * m_experimentGeometry.m_endDir;
         const Farlor::Vector3 x_s = evenNumberOfSegments ? x_sp1 : x_sp1 + (x_em1 - x_sp1).Normalized() * ds;
         
         
@@ -150,13 +145,13 @@ namespace twisty
         int xsPos = 0;
         if (evenNumberOfSegments)
         {
-            upGeneratedCurve->m_positions[0] = m_startPos;
+            upGeneratedCurve->m_positions[0] = m_experimentGeometry.m_startPos;
             upGeneratedCurve->m_positions[1] = x_s;
             xsPos = 1;
         }
         else
         {
-            upGeneratedCurve->m_positions[0] = m_startPos;
+            upGeneratedCurve->m_positions[0] = m_experimentGeometry.m_startPos;
             upGeneratedCurve->m_positions[1] = x_sp1;
             upGeneratedCurve->m_positions[2] = x_s;
             xsPos = 2;
@@ -165,7 +160,7 @@ namespace twisty
         // Lock the last segment
         {
             upGeneratedCurve->m_positions[numSegments - 1] = x_em1;
-            upGeneratedCurve->m_positions[numSegments] = m_endPos;
+            upGeneratedCurve->m_positions[numSegments] = m_experimentGeometry.m_endPos;
         }
         
         const Farlor::Vector3 leftDir = (x_t - x_s).Normalized();
@@ -212,7 +207,7 @@ namespace twisty
     }
 
     
-    std::unique_ptr<Curve> Bootstrapper::CreateCurve(uint32_t numSegments, float targetArclength, uint32_t generationSeed)
+    std::unique_ptr<Curve> Bootstrapper::CreateCurve(uint32_t numSegments, float targetArclength, uint32_t generationSeed) const
     {
         std::cout << "Error: Dont use this version of the curve creator" << std::endl;
         assert(false);
@@ -221,10 +216,10 @@ namespace twisty
         std::mt19937_64 randomGen(bootstrapSeed);
 
         std::cout << "\tBoundary conditions: " << std::endl;
-        std::cout << "\tStart Pos: " << m_startPos << std::endl;
-        std::cout << "\tStart Dir: " << m_startDir << std::endl;
-        std::cout << "\tEnd Pos: " << m_endPos << std::endl;
-        std::cout << "\tEnd Dir: " << m_endDir << std::endl;
+        std::cout << "\tStart Pos: " << m_experimentGeometry.m_startPos << std::endl;
+        std::cout << "\tStart Dir: " << m_experimentGeometry.m_startDir << std::endl;
+        std::cout << "\tEnd Pos: " << m_experimentGeometry.m_endPos << std::endl;
+        std::cout << "\tEnd Dir: " << m_experimentGeometry.m_endDir << std::endl;
         std::cout << "\tTarget Arclength: " << targetArclength << std::endl;
 
         const float requestedArclength = targetArclength;
@@ -232,7 +227,7 @@ namespace twisty
         const float minL2 = 0.0f;
         const float maxL2 = std::pow(10.0f, 5.0);
 
-        const Farlor::Vector3 x1x0 = m_endPos - m_startPos;
+        const Farlor::Vector3 x1x0 = m_experimentGeometry.m_endPos - m_experimentGeometry.m_startPos;
         const float length = x1x0.Magnitude();
 
 #if defined(DetailedCurveGen)
@@ -252,12 +247,12 @@ namespace twisty
 #endif
 
         BezierCurve5 newBezierCurve;
-        newBezierCurve.m_controlPts[0] = m_startPos;
-        newBezierCurve.m_controlPts[1] = m_startPos + l0 * m_startDir;
-        newBezierCurve.m_controlPts[2] = (m_startPos + m_endPos) * 0.5f;
-        newBezierCurve.m_controlPts[3] = m_endPos - l1 * m_endDir;
-        newBezierCurve.m_controlPts[4] = m_endPos;
-        
+        newBezierCurve.m_controlPts[0] = m_experimentGeometry.m_startPos;
+        newBezierCurve.m_controlPts[1] = m_experimentGeometry.m_startPos + l0 * m_experimentGeometry.m_startDir;
+        newBezierCurve.m_controlPts[2] = (m_experimentGeometry.m_startPos + m_experimentGeometry.m_endPos) * 0.5f;
+        newBezierCurve.m_controlPts[3] = m_experimentGeometry.m_endPos - l1 * m_experimentGeometry.m_endDir;
+        newBezierCurve.m_controlPts[4] = m_experimentGeometry.m_endPos;
+
         // This is the actual smallest arclength that we are able to generate
         const float shortestArclengthPossible = newBezierCurve.CalculateArclength(0.0f, 1.0f);
 
@@ -365,7 +360,7 @@ namespace twisty
         return ToDiscreteFSCurve(numSegments, newBezierCurve);
     }
 
-    std::unique_ptr<Curve> Bootstrapper::ToDiscreteFSCurve(uint32_t numSegments, BezierCurve5& bezierCurve)
+    std::unique_ptr<Curve> Bootstrapper::ToDiscreteFSCurve(uint32_t numSegments, BezierCurve5& bezierCurve) const
     {
         const float minT = 0.0f;
         const float maxT = 1.0f;
@@ -395,17 +390,17 @@ namespace twisty
         upGeneratedCurve->m_segmentLength = ds;
         // First Position. Seeded by problem
         {
-            upGeneratedCurve->m_positions[0] = m_startPos;
-            upGeneratedCurve->m_tangents[0] = m_startDir;
+            upGeneratedCurve->m_positions[0] = m_experimentGeometry.m_startPos;
+            upGeneratedCurve->m_tangents[0] = m_experimentGeometry.m_startDir;
             bezierSegIdx++;
         }
         // Second position, fixed by construction
         {
-            upGeneratedCurve->m_positions[1] = m_startPos + m_startDir * upGeneratedCurve->m_segmentLength;
+            upGeneratedCurve->m_positions[1] = m_experimentGeometry.m_startPos + m_experimentGeometry.m_startDir * upGeneratedCurve->m_segmentLength;
         }
         // Last position, defined by problem
         {
-            upGeneratedCurve->m_positions[numSegments] = m_endPos;
+            upGeneratedCurve->m_positions[numSegments] = m_experimentGeometry.m_endPos;
         }
 
         // All other segments than first one
@@ -479,7 +474,7 @@ namespace twisty
 
         // Write final tangent here
         {
-            upGeneratedCurve->m_tangents[numSegments] = m_endDir.Normalized();
+            upGeneratedCurve->m_tangents[numSegments] = m_experimentGeometry.m_endDir.Normalized();
         }
 
         // All but the last segment. We do that one manually

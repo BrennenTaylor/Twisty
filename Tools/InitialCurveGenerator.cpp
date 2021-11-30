@@ -31,12 +31,18 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
-    const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
-    twisty::Bootstrapper::RayGeometry rayEmitter(emitterStart, emitterDir);
-    const Farlor::Vector3 recieverPos{ 10.0f, 0.0f, 0.0f };
-    const Farlor::Vector3 recieverDir{ 1.0, 0.0f, 0.0f };
-    twisty::Bootstrapper::RayGeometry rayReciever(recieverPos, recieverDir);
+    // const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
+    // const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
+    // twisty::Bootstrapper::RayGeometry rayEmitter(emitterStart, emitterDir);
+    // const Farlor::Vector3 recieverPos{ 10.0f, 0.0f, 0.0f };
+    // const Farlor::Vector3 recieverDir{ 1.0, 0.0f, 0.0f };
+    // twisty::Bootstrapper::RayGeometry rayReciever(recieverPos, recieverDir);
+
+    twisty::PerturbUtils::BoundaryConditions experimentBoundaryConditions;
+    experimentBoundaryConditions.m_startPos = Farlor::Vector3( 0.0f, 0.0f, 0.0f);
+    experimentBoundaryConditions.m_startDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
+    experimentBoundaryConditions.m_endPos = Farlor::Vector3(10.0f, 0.0f, 0.0f);
+    experimentBoundaryConditions.m_endDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
 
     std::filesystem::path currentPath = std::filesystem::current_path();
     std::filesystem::path outputDirectoryPath = currentPath / directoryName;
@@ -55,7 +61,7 @@ int main(int argc, char* argv[])
     {
         const uint32_t bootstrapperSeed = std::stoi(argv[numInitialArguments + curveIdx]);
 
-        twisty::Bootstrapper bootstrapper(rayEmitter, rayReciever);
+        twisty::Bootstrapper bootstrapper(experimentBoundaryConditions);
 
         std::unique_ptr<twisty::Curve> upInitialCurve = nullptr;
         bool successfulGen = false;

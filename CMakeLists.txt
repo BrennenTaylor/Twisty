@@ -25,19 +25,13 @@ add_subdirectory(FMath)
 # Needed for config files
 add_subdirectory(libconfig)
 
-add_subdirectory(tracy)
-
 IF (WIN32)
 add_subdirectory(tinyexr)
 ENDIF()
 
-# find_package(FMath REQUIRED)
-# find_package(glm CONFIG REQUIRED )
-
 set(CMAKE_CXX_STANDARD 17)
 
 if (USE_CUDA)
-# SET( CUDA_PROPAGATE_HOST_FLAGS ON)
 SET(CUDA_SEPARABLE_COMPILATION ON)
 SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 endif (USE_CUDA)
@@ -58,8 +52,6 @@ add_library(Twisty
     DeviceCurve.h
     ExperimentRunner.cpp
     ExperimentRunner.h
-    # FullExperimentRunner.cpp
-    # FullExperimentRunner.h
 
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
@@ -73,7 +65,6 @@ add_library(Twisty
 )
 
 if (USE_CUDA)
-
 target_sources(Twisty
     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.h
@@ -81,11 +72,7 @@ target_sources(Twisty
 target_compile_definitions(Twisty
     PUBLIC USE_CUDA
 )
-
 endif (USE_CUDA)
-
-# set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-# set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
@@ -126,6 +113,5 @@ add_subdirectory(Experiments)
 add_subdirectory(Tools)
 add_subdirectory(Viewer)
 add_subdirectory(unitweights)
-# add_subdirectory(Utils)
 add_subdirectory(RelatedWork/Fred_2017/)
 endif (WIN32)
