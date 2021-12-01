@@ -223,6 +223,7 @@ namespace twisty
 
             double c = weightingParams.absorbtion + weightingParams.scatter;
             double constant = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
+            // TODO: For now, lets try not including this
             return constant * firstVal;//(firstVal / normalizerWithZeroCurvature);
         }
 
@@ -231,9 +232,7 @@ namespace twisty
             : BaseWeightLookupTable(weightingParams, ds, -1.0, 1.0)
         {
             std::cout << "Calcuating path weight integral lookup table: " << weightingParams.numCurvatureSteps << std::endl;
-            //twisty::PathWeighting::CalcMinMaxCurvature(m_minCurvature, m_maxCurvature, ds);
-            m_minCurvature = -1.0;
-            m_maxCurvature = 1.0;
+            twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, m_minCurvature, m_maxCurvature, ds);
 
             m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
@@ -256,29 +255,16 @@ namespace twisty
             {
                 double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
                 double value = CalculateSimpleWeightValue(curvatureEval);
-
-                m_lookupTable[i] = value;
-                if (min < 0.0)
+                // Running min?
+                if (value <= 0.0)
                 {
-                    if (value > 0.0)
-                    {
-                        min = value;
-                    }
-                    else
-                    {
-                        // Do nothing because we dont want a negative min in the end, thus we dont need to update to a min
-                    }
+                    value = min;
                 }
-                else
+                m_lookupTable[i] = value;
+
+                if (value < min)
                 {
-                    // We only want values greater than zero in this case, no negatives
-                    if (value > 0.0)
-                    {
-                        if (value < min)
-                        {
-                            min = value;
-                        }
-                    }
+                    min = value;
                 }
 
                 if (value > max)
