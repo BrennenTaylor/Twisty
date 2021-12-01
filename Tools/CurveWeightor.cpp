@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
     // Constants
     double minCurvature = 0.0;
     double maxCurvature = 0.0;
-    twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
+    twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, minCurvature, maxCurvature, ds);
 
     // Note: Has absorbtion const built in
     twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(weightingParams, ds);

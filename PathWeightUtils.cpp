@@ -12,9 +12,9 @@ namespace twisty
     namespace PathWeighting
     {
         // Parameterized simple gaussian function
-        double SimpleGaussianPhase(double evalLocation, double mu)
+        double SimpleGaussianPhase(double p, double mu)
         {
-            double val = -mu * evalLocation * evalLocation;
+            double val = -mu * p * p;
             val *= 0.5;
             return std::exp(val);
         }
@@ -22,33 +22,22 @@ namespace twisty
         // Parameterized gaussian function
         double GaussianPhase(double evalLocation, double mu)
         {
-            double a = std::sqrt(TwistyPi * mu * 0.5);
-            double b = SimpleGaussianPhase(evalLocation, mu);
-            double c = 1.0 - std::exp(-2.0 / mu);
-            return (a * b) / c;
+            double Np = std::sqrt(TwistyPi * mu * 0.5) / (1.0 - std::exp(-2.0 / mu));
+            return Np * SimpleGaussianPhase(evalLocation, mu);
         }
-
-        //// Base Integral Strategy
-        //IntegralStrategy::IntegralStrategy(const WeightingParameters& weightingParams, double ds)
-        //    : m_ds(ds)
-        //    , m_weightingParams(weightingParams)
-        //{
-        //}
-
-        //IntegralStrategy::~IntegralStrategy()
-        //{
-        //}
 
         // Lookup table integrand
         BaseWeightLookupTable::BaseWeightLookupTable(const WeightingParameters& weightingParams, double ds, double minCurvature, double maxCurvature)
             : m_minCurvature(minCurvature)
             , m_maxCurvature(maxCurvature)
             , m_curvatureStepSize(0.0)
-            , m_lookupTable(weightingParams.numCurvatureSteps + 1) // Leave room for one past the last curvature, weird boundary stuff
+            , m_lookupTable(weightingParams.numCurvatureSteps + 1) // We include 0, thus need that last spot
             , m_weightingParams(weightingParams)
             , m_ds(ds)
         {
             m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
+            // lookup table [0] should be min curvature
+            // lookup table [numCurvatureSteps] should be max curvature value
         }
 
         BaseWeightLookupTable::~BaseWeightLookupTable()
@@ -57,7 +46,11 @@ namespace twisty
 
         double BaseWeightLookupTable::InterpolateWeightValues(double curvature) const
         {
-            assert(curvature >= m_minCurvature);
+            if (curvature < m_minCurvature)
+            {
+                std::cout << "Clamping to min curvature" << std::endl;
+                curvature = m_minCurvature;
+            }
 
             if (curvature > m_maxCurvature)
             {
@@ -103,7 +96,7 @@ namespace twisty
             : BaseWeightLookupTable(weightingParams, ds, 0.0, 0.0)
         {
             std::cout << "Calcuating WeightLookupTableIntegral lookup table" << std::endl;
-            twisty::PathWeighting::CalcMinMaxCurvature(m_minCurvature, m_maxCurvature, ds);
+            twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, m_minCurvature, m_maxCurvature, ds);
 
             m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
@@ -112,36 +105,24 @@ namespace twisty
                 double value = Integrate(m_minCurvature, weightingParams, ds);
                 m_lookupTable[0] = value;
             }
-
             double min = m_lookupTable[0];
             double max = m_lookupTable[0];
+
             for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i)
             {
                 double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
                 double value = Integrate(curvatureEval, weightingParams, ds);
+
+                // Running min?
+                if (value <= 0.0)
+                {
+                    value = min;
+                }
                 m_lookupTable[i] = value;
 
-                if (min < 0.0)
+                if (value < min)
                 {
-                    if (value > 0.0)
-                    {
-                        min = value;
-                    }
-                    else
-                    {
-                        // Do nothing because we dont want a negative min in the end, thus we dont need to update to a min
-                    }
-                }
-                else
-                {
-                    // We only want values greater than zero in this case, no negatives
-                    if (value > 0.0)
-                    {
-                        if (value < min)
-                        {
-                            min = value;
-                        }
-                    }
+                    min = value;
                 }
 
                 if (value > max)
@@ -201,14 +182,18 @@ namespace twisty
 
                 double scatteringTerm = p * std::exp(
                     bds * phaseFunction // scatter piece
-                    - 1.0 * (weightingParams.eps * weightingParams.eps * p * p) / 2.0 // regularizer
+                    - 1.0 * (weightingParams.eps * weightingParams.eps * p * p * 0.5) // regularizer
                 );
-
+                
                 double sinTerm = 0.0;
+                // TODO: Should we implement this as if (kds < smallAngleThreshold?)
                 if (kds != 0.0)
                 {
                     sinTerm = sin(kds * p) / kds;
                 }
+                // With small angle apprimation, we have that kds is very small
+                // As we approch, we have that sin(kds * p) => p
+                // as well as                  1/kds -> 1/inf
                 else
                 {
                     sinTerm = p;
@@ -217,34 +202,23 @@ namespace twisty
                 return scatteringTerm * sinTerm;
             };
 
-            // Perform first integration
+            // Perform integration. Per disertation page 34, when bn is constant, wn peaks at kds. As a result, normalizeation is used.
+            // This is due to an overflow. However, as we already are using a big float library, do we even need to deal with this?
             double firstVal = 0.0f;
+            double normalizerWithZeroCurvature = 0.0f;
             {
-                double stepSize = (weightingParams.maxBound - weightingParams.minBound) / weightingParams.numStepsInt;
+                double stepSize = (weightingParams.maxBound - weightingParams.minBound) / (weightingParams.numStepsInt - 1);
                 for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i)
                 {
                     double p = i * stepSize;
-                    double left = Integrand(p, kds, bds);
-                    firstVal += left * stepSize;
-                }
-            }
-
-            // Note: This is added back in because it seems this allows the base kds == 0 case to work
-            // Perform second integration
-            double secondVal = 0.0f;
-            {
-                double stepSize = (weightingParams.maxBound - weightingParams.minBound) / weightingParams.numStepsInt;
-                for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i)
-                {
-                    double p = i * stepSize;
-                    double left = Integrand(p, 0.0, bds);
-                    secondVal += left * stepSize;
+                    firstVal += Integrand(p, kds, bds) * stepSize;
+                    normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
                 }
             }
 
             double c = weightingParams.absorbtion + weightingParams.scatter;
             double constant = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
-            return constant * (firstVal / secondVal);
+            return constant * (firstVal / normalizerWithZeroCurvature);
         }
 
         // Lookup table integrand
@@ -347,11 +321,35 @@ namespace twisty
         {
         }
 
-        // Todo: figure out why max is this, should have documented
-        void CalcMinMaxCurvature(double& minCurvature, double& maxCurvature, double ds)
+        void CalcMinMaxCurvature(const twisty::WeightingParameters& wp, double& minCurvature, double& maxCurvature, double ds)
         {
-            minCurvature = 0.0;
-            maxCurvature = (3.47 / ds) * 2.0;
+            switch(wp.weightingMethod)
+            {
+                
+                case WeightingMethod::RadiativeTransfer:
+                {
+                    // Our curvature lookups are using finite difference
+                    // ki = (ti+1 - ti-1) / (2.0 * ds)
+                    // Our max and min are calculated as follows
+
+                    minCurvature = 0.0;
+                    maxCurvature = 2.0 / (ds);
+
+                } break;
+                case WeightingMethod::SimplifiedModel:
+                {
+                    // This is a dot prodcuct version
+                    // Curvatures are calculated in the following:
+                    // tr.dot(tl) = [-1, 1]
+                    minCurvature = -1.0;
+                    maxCurvature = 1.0;
+
+                } break;
+                default: 
+                {
+                    std::cout << "Error, invalid weighting model selected" << std::endl;
+                } break;
+            }
         }
 
         // Assume we have good pointers
@@ -366,7 +364,7 @@ namespace twisty
             const auto& weightingParams = weightIntegral.GetWeightingParams();
             double minCurvature = 0.0;
             double maxCurvature = 0.0;
-            twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
+            twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, minCurvature, maxCurvature, ds);
             const double curvatureStepSize = (maxCurvature - minCurvature) / weightingParams.numCurvatureSteps;
             auto& lookupTable = weightIntegral.AccessLookupTable();
 

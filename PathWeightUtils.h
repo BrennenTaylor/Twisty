@@ -15,6 +15,12 @@
 
 namespace twisty
 {
+    enum class WeightingMethod :  int32_t
+    {
+        RadiativeTransfer = 0,
+        SimplifiedModel = 1
+    };
+
     struct WeightingParameters
     {
         double mu = 0.1;
@@ -28,6 +34,8 @@ namespace twisty
         double absorbtion = 0.0;
 
         uint32_t numCurvatureSteps = 10000;
+
+        WeightingMethod weightingMethod = WeightingMethod::RadiativeTransfer;
 
         WeightingParameters::WeightingParameters()
             : scatterValues()
@@ -44,31 +52,6 @@ namespace twisty
 
         // Simple Weight Function, for small segment work!
         double SimpleWeightFunction(double curvature);
-
-        // TODO: Describe this with a useful comment
-        //class IntegralStrategy
-        //{
-        //public:
-        //    IntegralStrategy(const WeightingParameters& weightingParams, double ds);
-        //    virtual ~IntegralStrategy();
-
-        //    virtual double Integrate(double curvature) const = 0;
-
-        //    double GetDs() const
-        //    {
-        //        return m_ds;
-        //    }
-
-        //    const WeightingParameters& GetWeightingParams() const
-        //    {
-        //        return m_weightingParams;
-        //    }
-
-        //protected:
-
-        //    double m_ds;
-        //    WeightingParameters m_weightingParams;
-        //};
 
         class BaseWeightLookupTable
         {
@@ -140,8 +123,6 @@ namespace twisty
             virtual const std::string ExportFilename() const override {
                 return "WeightLookupTableIntegral_Values.csv";
             }
-
-            //RegularizedIntegral m_regularizedIntegral;
         };
 
         // The ICTT27 Weighting function integral
@@ -161,7 +142,7 @@ namespace twisty
 
         };
 
-        void CalcMinMaxCurvature(double& minCurvature, double& maxCurvature, double ds);
+        void CalcMinMaxCurvature(const twisty::WeightingParameters& wp, double& minCurvature, double& maxCurvature, double ds);
 
         // Given a vector of curvatures, 1 per segement of a path, weight the path and return the long10 of the weight
         // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).

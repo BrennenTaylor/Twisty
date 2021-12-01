@@ -50,8 +50,7 @@ namespace twisty
             std::vector<double>& globalPathWeights,
             std::vector<double>& cachedSegmentWeights,
             float segmentLength,
-            std::vector<twisty::PathWeighting::SimpleWeightLookupTable*> weightingIntegrals,
-            //const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
+            std::vector<twisty::PathWeighting::WeightLookupTableIntegral*> weightingIntegrals,
             const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
             const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
         );

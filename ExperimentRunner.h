@@ -72,10 +72,7 @@ namespace twisty
     public:
         ExperimentRunner(ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~ExperimentRunner();
-
-        // virtual bool Setup() = 0;
         virtual std::optional<ExperimentResults> RunExperiment() = 0;
-        // virtual void Shutdown() = 0;
 
         Curve* GetInitialCurvePtr() const
         {

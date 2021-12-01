@@ -187,7 +187,7 @@ namespace twisty
             }
         }
         auto setupCuRandTimeEnd = std::chrono::high_resolution_clock::now();
-
+ 
         auto setupCudaPerturbStart = std::chrono::high_resolution_clock::now();
         {
             result = SetupCudaPerturb(numGlobalPerturbThreads, numThreadBatches);
@@ -215,7 +215,7 @@ namespace twisty
         double minCurvature = 0.0;
         double maxCurvature = 0.0;
         // TODO: Change this to float rather than double
-        twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
+        twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, minCurvature, maxCurvature, ds);
         const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
 
         auto experimentTimeStart = std::chrono::high_resolution_clock::now();

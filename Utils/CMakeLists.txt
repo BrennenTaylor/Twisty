@@ -1,3 +1,11 @@
+add_executable(WeightExplorer
+    WeightExplorer.cpp
+)
+
+target_link_libraries(WeightExplorer
+    PUBLIC Twisty
+)
+
 # add_executable(PathBatchWeightor
 #     PathBatchWeightor.cpp
 # )

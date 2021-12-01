@@ -179,12 +179,12 @@ namespace twisty
         // Say that we will start outputing the path batch output
         const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
 
-        std::vector<std::unique_ptr<twisty::PathWeighting::SimpleWeightLookupTable>> lookupEvaluators(m_experimentParams.weightingParameters.scatterValues.size());
+        std::vector<std::unique_ptr<twisty::PathWeighting::WeightLookupTableIntegral>> lookupEvaluators(m_experimentParams.weightingParameters.scatterValues.size());
         for (int scatterIdx = 0; scatterIdx < m_experimentParams.weightingParameters.scatterValues.size(); scatterIdx++)
         {
             twisty::WeightingParameters updatedWeightingParams = m_experimentParams.weightingParameters;
             updatedWeightingParams.scatter = m_experimentParams.weightingParameters.scatterValues[scatterIdx];
-            lookupEvaluators[scatterIdx] = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(updatedWeightingParams, ds);
+            lookupEvaluators[scatterIdx] = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(updatedWeightingParams, ds);
 
             std::filesystem::path exportTableDir = m_experimentParams.experimentDirPath;
             exportTableDir /= m_experimentParams.perExperimentDirSubfolder;
@@ -193,7 +193,7 @@ namespace twisty
         }
 
 
-        //twisty::PathWeighting::SimpleWeightLookupTable lookupEvaluator(m_experimentParams.weightingParameters, ds);
+        //twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
         twisty::PerturbUtils::BoundaryConditions boundaryConditions;
         boundaryConditions.arclength = m_upInitialCurve->m_arclength;
@@ -205,7 +205,7 @@ namespace twisty
         // Constants
         double minCurvature = 0.0;
         double maxCurvature = 0.0;
-        twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
+        twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, minCurvature, maxCurvature, ds);
         const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
 
         // This is a horible hack to make sure we always purturb a new curve
@@ -410,7 +410,7 @@ namespace twisty
         boost::multiprecision::cpp_dec_float_100 maximumPathWeight = 0.0;
 
 
-        std::vector<twisty::PathWeighting::SimpleWeightLookupTable*> weightingIntegralsRawPointers(lookupEvaluators.size());
+        std::vector<twisty::PathWeighting::WeightLookupTableIntegral*> weightingIntegralsRawPointers(lookupEvaluators.size());
         for (int idx = 0; idx < lookupEvaluators.size(); idx++)
         {
             weightingIntegralsRawPointers[idx] = lookupEvaluators[idx].get();
@@ -656,8 +656,7 @@ namespace twisty
         std::vector<double>& globalPathWeights,
         std::vector<double>& cachedSegmentWeights,
         float segmentLength,
-        std::vector<twisty::PathWeighting::SimpleWeightLookupTable*> weightingIntegrals,
-        //const twisty::PathWeighting::SimpleWeightLookupTable& weightingIntegral,
+        std::vector<twisty::PathWeighting::WeightLookupTableIntegral*> weightingIntegrals,
         const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
     )

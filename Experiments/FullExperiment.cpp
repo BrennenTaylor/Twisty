@@ -27,33 +27,45 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     experimentParams.maximumBootstrapCurveError = 0.5f;
     experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-    // Values loaded from the config file
-    experimentParams.numPathsInExperiment = (int)config.lookup("experiment.experimentParams.pathsToGenerate");
-    experimentParams.numPathsToSkip = (int)config.lookup("experiment.experimentParams.pathsToSkip");
-    experimentParams.experimentName = config.lookup("experiment.experimentParams.name").c_str();
-    experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
-    experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-
-    experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
-    experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
-
-    experimentParams.bootstrapSeed = (int)config.lookup("experiment.experimentParams.random.bootstrapSeed");
-    experimentParams.curvePurturbSeed = (int)config.lookup("experiment.experimentParams.random.perturbSeed");
-
-    // Weighting parameter stuff
-    experimentParams.weightingParameters.mu = config.lookup("experiment.experimentParams.weighting.mu");
-    experimentParams.weightingParameters.eps = config.lookup("experiment.experimentParams.weighting.eps");
-    experimentParams.weightingParameters.numStepsInt = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");
-    experimentParams.weightingParameters.numCurvatureSteps = (int)config.lookup("experiment.experimentParams.weighting.numCurvatureSteps");
-    experimentParams.weightingParameters.absorbtion = config.lookup("experiment.experimentParams.weighting.absorbtion");
-    
-    std::vector<double> scatterValues;
-    auto& scatterValuesLookup = config.lookup("experiment.experimentParams.weighting.scatterValues");
-    for (int scatterIdx = 0; scatterIdx < scatterValuesLookup.getLength(); ++scatterIdx)
+    try
     {
-        scatterValues.push_back(scatterValuesLookup[scatterIdx]);
+        // Values loaded from the config file
+        experimentParams.numPathsInExperiment = (int)config.lookup("experiment.experimentParams.pathsToGenerate");
+        experimentParams.numPathsToSkip = (int)config.lookup("experiment.experimentParams.pathsToSkip");
+        experimentParams.experimentName = config.lookup("experiment.experimentParams.name").c_str();
+        experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
+        experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
+
+        experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
+        experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
+
+        experimentParams.bootstrapSeed = (int)config.lookup("experiment.experimentParams.random.bootstrapSeed");
+        experimentParams.curvePurturbSeed = (int)config.lookup("experiment.experimentParams.random.perturbSeed");
+
+        // Weighting parameter stuff
+        experimentParams.weightingParameters.mu = config.lookup("experiment.experimentParams.weighting.mu");
+        experimentParams.weightingParameters.eps = config.lookup("experiment.experimentParams.weighting.eps");
+        experimentParams.weightingParameters.numStepsInt = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");
+        experimentParams.weightingParameters.numCurvatureSteps = (int)config.lookup("experiment.experimentParams.weighting.numCurvatureSteps");
+        experimentParams.weightingParameters.absorbtion = config.lookup("experiment.experimentParams.weighting.absorbtion");
+        
+        std::vector<double> scatterValues;
+        auto& scatterValuesLookup = config.lookup("experiment.experimentParams.weighting.scatterValues");
+        for (int scatterIdx = 0; scatterIdx < scatterValuesLookup.getLength(); ++scatterIdx)
+        {
+            scatterValues.push_back(scatterValuesLookup[scatterIdx]);
+        }
+        experimentParams.weightingParameters.scatterValues = scatterValues;
     }
-    experimentParams.weightingParameters.scatterValues = scatterValues;
+    catch (const libconfig::SettingNotFoundException &ex)
+    {
+        std::cerr << "Parse error at " << ex.getPath() << ":" << ex.what() << std::endl;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
 
     // TODO: Should these be configurable in the file?
     experimentParams.weightingParameters.minBound = 0.0;
@@ -109,34 +121,45 @@ int main(int argc, char *argv[])
         if (!std::filesystem::exists(experimentCfgCopyFilename)) {
             std::filesystem::copy_file(configFilename, experimentCfgCopyFilename, std::filesystem::copy_options::overwrite_existing);
         }
-        const uint32_t numEmitterDirections = (int)experimentConfig.lookup("experiment.smallSegmentExperiment.numEmitterDirections");
-        const float distanceFromPlane = experimentConfig.lookup("experiment.smallSegmentExperiment.distanceFromPlane");
-        
-        twisty::PerturbUtils::BoundaryConditions experimentGeometry;
-        {
-            float x = (float)experimentConfig.lookup("experiment.geometry.startPos.x");
-            float y = (float)experimentConfig.lookup("experiment.geometry.startPos.y");
-            float z = (float)experimentConfig.lookup("experiment.geometry.startPos.z");
-            experimentGeometry.m_startPos = Farlor::Vector3(x, y, z);
-        }
-        {
-            float x = (float)experimentConfig.lookup("experiment.geometry.startDir.x");
-            float y = (float)experimentConfig.lookup("experiment.geometry.startDir.y");
-            float z = (float)experimentConfig.lookup("experiment.geometry.startDir.z");
-            experimentGeometry.m_startDir = Farlor::Vector3(x, y, z).Normalized();
-        }
 
+        twisty::PerturbUtils::BoundaryConditions experimentGeometry;
+
+        try
         {
-            float x = (float)experimentConfig.lookup("experiment.geometry.endPos.x");
-            float y = (float)experimentConfig.lookup("experiment.geometry.endPos.y");
-            float z = (float)experimentConfig.lookup("experiment.geometry.endPos.z");
-            experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
+            {
+                float x = (float)experimentConfig.lookup("experiment.geometry.startPos.x");
+                float y = (float)experimentConfig.lookup("experiment.geometry.startPos.y");
+                float z = (float)experimentConfig.lookup("experiment.geometry.startPos.z");
+                experimentGeometry.m_startPos = Farlor::Vector3(x, y, z);
+            }
+            {
+                float x = (float)experimentConfig.lookup("experiment.geometry.startDir.x");
+                float y = (float)experimentConfig.lookup("experiment.geometry.startDir.y");
+                float z = (float)experimentConfig.lookup("experiment.geometry.startDir.z");
+                experimentGeometry.m_startDir = Farlor::Vector3(x, y, z).Normalized();
+            }
+
+            {
+                float x = (float)experimentConfig.lookup("experiment.geometry.endPos.x");
+                float y = (float)experimentConfig.lookup("experiment.geometry.endPos.y");
+                float z = (float)experimentConfig.lookup("experiment.geometry.endPos.z");
+                experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
+            }
+            {
+                float x = (float)experimentConfig.lookup("experiment.geometry.endDir.x");
+                float y = (float)experimentConfig.lookup("experiment.geometry.endDir.y");
+                float z = (float)experimentConfig.lookup("experiment.geometry.endDir.z");
+                experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
+            }
         }
+        catch (const libconfig::SettingNotFoundException &ex)
         {
-            float x = (float)experimentConfig.lookup("experiment.geometry.endDir.x");
-            float y = (float)experimentConfig.lookup("experiment.geometry.endDir.y");
-            float z = (float)experimentConfig.lookup("experiment.geometry.endDir.z");
-            experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
+            std::cerr << "Parse error at " << ex.getPath() << ":" << ex.what() << std::endl;
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+            return 1;
         }
 
         // We run the experiment as well
@@ -163,6 +186,7 @@ int main(int argc, char *argv[])
         if (!optionalResults.has_value())
         {
             std::cout << "Experiment failed: no results returned." << std::endl;
+            return 1;
         }
         const twisty::ExperimentRunner::ExperimentResults& results = optionalResults.value();
 

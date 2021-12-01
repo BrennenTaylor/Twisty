@@ -111,6 +111,7 @@ target_link_libraries(Twisty
 if (WIN32)
 add_subdirectory(Experiments)
 add_subdirectory(Tools)
+add_subdirectory(Utils)
 add_subdirectory(Viewer)
 add_subdirectory(unitweights)
 add_subdirectory(RelatedWork/Fred_2017/)

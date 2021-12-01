@@ -103,7 +103,7 @@ namespace twisty
             // We dont want to continue if we have already generated the correct number of paths.
             return;
         }
-
+ 
         // Data transfer piece
         // We intialize everything we need into shared memory first
         {

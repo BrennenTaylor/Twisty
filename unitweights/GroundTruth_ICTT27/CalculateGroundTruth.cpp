@@ -42,7 +42,7 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     {
         experimentParams.curvePurturbSeed = time(0);
     }
-
+ 
     // Weighting parameter stuff
     experimentParams.weightingParameters.mu = config.lookup("experiment.experimentParams.weighting.mu");
     experimentParams.weightingParameters.eps = config.lookup("experiment.experimentParams.weighting.eps");
