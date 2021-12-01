@@ -76,6 +76,11 @@ namespace twisty
         void BaseWeightLookupTable::ExportValues(std::string directoryFileName)
         {
             const std::filesystem::path exprDirectory = directoryFileName;
+            if(!std::filesystem::exists(exprDirectory))
+            {
+                std::filesystem::create_directory(exprDirectory);
+            }
+
             const std::string TableValuesFilename = ExportFilename();
             const std::filesystem::path outputFilePath = exprDirectory / TableValuesFilename;
 
@@ -218,7 +223,7 @@ namespace twisty
 
             double c = weightingParams.absorbtion + weightingParams.scatter;
             double constant = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
-            return constant * (firstVal / normalizerWithZeroCurvature);
+            return constant * firstVal;//(firstVal / normalizerWithZeroCurvature);
         }
 
         // Lookup table integrand

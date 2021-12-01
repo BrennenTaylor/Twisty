@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-
+ 
     const float ds = experimentParams.arclength / experimentParams.numSegmentsPerCurve;
 
     twisty::PathWeighting::WeightLookupTableIntegral standardWeightLookup(experimentParams.weightingParameters, ds);
