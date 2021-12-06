@@ -13,8 +13,10 @@
 #include <libconfig.h++>
 
 #include <chrono>
+#include <condition_variable>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <filesystem>
 #include <string>
@@ -40,6 +42,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
         experimentParams.maxWeightThreads = (int)config.lookup("experiment.experimentParams.maxWeightThreads");
 
         experimentParams.outputBigFloatWeights = (bool)config.lookup("experiment.experimentParams.outputBigFloatWeights");
+        experimentParams.outputPathBatches = (bool)config.lookup("experiment.experimentParams.outputPathBatches");
+        experimentParams.useGpu = (bool)config.lookup("experiment.experimentParams.useGpu");
 
         experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
         experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
@@ -167,6 +171,8 @@ int main(int argc, char *argv[])
             return 1;
         }
 
+        experimentGeometry.arclength = experimentParams.arclength;
+
         // We run the experiment as well
         std::string outputDataFilename = std::string(experimentParams.experimentDirPath) + std::string("/Results.dat");
         std::ofstream ofs(outputDataFilename);
@@ -180,7 +186,23 @@ int main(int argc, char *argv[])
         std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
 
         std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
+
+        #if defined(USE_CUDA)
+        if (experimentParams.useGpu)
+        {
+            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU>(experimentParams, bootstrapper);
+        }
+        else
+        {
+            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
+        }
+        #else
+        if (experimentParams.useGpu)
+        {
+            std::cout << "Error, gpu requested but not supported on this platform; defaulting to CPU" << std::endl;
+        }
         upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
+        #endif
 
         auto start = std::chrono::high_resolution_clock::now();
         std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults = upExperimentRunner->RunExperiment();

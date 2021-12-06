@@ -34,6 +34,7 @@ set(CMAKE_CXX_STANDARD 17)
 if (USE_CUDA)
 SET(CUDA_SEPARABLE_COMPILATION ON)
 SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+set_source_files_properties(CurvePerturbUtils.cpp PROPERTIES LANGUAGE CUDA)
 endif (USE_CUDA)
 
 add_library(Twisty
@@ -44,7 +45,7 @@ add_library(Twisty
     Curve.h
     Curve.cpp
     CurvePerturbUtils.h
-    CurvePerturbUtils.cu
+    CurvePerturbUtils.cpp
     CurveUtils.h
     CurveUtils.cpp
     CurveGen.cu
@@ -55,6 +56,9 @@ add_library(Twisty
 
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
+
+    # GeometricPerturbUtils.h
+    # GeometricPerturbUtils.cpp
 
     Integrate.h
     MathConsts.h

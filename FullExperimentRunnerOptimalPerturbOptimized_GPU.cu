@@ -103,49 +103,15 @@ namespace twisty
     {
     }
 
-    std::optional<ExperimentRunner::ExperimentResults> FullExperimentRunnerOptimalPerturbOptimized_GPU::RunExperiment()
+    std::optional<ExperimentRunner::ExperimentResults> FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     {
         int64_t numFailures = 0;
         int64_t totalFailures = 0;
         int64_t totalSuccess = 0;
 
         /* --------------------- */
-        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
-        /* --------------------- */
         auto setupTimeStart = std::chrono::high_resolution_clock::now();
         /* --------------------- */
-
-        std::cout << "Random Seeds: " << std::endl;
-        std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
-        std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
-
-        // Ask the bootstrapper to generate a discrete curve.
-        // If we fail, we want to exit the experiment.
-        bool successfulGen = false;
-        while (!successfulGen)
-        {
-            m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
-            if (!m_upInitialCurve)
-            {
-                printf("Both bootstrap versions failed, now we have to error out.\n");
-                return {};
-            }
-
-            // Lets also get the error of the initial curve, just to know
-            float curveError = CurveUtils::CalculateCurveError(*m_upInitialCurve);
-            std::cout << "Seed curve error: " << curveError << std::endl;
-
-            if (curveError < m_experimentParams.maximumBootstrapCurveError)
-            {
-                successfulGen = true;
-            }
-        }
-
-        const std::filesystem::path experimentDirPath = m_experimentParams.experimentDirPath;
-        if (!std::filesystem::exists(experimentDirPath))
-        {
-            std::filesystem::create_directories(experimentDirPath);
-        }
 
         bool result = SetupCudaDevice();
         if (!result)
@@ -334,10 +300,6 @@ namespace twisty
         weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();
         /* --------------------- */
 
-
-        auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
-
-
         // Cleanup stuff
 
         {
@@ -346,25 +308,18 @@ namespace twisty
             CleanupCudaDevice();
         }
 
+        // {
+        //     auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
+        //     std::cout << "\tsetup Time: " << timeMs.count() << "ms - " << ((float)timeMs.count() / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
+        // }
 
+        // {
+        //     std::cout << "\tperturb Time: " << perturbTimeCount << "ms - " << ((float)perturbTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
+        // }
 
-
-        std::cout << "Experiment Time Reporting: " << std::endl;
-        auto runExperimentTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(runExperimentTimeEnd - runExperimentTimeStart);
-        std::cout << "\tTotal Experiment Time: " << runExperimentTimeMs.count() << "ms" << std::endl;
-
-        {
-            auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
-            std::cout << "\tsetup Time: " << timeMs.count() << "ms - " << ((float)timeMs.count() / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
-
-        {
-            std::cout << "\tperturb Time: " << perturbTimeCount << "ms - " << ((float)perturbTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
-
-        {
-            std::cout << "\tweighting Time: " << weightCalcTimeCount << "ms - " << ((float)weightCalcTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
+        // {
+        //     std::cout << "\tweighting Time: " << weightCalcTimeCount << "ms - " << ((float)weightCalcTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
+        // }
 
         ExperimentResults results;
         results.experimentWeights.push_back(bigTotalExperimentWeight);
@@ -967,32 +922,16 @@ namespace twisty
                             &pPerGlobalThreadRightScratchSpaceTangents[CurrentThreadTanStartIdx], &pPerGlobalThreadRightScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx],
                             numSegmentsPerCurve, boundaryConditions_cuda);
 
-#ifdef HardcodedSegments
-                        int64_t leftPointIndex = 25;
-                        int64_t rightPointIndex = 75;
-#else
-
-#if defined(HardcodedDifference)
-                        int64_t diff = 20;
-#else
                         // Should be 2 - 180
                         int64_t diff = floorf(curand_uniform(&pCurandStates[globalThreadIdx]) * 178.0) + 2;
-#endif
 
                         int64_t leftPointIndex = floorf(curand_uniform(&pCurandStates[globalThreadIdx]) * (numSegmentsPerCurve - 1 - diff - 1)) + 1;
 
                         int64_t rightPointIndex = leftPointIndex + diff;
 
                         assert((rightPointIndex - leftPointIndex) >= diff);
-#endif
                         assert(leftPointIndex < rightPointIndex);
 
-#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                        {
-                            printf("Left point idx: %d\n", leftPointIndex);
-                            printf("Right point idx: %d\n", rightPointIndex);
-                        }
-#endif
                         // We need two frames for each segment to get the new curvature and torsion.
                         // we need the frame left of the segment, as well as the frame right of the segment.
                         // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
@@ -1014,12 +953,6 @@ namespace twisty
 
                         double leftRotationAngle = 0.0;
                         {
-#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                            printf("Axis before (%.6f, %.6f, %.6f)\n",
-                                N[0], N[1], N[2]
-                            );
-#endif
-
                             const float Xss1_x = pPerGlobalThreadLeftScratchSpacePositions[CurrentThreadPosStartIdx + (leftPointIndex - 1) * 3 + 0];
                             const float Xss1_y = pPerGlobalThreadLeftScratchSpacePositions[CurrentThreadPosStartIdx + (leftPointIndex - 1) * 3 + 2];
                             const float Xss1_z = pPerGlobalThreadLeftScratchSpacePositions[CurrentThreadPosStartIdx + (leftPointIndex - 1) * 3 + 3];

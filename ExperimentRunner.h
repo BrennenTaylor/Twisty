@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -64,6 +65,9 @@ namespace twisty
             int32_t maxPerturbThreads = 0;
             int32_t maxWeightThreads = 0;
             bool outputBigFloatWeights = false;
+            bool outputPathBatches = false;
+
+            bool useGpu = false;
         };
 
         struct ExperimentResults
@@ -77,7 +81,7 @@ namespace twisty
     public:
         ExperimentRunner(ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~ExperimentRunner();
-        virtual std::optional<ExperimentResults> RunExperiment() = 0;
+        std::optional<ExperimentResults> RunExperiment();
 
         Curve* GetInitialCurvePtr() const
         {
@@ -85,6 +89,8 @@ namespace twisty
         }
 
     protected:
+        virtual std::optional<ExperimentResults> RunnerSpecificRunExperiment() = 0;
+
         bool BeginPathBatchOutput();
         void OutputPathBatch(PathBatch& pathBatch);
         void EndPathBatchOutput();
@@ -94,6 +100,12 @@ namespace twisty
         Bootstrapper& m_bootstrapper;
         std::unique_ptr<Curve> m_upInitialCurve;
         std::string m_pathBatchOutputPath;
+
+        std::filesystem::path m_experimentDirPath;
+
+        std::mutex m_exportPathBatchesMutex;
+        std::ofstream m_curvesBinaryFile;
+        std::ofstream m_curvesMetadataFile;
 
     private:
         rapidjson::Document m_pathBatchJsonIndex;

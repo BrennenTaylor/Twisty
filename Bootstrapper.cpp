@@ -94,6 +94,13 @@ namespace twisty
         // TODO: The second segment really should be flexible in its placement for allowing the most environment configurations
         //       however, its good enough for now.
 
+        std::cout << "Generating curve: " << std::endl;
+        std::cout << "\tStart Pos: " << m_experimentGeometry.m_startPos << std::endl;
+        std::cout << "\tStart Dir: " << m_experimentGeometry.m_startDir << std::endl;
+        std::cout << "\tEnd Pos: " << m_experimentGeometry.m_endPos << std::endl;
+        std::cout << "\tEnd Dir: " << m_experimentGeometry.m_endDir << std::endl;
+        std::cout << "\tArclength: " << targetArclength << std::endl;
+
         bool evenNumberOfSegments = (numSegments % 2) == 0;
 
         // In the odd case, we place two segments initially

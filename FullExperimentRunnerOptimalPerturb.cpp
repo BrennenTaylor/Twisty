@@ -4,6 +4,7 @@
 #include "CurveUtils.h"
 #include "MathConsts.h"
 
+// #include "GeometricPerturbUtils.h"
 
 #include <assert.h>
 #include <ctime>
@@ -19,17 +20,11 @@
 #include <stdlib.h>
 #include <memory>
 
-#define OutputBigFloatPathWeights
-
 #define ExportPathBatches
 
 #if defined(ExportPathBatches)
 
 const static int64_t ExportPathBatchCacheSize = 100000;
-
-static std::mutex ExportPathBatchesMutex;
-static std::ofstream curvesBinaryFile;
-static std::ofstream curvesMetadataFile;
 
 #else
 
@@ -39,58 +34,6 @@ const int64_t ExportPathBatchCacheSize = 1000000;
 
 namespace twisty
 {
-        // Assumes pVector3f is an array of 3 floats
-    static void NormalizeVector3f(float* pVector3f)
-    {
-        float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
-        normalizer = 1.0 / sqrt(normalizer);
-        pVector3f[0] *= normalizer;
-        pVector3f[1] *= normalizer;
-        pVector3f[2] *= normalizer;
-    }
-
-    // This has an out parameter
-    static void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3)
-    {
-        // Ensure its normalized
-        NormalizeVector3f(pAxisVector3f);
-
-        pMatrix3x3[0] = cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - cos(angle));
-        pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - cos(angle)) - pAxisVector3f[2] * sin(angle);
-        pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - cos(angle)) + pAxisVector3f[1] * sin(angle);
-
-        pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - cos(angle)) + pAxisVector3f[2] * sin(angle);
-        pMatrix3x3[4] = cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - cos(angle));
-        pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - cos(angle)) - pAxisVector3f[0] * sin(angle);
-
-        pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - cos(angle)) - pAxisVector3f[1] * sin(angle);
-        pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - cos(angle)) + pAxisVector3f[0] * sin(angle);
-        pMatrix3x3[8] = cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - cos(angle));
-    }
-
-    static float DotVector3fVector3f(float* lhs, float* rhs)
-    {
-        return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
-    }
-
-    static float MagVector3f(float* pVec)
-    {
-        return sqrt(pVec[0] * pVec[0] + pVec[1] * pVec[1] + pVec[2] * pVec[2]);
-    }
-
-    static void RotateVectorByMatrix(float* pRotationMatrix, float* pVector)
-    {
-        float val[3];
-        val[0] = DotVector3fVector3f(pRotationMatrix, pVector);
-        val[1] = DotVector3fVector3f(pRotationMatrix + 3, pVector);
-        val[2] = DotVector3fVector3f(pRotationMatrix + 6, pVector);
-        
-        // Write it back to pVector
-        pVector[0] = val[0];
-        pVector[1] = val[1];
-        pVector[2] = val[2];
-    }
-
     FullExperimentRunnerOptimalPerturb::FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams,
         Bootstrapper& bootstrapper)
         : ExperimentRunner(experimentParams, bootstrapper)
@@ -101,59 +44,9 @@ namespace twisty
     {
     }
 
-    std::optional<ExperimentRunner::ExperimentResults> FullExperimentRunnerOptimalPerturb::RunExperiment()
+    std::optional<ExperimentRunner::ExperimentResults> FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     {
-        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
-
-        /* --------------------- */
         auto setupTimeStart = std::chrono::high_resolution_clock::now();
-
-        std::cout << "Random Seeds: " << std::endl;
-        std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
-        std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
-
-        m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
-        if (!m_upInitialCurve)
-        {
-            printf("Both bootstrap versions failed, now we have to error out.\n");
-            return {};
-        }
-
-        const std::filesystem::path experimentDirPath = m_experimentParams.experimentDirPath;
-        if (!std::filesystem::exists(experimentDirPath))
-        {
-            std::filesystem::create_directories(experimentDirPath);
-        }
-
-#if defined(ExportPathBatches)
-        {
-            BeginPathBatchOutput();
-
-            std::filesystem::path generatedCurvesDirPath = m_experimentParams.experimentDirPath;
-            generatedCurvesDirPath /= m_experimentParams.perExperimentDirSubfolder;
-            generatedCurvesDirPath /= "GeneratedCurves";
-            if (!std::filesystem::exists(generatedCurvesDirPath))
-            {
-                std::filesystem::create_directories(generatedCurvesDirPath);
-            }
-
-            std::stringstream pathBinaryFilenameSS;
-            pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
-            pathBinaryFilenameSS << "Paths_Binary" << ".pbd";
-
-            std::filesystem::path binaryFilePath = generatedCurvesDirPath;
-            binaryFilePath.append(pathBinaryFilenameSS.str());
-            curvesBinaryFile.open(binaryFilePath, std::ios::binary);
-
-            std::stringstream pathMetadataFilenameSS;
-            pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
-            pathMetadataFilenameSS << "Paths_Metadata" << ".pmd";
-
-            std::filesystem::path metadataFilePath = generatedCurvesDirPath;
-            metadataFilePath.append(pathMetadataFilenameSS.str());
-            curvesMetadataFile.open(metadataFilePath);
-        }
-#endif
 
         std::vector<std::unique_ptr<twisty::PathWeighting::WeightLookupTableIntegral>> lookupEvaluators(m_experimentParams.weightingParameters.scatterValues.size());
         for (int scatterIdx = 0; scatterIdx < m_experimentParams.weightingParameters.scatterValues.size(); scatterIdx++)
@@ -167,16 +60,14 @@ namespace twisty
             exportTableDir /= std::to_string(scatterIdx);
             lookupEvaluators[scatterIdx]->ExportValues(exportTableDir.string());
         }
-        
+
         twisty::PerturbUtils::BoundaryConditions boundaryConditions = m_upInitialCurve->GetBoundaryConditions();
-        
+
         // Constants
         double minCurvature = 0.0;
         double maxCurvature = 0.0;
         twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, minCurvature, maxCurvature, m_upInitialCurve->m_segmentLength);
         const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
-
-        auto experimentTimeStart = std::chrono::high_resolution_clock::now();
 
         int64_t numSystemThreads = std::thread::hardware_concurrency();
         int64_t numPurturbThreads = m_experimentParams.maxPerturbThreads;
@@ -358,7 +249,6 @@ namespace twisty
         boost::multiprecision::cpp_dec_float_100 minimumPathWeight = 0.0;
         boost::multiprecision::cpp_dec_float_100 maximumPathWeight = 0.0;
 
-
         std::vector<twisty::PathWeighting::WeightLookupTableIntegral*> weightingIntegralsRawPointers(lookupEvaluators.size());
         for (int idx = 0; idx < lookupEvaluators.size(); idx++)
         {
@@ -529,33 +419,18 @@ namespace twisty
         std::cout << "Maximum Weight: " << maximumPathWeight << std::endl;
         //std::cout << "Big total weight before: " << bigTotalExperimentWeight << std::endl;
 
-        auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
+        // {
+        //     auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
+        //     std::cout << "\tsetup Time: " << timeMs.count() << "ms - " << ((float)timeMs.count() / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
+        // }
 
-        std::cout << "Experiment Time Reporting: " << std::endl;
-        auto runExperimentTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(runExperimentTimeEnd - runExperimentTimeStart);
-        std::cout << "\tTotal Experiment Time: " << runExperimentTimeMs.count() << "ms" << std::endl;
+        // {
+        //     std::cout << "\tperturb Time: " << perturbTimeCount << "ms - " << ((float)perturbTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
+        // }
 
-        {
-            auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
-            std::cout << "\tsetup Time: " << timeMs.count() << "ms - " << ((float)timeMs.count() / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
-
-        {
-            std::cout << "\tperturb Time: " << perturbTimeCount << "ms - " << ((float)perturbTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
-
-        {
-            std::cout << "\tweighting Time: " << weightCalcTimeCount << "ms - " << ((float)weightCalcTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
-
-#if defined(ExportPathBatches)
-        {
-        EndPathBatchOutput();
-
-        curvesBinaryFile.close();
-        curvesMetadataFile.close();
-        }
-#endif
+        // {
+        //     std::cout << "\tweighting Time: " << weightCalcTimeCount << "ms - " << ((float)weightCalcTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
+        // }
 
         ExperimentResults results;
         results.experimentWeights = bigTotalExperimentWeights;
@@ -624,6 +499,7 @@ namespace twisty
         uint32_t numPathsUnacceptedTangentPdf = 0;
         uint32_t numPathsUnacceptedCurvaturePdf = 0;
 
+    // TODO: Move this to the experiment runner
 #if defined(ExportPathBatches)
 
         // This should be per thread
@@ -678,23 +554,22 @@ namespace twisty
 #if defined(ExportPathBatches)
                     if (numCurvesInBatch > 0)
                     {
-                        ExportPathBatchesMutex.lock();
+                        m_exportPathBatchesMutex.lock();
 
                         if (threadIdx == 11)
                         {
                             std::cout << "Should be exporting thread 12" << std::endl;
                         }
 
+                        m_curvesMetadataFile << threadIdx << " ";
+                        m_curvesMetadataFile << outputIdx << " ";
+                        m_curvesMetadataFile << numCurvesInBatch << std::endl;
 
-                        curvesMetadataFile << threadIdx << " ";
-                        curvesMetadataFile << outputIdx << " ";
-                        curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                        m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
                         numCurvesInBatch = 0;
                         outputIdx++;
 
-                        ExportPathBatchesMutex.unlock();
+                        m_exportPathBatchesMutex.unlock();
                     }
 #endif
                     // We dont want to continue if we have already generated the correct number of paths.
@@ -1029,49 +904,51 @@ namespace twisty
                         globalPathWeights[currentPathIdx * weightingIntegrals.size() + scatteringIdx] = differentScatteringPathWeights[scatteringIdx];
                     }
 
-#if defined(ExportPathBatches)
-                    // Add the path to the path batch
-                    for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+                    if (m_experimentParams.outputPathBatches)
                     {
-                        Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
-                        pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
+                        // Add the path to the path batch
+                        for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+                        {
+                            Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                            pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
+                        }
+                        numCurvesInBatch++;
+
+                        if (numCurvesInBatch == ExportPathBatchCacheSize)
+                        {
+                            m_exportPathBatchesMutex.lock();
+
+                            m_curvesMetadataFile << threadIdx << " ";
+                            m_curvesMetadataFile << outputIdx << " ";
+                            m_curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                            m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                            numCurvesInBatch = 0;
+                            outputIdx++;
+
+                            m_exportPathBatchesMutex.unlock();
+                        }
                     }
-                    numCurvesInBatch++;
-
-                    if (numCurvesInBatch == ExportPathBatchCacheSize)
-                    {
-                        ExportPathBatchesMutex.lock();
-
-                        curvesMetadataFile << threadIdx << " ";
-                        curvesMetadataFile << outputIdx << " ";
-                        curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                        numCurvesInBatch = 0;
-                        outputIdx++;
-
-                        ExportPathBatchesMutex.unlock();
-                    }
-#endif
                 }
             }
 
-#if defined(ExportPathBatches)
-            if (numCurvesInBatch > 0)
+            if(m_experimentParams.outputPathBatches)
             {
-                ExportPathBatchesMutex.lock();
+                if (numCurvesInBatch > 0)
+                {
+                    m_exportPathBatchesMutex.lock();
 
-                curvesMetadataFile << threadIdx << " ";
-                curvesMetadataFile << outputIdx << " ";
-                curvesMetadataFile << numCurvesInBatch << std::endl;
+                    m_curvesMetadataFile << threadIdx << " ";
+                    m_curvesMetadataFile << outputIdx << " ";
+                    m_curvesMetadataFile << numCurvesInBatch << std::endl;
 
-                curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                numCurvesInBatch = 0;
-                outputIdx++;
+                    m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                    numCurvesInBatch = 0;
+                    outputIdx++;
 
-                ExportPathBatchesMutex.unlock();
+                    m_exportPathBatchesMutex.unlock();
+                }
             }
-#endif
         }
 
         std::cout << "Num path accepted: " << numPathsAccepted << std::endl;
