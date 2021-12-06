@@ -19,12 +19,6 @@
 #include <stdlib.h>
 #include <memory>
 
-//#define DetailedPurturb
-//#define SingleThreadMode
-
-const double AmountOfFullRotation = 1.0;
-
-//#define SINGLE_THREAD_PERTURB_MODE
 #define OutputBigFloatPathWeights
 
 #define ExportPathBatches
@@ -118,26 +112,11 @@ namespace twisty
         std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
         std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
 
-        // Ask the bootstrapper to generate a discrete curve.
-        // If we fail, we want to exit the experiment.
-        bool successfulGen = false;
-        while (!successfulGen)
+        m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
+        if (!m_upInitialCurve)
         {
-            m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
-            if (!m_upInitialCurve)
-            {
-                printf("Both bootstrap versions failed, now we have to error out.\n");
-                return {};
-            }
-
-            // Lets also get the error of the initial curve, just to know
-            float curveError = CurveUtils::CalculateCurveError(*m_upInitialCurve);
-            std::cout << "Seed curve error: " << curveError << std::endl;
-
-            if (curveError < m_experimentParams.maximumBootstrapCurveError)
-            {
-                successfulGen = true;
-            }
+            printf("Both bootstrap versions failed, now we have to error out.\n");
+            return {};
         }
 
         const std::filesystem::path experimentDirPath = m_experimentParams.experimentDirPath;
@@ -176,50 +155,45 @@ namespace twisty
         }
 #endif
 
-        // Say that we will start outputing the path batch output
-        const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
-
         std::vector<std::unique_ptr<twisty::PathWeighting::WeightLookupTableIntegral>> lookupEvaluators(m_experimentParams.weightingParameters.scatterValues.size());
         for (int scatterIdx = 0; scatterIdx < m_experimentParams.weightingParameters.scatterValues.size(); scatterIdx++)
         {
             twisty::WeightingParameters updatedWeightingParams = m_experimentParams.weightingParameters;
             updatedWeightingParams.scatter = m_experimentParams.weightingParameters.scatterValues[scatterIdx];
-            lookupEvaluators[scatterIdx] = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(updatedWeightingParams, ds);
+            lookupEvaluators[scatterIdx] = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(updatedWeightingParams, m_upInitialCurve->m_segmentLength);
 
             std::filesystem::path exportTableDir = m_experimentParams.experimentDirPath;
             exportTableDir /= m_experimentParams.perExperimentDirSubfolder;
             exportTableDir /= std::to_string(scatterIdx);
             lookupEvaluators[scatterIdx]->ExportValues(exportTableDir.string());
         }
-
-
-        //twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
-        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
-        boundaryConditions.arclength = m_upInitialCurve->m_arclength;
-        boundaryConditions.m_startPos = m_upInitialCurve->m_basePos;
-        boundaryConditions.m_startDir = m_upInitialCurve->m_baseTangent;
-        boundaryConditions.m_endPos = m_upInitialCurve->m_targetPos;
-        boundaryConditions.m_endDir = m_upInitialCurve->m_targetTangent;
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions = m_upInitialCurve->GetBoundaryConditions();
         
         // Constants
         double minCurvature = 0.0;
         double maxCurvature = 0.0;
-        twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, minCurvature, maxCurvature, ds);
+        twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, minCurvature, maxCurvature, m_upInitialCurve->m_segmentLength);
         const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
-
-        // This is a horible hack to make sure we always purturb a new curve
-        Curve curveToBend = *m_upInitialCurve;
 
         auto experimentTimeStart = std::chrono::high_resolution_clock::now();
 
-        // Create threads and dispatch them
-// #ifdef SINGLE_THREAD_PERTURB_MODE
-//         int64_t numPurturbThreads = 1;
-// #else
-        int64_t numPurturbThreads = std::thread::hardware_concurrency();
-// #endif
-        std::cout << "We have " << numPurturbThreads << " avalible for purturbation." << std::endl;
+        int64_t numSystemThreads = std::thread::hardware_concurrency();
+        int64_t numPurturbThreads = m_experimentParams.maxPerturbThreads;
+
+        if (numSystemThreads < numPurturbThreads)
+        {
+            std::cout << "Requested more threads than system has, defaulting to number of system threads" << std::endl;
+            numPurturbThreads = numSystemThreads;
+        }
+
+        if (numPurturbThreads == 0)
+        {
+            std::cout << "Requested behavior: Use number of system threads" << std::endl;
+            numPurturbThreads = numSystemThreads;
+        }
+
+        std::cout << "Using " << numPurturbThreads << " threads for purturbation." << std::endl;
 
         // Setup rng stuff
         std::vector<std::mt19937_64> perThreadRngGenerators(numPurturbThreads);
@@ -240,42 +214,13 @@ namespace twisty
 
         // Positions
         // Hard code the first two positions
-        initialCurvePositions[0] = m_upInitialCurve->m_basePos;
-        initialCurvePositions[1] = m_upInitialCurve->m_basePos + m_upInitialCurve->m_baseTangent.Normalized() * m_upInitialCurve->m_segmentLength;
-        for (int64_t segmentIdx = 2; segmentIdx < m_experimentParams.numSegmentsPerCurve; ++segmentIdx)
-        {
-            initialCurvePositions[segmentIdx] = m_upInitialCurve->m_positions[segmentIdx];
-        }
-        // Hard code the final position
-        initialCurvePositions[m_experimentParams.numSegmentsPerCurve] = m_upInitialCurve->m_targetPos;
+        initialCurvePositions = m_upInitialCurve->m_positions;
 
-#if defined(DetailedPurturb)
-        {
-            std::cout << "Positions" << std::endl;
-            for (int64_t segmentIdx = 0; segmentIdx < m_experimentParams.numSegmentsPerCurve; ++segmentIdx)
-            {
-                std::cout << "\t" << initialCurvePositions[segmentIdx] << std::endl;
-            }
-        }
-#endif
-        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
-            initialCurveCurvatures.data(), m_upInitialCurve->m_numSegments, boundaryConditions);
-
-#if defined(DetailedPurturb)
-        {
-            std::cout << "Tangents" << std::endl;
-            for (int64_t tanIdx = 0; tanIdx < m_experimentParams.numSegmentsPerCurve; ++tanIdx)
-            {
-                std::cout << "\t" << initialCurveTangents[tanIdx] << std::endl;
-            }
-
-            std::cout << "Curvatures" << std::endl;
-            for (int64_t segmentIdx = 0; segmentIdx < m_experimentParams.numSegmentsPerCurve; ++segmentIdx)
-            {
-                std::cout << "\t" << initialCurveCurvatures[segmentIdx] << std::endl;
-            }
-        }
-#endif
+        // Update tangents
+        twisty::PerturbUtils::UpdateTangentsFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
+            m_upInitialCurve->m_numSegments, boundaryConditions);
+        twisty::PerturbUtils::UpdateCurvaturesFromTangents(initialCurveTangents.data(), initialCurveCurvatures.data(),
+            m_upInitialCurve->m_numSegments, boundaryConditions, m_experimentParams.weightingParameters);
 
         const int64_t NumPosPerCurve = (m_upInitialCurve->m_numSegments + 1);
         const int64_t NumTanPerCurve = (m_upInitialCurve->m_numSegments + 1);
@@ -320,7 +265,11 @@ namespace twisty
             }
         }
 
+        // Cached weights: num segments X num perturb threads
         std::vector<double> cachedSegmentWeights(m_experimentParams.numSegmentsPerCurve * numPurturbThreads);
+        // Stores the weights to read back from the experiment?
+        // Export path batch cache size -> How many compressed paths we can track at once?
+        // Per scatter value, which we will focus on one atm.
         std::vector<double> compressedWeightBuffer(ExportPathBatchCacheSize * m_experimentParams.weightingParameters.scatterValues.size());
 
         std::stringstream fnFilenameSS;
@@ -416,6 +365,19 @@ namespace twisty
             weightingIntegralsRawPointers[idx] = lookupEvaluators[idx].get();
         }
 
+
+        std::ofstream bigfloatOFS;
+        if (m_experimentParams.outputBigFloatWeights)
+        {
+            std::filesystem::path weightDirectoryPath = m_pathBatchOutputPath;
+            std::string bigfloatOutputFile = "BigFloatWeights.txt";
+            weightDirectoryPath.append(bigfloatOutputFile);
+
+            bigfloatOFS.open(weightDirectoryPath.c_str());
+            bigfloatOFS << m_experimentParams.numPathsInExperiment << std::endl;
+        }
+
+
         for (int64_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
         {
             auto dispatchTimeStart = std::chrono::high_resolution_clock::now();
@@ -472,7 +434,22 @@ namespace twisty
             auto weightingTimeStart = std::chrono::high_resolution_clock::now();
 
             std::vector<boost::multiprecision::cpp_dec_float_100> bigFloatWeightsLog10(pathsInDispatch);
-            int64_t numWeightingThreads = std::thread::hardware_concurrency();
+            
+            int64_t numWeightingThreads = m_experimentParams.maxWeightThreads;
+
+            if (numSystemThreads < numWeightingThreads)
+            {
+                std::cout << "Requested more threads than system has, defaulting to number of system threads" << std::endl;
+                numWeightingThreads = numSystemThreads;
+            }
+
+            if (numWeightingThreads == 0)
+            {
+                std::cout << "Requested behavior: Use number of system threads" << std::endl;
+                numWeightingThreads = numSystemThreads;
+            }
+
+            std::cout << "Using " << numWeightingThreads << " threads for weighting." << std::endl;
 
             std::vector<boost::multiprecision::cpp_dec_float_100> totalDispatchWeights(lookupEvaluators.size());
             for (int64_t idx = 0; idx < lookupEvaluators.size(); ++idx)
@@ -506,16 +483,6 @@ namespace twisty
                     }
                 }
 
-#if defined(DetailedPurturb)
-                {
-                    std::cout << "Thread weights: " << std::endl;
-                    for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
-                    {
-                        std::cout << threadWeights[threadIdx] << std::endl;
-                    }
-                }
-#endif
-
                 for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
                 {
                     for (int64_t scatterIdx = 0; scatterIdx < lookupEvaluators.size(); ++scatterIdx)
@@ -535,36 +502,27 @@ namespace twisty
             weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();
             /* --------------------- */
 
-#ifdef OutputBigFloatPathWeights
-            std::filesystem::path weightDirectoryPath = m_pathBatchOutputPath;
-            std::string bigfloatOutputFile = "BigFloatWeights.txt";
-            weightDirectoryPath.append(bigfloatOutputFile);
 
-            std::cout << "Output: " << dispatchIdx << " : " << bigFloatWeightsLog10.size() << std::endl;
+            if (m_experimentParams.outputBigFloatWeights)
+            {                
+                for (int64_t i = 0; i < bigFloatWeightsLog10.size(); ++i)
+                {
+                    // We have to add in the path normalizer here as it wasnt acounted for anywhere else before this for these specific saved off weights
+                    bigfloatOFS << (bigFloatWeightsLog10[i] + pathNormalizerLog10) << std::endl;
+                }
+            }
 
-            std::ofstream bigfloatOFS;
-            if (dispatchIdx == 0)
-            {
-                bigfloatOFS.open(weightDirectoryPath.c_str());
-                bigfloatOFS << m_experimentParams.numPathsInExperiment << std::endl;
-            }
-            else
-            {
-                bigfloatOFS.open(weightDirectoryPath.c_str(), std::ios::app);
-            }
-            
-            for (int64_t i = 0; i < bigFloatWeightsLog10.size(); ++i)
-            {
-                // We have to add in the path normalizer here as it wasnt acounted for anywhere else before this for these specific saved off weights
-                bigfloatOFS << (bigFloatWeightsLog10[i] + pathNormalizerLog10) << std::endl;
-            }
-#endif
             numPathsLeft -= pathsInDispatch;
             numPathsGenerated += pathsInDispatch;
 
             auto dispatchTimeEnd = std::chrono::high_resolution_clock::now();
             auto dispatchRunTime = std::chrono::duration_cast<std::chrono::milliseconds>(dispatchTimeEnd - dispatchTimeStart);
             std::cout << "\tDispatch " << dispatchIdx  << " Time: " << dispatchRunTime.count() << "ms" << std::endl;
+        }
+
+        if (m_experimentParams.outputBigFloatWeights)
+        {
+            bigfloatOFS.close();
         }
 
         std::cout << "Minimum Weight: " << minimumPathWeight << std::endl;
@@ -752,13 +710,27 @@ namespace twisty
                     scratchPositionSpaceRight[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
 
                 }
-                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
-                    &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions);
 
-                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
-                    &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions);
+                // Update the tangents and curvatures
+                {
+                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
+                        &scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
+                        numSegmentsPerCurve, boundaryConditions);
+
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
+                        &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve, boundaryConditions,
+                        m_experimentParams.weightingParameters);
+                }
+
+                // Update the right tangents and curvatures
+                {
+                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
+                        &scratchTangentSpaceRight[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
+
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceRight[CurrentThreadTanStartIdx],
+                        &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve, boundaryConditions,
+                        m_experimentParams.weightingParameters);
+                }
 
                 std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 2), 25)); // uniform, unbiased
                 int64_t diff = diffDist(rngGenerators[threadIdx]);
@@ -771,12 +743,6 @@ namespace twisty
                 assert((rightPointIndex - leftPointIndex) >= diff);
                 assert(leftPointIndex < rightPointIndex);
 
-#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                {
-                    printf("Left point idx: %d\n", leftPointIndex);
-                    printf("Right point idx: %d\n", rightPointIndex);
-                }
-#endif
                 // We need two frames for each segment to get the new curvature and torsion.
                 // we need the frame left of the segment, as well as the frame right of the segment.
                 // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
@@ -787,12 +753,6 @@ namespace twisty
 
                 double leftRotationAngle = 0.0;
                 {
-#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                    printf("Axis before (%.6f, %.6f, %.6f)\n",
-                        N[0], N[1], N[2]
-                    );
-#endif
-
                     const Farlor::Vector3 Xss1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex - 1];
                     const Farlor::Vector3 Xs = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex];
                     const Farlor::Vector3 Xsp1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + leftPointIndex + 1];
@@ -837,12 +797,6 @@ namespace twisty
 
                 double rightRotationAngle = 0.0;
                 {
-                    //#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                    //                    printf("Axis before (%.6f, %.6f, %.6f)\n",
-                    //                        N_R[0], N_R[1], N_R[2]
-                    //                    );
-                    //#endif
-
                     const Farlor::Vector3 Xes1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex - 1];
                     const Farlor::Vector3 Xe = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex];
 
@@ -905,7 +859,7 @@ namespace twisty
                     }
                     //double mult = (((pathCount / 2) % 2) == 0) ? 1 : -1;
 
-                    std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi * AmountOfFullRotation, TwistyPi * AmountOfFullRotation);
+                    std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
                     //rotationAngle = TwistyPi * 0.75 * mult;
                     double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
                     leftRotationAngle = randRotationAngle;
@@ -938,9 +892,12 @@ namespace twisty
                     //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                     //We can do a different approach later.
                     // Here, we want to do a perturb update call
-                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
-                        &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions);
+                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
+                        &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
+
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
+                        &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
+                        numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                 }
 
                 // Right Rotation
@@ -960,9 +917,12 @@ namespace twisty
                     //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                     //We can do a different approach later.
                     // Here, we want to do a perturb update call
-                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
-                        &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions);
+                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
+                        &scratchTangentSpaceRight[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
+
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceRight[CurrentThreadTanStartIdx],
+                        &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
+                        numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                 }
 
                 double leftPathWeightLog10 = twisty::PathWeighting::SimpleWeightCurveViaTangentDotProductLog10(&(scratchTangentSpaceLeft[CurrentThreadTanStartIdx]),
@@ -1036,9 +996,12 @@ namespace twisty
                     }
                 }
 
-                twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&globalPos[CurrentThreadPosStartIdx],
-                    &globalTans[CurrentThreadTanStartIdx], &globalCurvatures[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions);
+                twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
+                    &globalTans[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
+
+                twisty::PerturbUtils::UpdateCurvaturesFromTangents(&globalTans[CurrentThreadTanStartIdx],
+                    &globalCurvatures[CurrentThreadCurvatureStartIdx],
+                    numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
 
                 numPathsAccepted++;
 

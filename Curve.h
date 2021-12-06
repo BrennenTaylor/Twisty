@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "PerturbUtils.h"
+
 #include <FMath/Vector3.h>
 #include <FMath/Matrix3x3.h>
 
@@ -70,11 +72,13 @@ namespace twisty
         static std::unique_ptr<Curve> LoadCurveFromStream(std::ifstream& ifstream);
         static void WriteCurveToStream(std::ofstream& outputStream, const twisty::Curve& seedCurve);
 
-        enum class CurveMode
-        {
-            ReconstructFrames = 0,
-            StoredTangents = 1
-        };
+        // enum class CurveMode
+        // {
+        //     ReconstructFrames = 0,
+        //     StoredTangents = 1
+        // };
+
+        twisty::PerturbUtils::BoundaryConditions GetBoundaryConditions() const;
 
     public:
         uint32_t m_numSegments = 0;
@@ -83,8 +87,8 @@ namespace twisty
 
         Farlor::Vector3 m_basePos;
         Farlor::Vector3 m_baseTangent;
-        Farlor::Vector3 m_baseNormal;
-        Farlor::Vector3 m_baseBinormal;
+        // Farlor::Vector3 m_baseNormal;
+        // Farlor::Vector3 m_baseBinormal;
         Farlor::Vector3 m_targetPos;
         Farlor::Vector3 m_targetTangent;
 
@@ -104,6 +108,6 @@ namespace twisty
         std::vector<Farlor::Vector3> m_positions;
         std::vector<Farlor::Vector3> m_tangents;
 
-        CurveMode m_mode = CurveMode::StoredTangents;
+        // CurveMode m_mode = CurveMode::StoredTangents;
     };
 }

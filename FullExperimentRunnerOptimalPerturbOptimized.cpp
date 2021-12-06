@@ -166,8 +166,11 @@ namespace twisty
         // Hard code the final position
         initialCurvePositions[m_experimentParams.numSegmentsPerCurve] = m_upInitialCurve->m_targetPos;
 
-        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
-            initialCurveCurvatures.data(), m_upInitialCurve->m_numSegments, boundaryConditions);
+        twisty::PerturbUtils::UpdateTangentsFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
+            m_upInitialCurve->m_numSegments, boundaryConditions);
+
+        twisty::PerturbUtils::UpdateCurvaturesFromTangents(initialCurveTangents.data(), initialCurveCurvatures.data(),
+            m_upInitialCurve->m_numSegments, boundaryConditions, m_experimentParams.weightingParameters);
 
         const int64_t NumPosPerCurve = (m_upInitialCurve->m_numSegments + 1);
         const int64_t NumTanPerCurve = (m_upInitialCurve->m_numSegments + 1);
@@ -460,13 +463,28 @@ namespace twisty
                         scratchPositionSpaceRight[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
 
                     }
-                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
-                        &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions);
 
-                    twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
-                        &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions);
+                    // Update left
+                    {
+                        twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
+                            &scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
+                            numSegmentsPerCurve, boundaryConditions);
+
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
+                            &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
+                            numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+                    }
+
+                    // Update right
+                    {
+                        twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
+                            &scratchTangentSpaceRight[CurrentThreadTanStartIdx],
+                            numSegmentsPerCurve, boundaryConditions);
+
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceRight[CurrentThreadTanStartIdx],
+                            &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
+                            numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+                    }
 
 #ifdef HardcodedSegments
                     int64_t leftPointIndex = 25;
@@ -675,9 +693,13 @@ namespace twisty
                         //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                         //We can do a different approach later.
                         // Here, we want to do a perturb update call
-                        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
-                            &scratchTangentSpaceLeft[CurrentThreadTanStartIdx], &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
+                        twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceLeft[CurrentThreadPosStartIdx],
+                            &scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
                             numSegmentsPerCurve, boundaryConditions);
+
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
+                            &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
+                            numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                     }
 
                     // Right Rotation
@@ -697,9 +719,13 @@ namespace twisty
                         //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                         //We can do a different approach later.
                         // Here, we want to do a perturb update call
-                        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
-                            &scratchTangentSpaceRight[CurrentThreadTanStartIdx], &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
+                        twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpaceRight[CurrentThreadPosStartIdx],
+                            &scratchTangentSpaceRight[CurrentThreadTanStartIdx],
                             numSegmentsPerCurve, boundaryConditions);
+
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceRight[CurrentThreadTanStartIdx],
+                            &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
+                            numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                     }
 
                     double leftPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
@@ -781,9 +807,13 @@ namespace twisty
                             }
                         }
 
-                        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(&globalPos[CurrentThreadPosStartIdx],
-                            &globalTans[CurrentThreadTanStartIdx], &globalCurvatures[CurrentThreadCurvatureStartIdx],
+                        twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
+                            &globalTans[CurrentThreadTanStartIdx],
                             numSegmentsPerCurve, boundaryConditions);
+
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents(&globalTans[CurrentThreadTanStartIdx],
+                            &globalCurvatures[CurrentThreadCurvatureStartIdx],
+                            numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                     }
 
                     if (accepted)

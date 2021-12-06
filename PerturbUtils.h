@@ -4,6 +4,11 @@
 
 namespace twisty
 {
+    struct WeightingParameters;
+}
+
+namespace twisty
+{
     namespace PerturbUtils
     {
         struct BoundaryConditions
@@ -15,7 +20,10 @@ namespace twisty
             float arclength = 0.0f;
         };
 
-        void RecalculateTangentsCurvaturesFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
-            float* pCurvatures, const uint32_t numSegments, const BoundaryConditions& boundaryConditions);
+        void UpdateTangentsFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
+            const uint32_t numSegments, const BoundaryConditions& boundaryConditions);
+
+        void UpdateCurvaturesFromTangents(Farlor::Vector3* pTangents, float* pCurvatures,
+            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp);
     }
 }

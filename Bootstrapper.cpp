@@ -182,9 +182,10 @@ namespace twisty
         boundaryConditions.m_startDir = upGeneratedCurve->m_baseTangent;
         boundaryConditions.m_endPos = upGeneratedCurve->m_targetPos;
         boundaryConditions.m_endDir = upGeneratedCurve->m_targetTangent;
-        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(upGeneratedCurve->m_positions.data(),
+
+        // No curvature update
+        twisty::PerturbUtils::UpdateTangentsFromPos(upGeneratedCurve->m_positions.data(),
             upGeneratedCurve->m_tangents.data(),
-            upGeneratedCurve->m_curvatures.data(),
             upGeneratedCurve->m_numSegments,
             boundaryConditions
         );

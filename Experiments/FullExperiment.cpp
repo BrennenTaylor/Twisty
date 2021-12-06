@@ -36,6 +36,11 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
         experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
         experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
 
+        experimentParams.maxPerturbThreads = (int)config.lookup("experiment.experimentParams.maxPerturbThreads");
+        experimentParams.maxWeightThreads = (int)config.lookup("experiment.experimentParams.maxWeightThreads");
+
+        experimentParams.outputBigFloatWeights = (bool)config.lookup("experiment.experimentParams.outputBigFloatWeights");
+
         experimentParams.numSegmentsPerCurve = (int)config.lookup("experiment.experimentParams.numSegments");
         experimentParams.arclength = config.lookup("experiment.experimentParams.arclength");
 

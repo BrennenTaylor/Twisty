@@ -236,8 +236,12 @@ namespace twisty
         // Hard code the final position
         initialCurvePositions[m_experimentParams.numSegmentsPerCurve] = m_upInitialCurve->m_targetPos;
 
-        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
-            initialCurveCurvatures.data(), m_upInitialCurve->m_numSegments, boundaryConditions);
+        twisty::PerturbUtils::UpdateTangentsFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
+            m_upInitialCurve->m_numSegments, boundaryConditions);
+
+        twisty::PerturbUtils::UpdateCurvaturesFromTangents(initialCurveTangents.data(),
+            initialCurveCurvatures.data(), m_upInitialCurve->m_numSegments, boundaryConditions,
+            m_experimentParams.weightingParameters);
 
         const int64_t NumPosPerCurve = (m_upInitialCurve->m_numSegments + 1);
         const int64_t NumTanPerCurve = (m_upInitialCurve->m_numSegments + 1);
@@ -563,8 +567,10 @@ namespace twisty
         // Hard code the final position
         initialCurvePositions[m_experimentParams.numSegmentsPerCurve] = m_upInitialCurve->m_targetPos;
 
-        twisty::PerturbUtils::RecalculateTangentsCurvaturesFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
-            initialCurveCurvatures.data(), m_upInitialCurve->m_numSegments, boundaryConditions);
+        twisty::PerturbUtils::UpdateTangentsFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
+            m_upInitialCurve->m_numSegments, boundaryConditions);
+        twisty::PerturbUtils::UpdateCurvaturesFromTangents(initialCurveTangents.data(), initialCurveCurvatures.data(),
+            m_upInitialCurve->m_numSegments, boundaryConditions, m_experimentParams.weightingParameters);
 
         const int64_t NumPosPerCurve = (m_upInitialCurve->m_numSegments + 1);
         const int64_t NumTanPerCurve = (m_upInitialCurve->m_numSegments + 1);

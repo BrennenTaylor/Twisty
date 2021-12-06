@@ -59,6 +59,11 @@ namespace twisty
             twisty::WeightingParameters weightingParameters;
             float rotateInitialSeedCurveRadians = 0.0f;
             PathNormalizerType pathNormalizerType = PathNormalizerType::PDF;
+
+            // Set to 0 if we default to max user machine threads
+            int32_t maxPerturbThreads = 0;
+            int32_t maxWeightThreads = 0;
+            bool outputBigFloatWeights = false;
         };
 
         struct ExperimentResults

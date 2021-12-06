@@ -93,4 +93,15 @@ namespace twisty
 
         return upInitialCurve;
     }
+
+    twisty::PerturbUtils::BoundaryConditions Curve::GetBoundaryConditions() const
+    {
+        twisty::PerturbUtils::BoundaryConditions bc;
+        bc.arclength = m_arclength;
+        bc.m_startPos = m_basePos;
+        bc.m_startDir = m_baseTangent;
+        bc.m_endPos = m_targetPos;
+        bc.m_endDir = m_targetTangent;
+        return bc;
+    }
 }
