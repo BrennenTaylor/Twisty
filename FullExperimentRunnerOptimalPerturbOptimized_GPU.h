@@ -147,7 +147,7 @@ namespace twisty
         FullExperimentRunnerOptimalPerturbOptimized_GPU(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunnerOptimalPerturbOptimized_GPU();
 
-        virtual std::optional<ExperimentResults> RunnerSpecificRunExperiment() override;
+        virtual ExperimentRunner::RunnerSpecificResults RunnerSpecificRunExperiment() override;
 
     private:
         /*

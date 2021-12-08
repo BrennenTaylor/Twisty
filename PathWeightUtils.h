@@ -132,8 +132,6 @@ namespace twisty
             SimpleWeightLookupTable(const WeightingParameters& weightingParams, double ds);
             virtual ~SimpleWeightLookupTable();
 
-            //virtual double Integrate(double curvature, const WeightingParameters& weightingParams, double ds) const override;
-
             virtual const std::string ExportFilename() const override{
                 return "SimpleWeightLookupTable_Values.csv";
             }
@@ -142,15 +140,19 @@ namespace twisty
 
         };
 
-        void CalcMinMaxCurvature(const twisty::WeightingParameters& wp, double& minCurvature, double& maxCurvature, double ds);
+        struct MinMaxCurvature
+        {
+            double minCurvature = 0.0;
+            double maxCurvature = 0.0;
+        };
+        MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters& wp, double ds);
 
         // Given a vector of curvatures, 1 per segement of a path, weight the path and return the long10 of the weight
         // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
         // Assumes that integral matches weighting params
         double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
 
-
-        double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral);
+        // double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral);
 
         namespace NormalizerStuff
         {

@@ -16,6 +16,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -89,7 +90,15 @@ namespace twisty
         }
 
     protected:
-        virtual std::optional<ExperimentResults> RunnerSpecificRunExperiment() = 0;
+        struct RunnerSpecificResults
+        {
+            std::optional<ExperimentResults> experimentResults;
+            uint64_t setupMsCount = 0;
+            uint64_t runExperimentMsCount = 0;
+            uint64_t weightingMsCount = 0;
+        };
+        
+        virtual RunnerSpecificResults RunnerSpecificRunExperiment() = 0;
 
         bool BeginPathBatchOutput();
         void OutputPathBatch(PathBatch& pathBatch);

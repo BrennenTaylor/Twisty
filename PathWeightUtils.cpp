@@ -81,8 +81,8 @@ namespace twisty
                 std::filesystem::create_directory(exprDirectory);
             }
 
-            const std::string TableValuesFilename = ExportFilename();
-            const std::filesystem::path outputFilePath = exprDirectory / TableValuesFilename;
+            const std::string tableValuesFilename = ExportFilename();
+            const std::filesystem::path outputFilePath = exprDirectory / tableValuesFilename;
 
             std::cout << "Exporting table of size: " << m_lookupTable.size() << std::endl;
 
@@ -95,13 +95,14 @@ namespace twisty
             outputFile.close();
         }
 
-
         // Lookup table integrand
         WeightLookupTableIntegral::WeightLookupTableIntegral(const WeightingParameters& weightingParams, double ds)
             : BaseWeightLookupTable(weightingParams, ds, 0.0, 0.0)
         {
             std::cout << "Calcuating WeightLookupTableIntegral lookup table" << std::endl;
-            twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, m_minCurvature, m_maxCurvature, ds);
+            MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds);
+            m_minCurvature = minMax.minCurvature;
+            m_maxCurvature = minMax.maxCurvature;
 
             m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
@@ -210,21 +211,22 @@ namespace twisty
             // Perform integration. Per disertation page 34, when bn is constant, wn peaks at kds. As a result, normalizeation is used.
             // This is due to an overflow. However, as we already are using a big float library, do we even need to deal with this?
             double firstVal = 0.0f;
-            double normalizerWithZeroCurvature = 0.0f;
+            // double normalizerWithZeroCurvature = 0.0f;
             {
                 double stepSize = (weightingParams.maxBound - weightingParams.minBound) / (weightingParams.numStepsInt - 1);
                 for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i)
                 {
                     double p = i * stepSize;
                     firstVal += Integrand(p, kds, bds) * stepSize;
-                    normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
+                    // normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
                 }
             }
 
+            // We put the exponential falloff due to C here.
             double c = weightingParams.absorbtion + weightingParams.scatter;
             double constant = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
             // TODO: For now, lets try not including this
-            return constant * firstVal;//(firstVal / normalizerWithZeroCurvature);
+            return constant * firstVal;
         }
 
         // Lookup table integrand
@@ -232,7 +234,9 @@ namespace twisty
             : BaseWeightLookupTable(weightingParams, ds, -1.0, 1.0)
         {
             std::cout << "Calcuating path weight integral lookup table: " << weightingParams.numCurvatureSteps << std::endl;
-            twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, m_minCurvature, m_maxCurvature, ds);
+            MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds);
+            m_minCurvature = minMax.minCurvature;
+            m_maxCurvature = minMax.maxCurvature;
 
             m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
@@ -312,33 +316,36 @@ namespace twisty
         {
         }
 
-        void CalcMinMaxCurvature(const twisty::WeightingParameters& wp, double& minCurvature, double& maxCurvature, double ds)
+        MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters& wp, double ds)
         {
             switch(wp.weightingMethod)
             {
-                
                 case WeightingMethod::RadiativeTransfer:
                 {
                     // Our curvature lookups are using finite difference
                     // ki = (ti+1 - ti-1) / (2.0 * ds)
                     // Our max and min are calculated as follows
 
-                    minCurvature = 0.0;
-                    maxCurvature = 2.0 / (ds);
-
+                    MinMaxCurvature result;
+                    result.minCurvature = 0.0;
+                    result.maxCurvature = 2.0 / (ds);
+                    return result;
                 } break;
                 case WeightingMethod::SimplifiedModel:
                 {
                     // This is a dot prodcuct version
                     // Curvatures are calculated in the following:
                     // tr.dot(tl) = [-1, 1]
-                    minCurvature = -1.0;
-                    maxCurvature = 1.0;
-
+                    MinMaxCurvature result;                    
+                    result.minCurvature = -1.0;
+                    result.maxCurvature = 1.0;
+                    return result;
                 } break;
                 default: 
                 {
                     std::cout << "Error, invalid weighting model selected" << std::endl;
+                    MinMaxCurvature result;                    
+                    return result;
                 } break;
             }
         }
@@ -353,15 +360,14 @@ namespace twisty
 
             double ds = weightIntegral.GetDs();
             const auto& weightingParams = weightIntegral.GetWeightingParams();
-            double minCurvature = 0.0;
-            double maxCurvature = 0.0;
-            twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, minCurvature, maxCurvature, ds);
-            const double curvatureStepSize = (maxCurvature - minCurvature) / weightingParams.numCurvatureSteps;
+            MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds);
+            const double curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) / weightingParams.numCurvatureSteps;
             auto& lookupTable = weightIntegral.AccessLookupTable();
 
-            const float c = weightingParams.scatter + weightingParams.absorbtion;
-            const float absorbtionConst = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
-            const float absorbtionConstLog10 = std::log10(absorbtionConst);
+            // TODO: We shouldnt need this as its included already in the weight table
+            // const float c = weightingParams.scatter + weightingParams.absorbtion;
+            // const float absorbtionConst = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
+            // const float absorbtionConstLog10 = std::log10(absorbtionConst);
 
             // Calculate value
             double runningPathWeightLog10 = 0.0;
@@ -369,10 +375,15 @@ namespace twisty
             {
                 // Extract curvature
                 double curvature = pCurvatureStart[segIdx];
-                double distance = curvature - minCurvature;
+                double distance = curvature - minMax.minCurvature;
                 double realIdx = distance / curvatureStepSize;
                 int64_t leftIdx = floor(realIdx);
                 int64_t rightIdx = leftIdx + 1;
+
+                if (leftIdx == lookupTable.size() - 1)
+                {
+                    rightIdx--; // Bump it left 1, it doesnt really matter anymore anyways.
+                }
 
                 double leftLookup = lookupTable[leftIdx];
                 double rightLookup = lookupTable[rightIdx];
@@ -385,9 +396,6 @@ namespace twisty
                 // Lets do weights as doubles for now
                 double segmentWeightLog10 = interpolatedResultLog10;
 
-                // Take natural log of this constant
-                segmentWeightLog10 += absorbtionConstLog10;
-
                 // Update the running path weight. We also want to cache the segment weights
                 runningPathWeightLog10 += segmentWeightLog10;
             }
@@ -395,62 +403,61 @@ namespace twisty
         }
 
 
-        // We have to calculate the "curvature" a different way for the simple weight case.
-        // The actual value used is the dot product between two neighboring tangents
-        double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangentsStart, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral)
-        {
-            if (!pTangentsStart || (numSegments == 0))
-            {
-                return 0.0;
-            }
+        // // We have to calculate the "curvature" a different way for the simple weight case.
+        // // The actual value used is the dot product between two neighboring tangents
+        // double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangentsStart, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral)
+        // {
+        //     if (!pTangentsStart || (numSegments == 0))
+        //     {
+        //         return 0.0;
+        //     }
 
-            uint32_t numScatterEvents = numSegments - 1;
+        //     uint32_t numScatterEvents = numSegments - 1;
 
-            double ds = weightIntegral.GetDs();
-            const auto& weightingParams = weightIntegral.GetWeightingParams();
-            double minCurvature = weightIntegral.GetMinCurvature();
-            double maxCurvature = weightIntegral.GetMaxCurvature();
-            const double curvatureStepSize = (maxCurvature - minCurvature) / weightingParams.numCurvatureSteps;
-            auto& lookupTable = weightIntegral.AccessLookupTable();
+        //     double ds = weightIntegral.GetDs();
+        //     const auto& weightingParams = weightIntegral.GetWeightingParams();
+        //     MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds);
+        //     const double curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) / weightingParams.numCurvatureSteps;
+        //     auto& lookupTable = weightIntegral.AccessLookupTable();
 
-            // Calculate value
-            double runningPathWeightLog10 = 0.0;
-            for (int64_t segIdx = 0; segIdx < numScatterEvents; ++segIdx)
-            {
-                // Extract curvature
-                Farlor::Vector3 leftTangent = pTangentsStart[segIdx].Normalized();
-                Farlor::Vector3 rightTangent = pTangentsStart[segIdx + 1].Normalized();
+        //     // Calculate value
+        //     double runningPathWeightLog10 = 0.0;
+        //     for (int64_t segIdx = 0; segIdx < numScatterEvents; ++segIdx)
+        //     {
+        //         // Extract curvature
+        //         Farlor::Vector3 leftTangent = pTangentsStart[segIdx].Normalized();
+        //         Farlor::Vector3 rightTangent = pTangentsStart[segIdx + 1].Normalized();
 
-                float curvature = leftTangent.Dot(rightTangent);
-                curvature = std::min(curvature, 1.0f);
-                curvature = std::max(curvature, -1.0f);
+        //         float curvature = leftTangent.Dot(rightTangent);
+        //         curvature = std::min(curvature, 1.0f);
+        //         curvature = std::max(curvature, -1.0f);
 
-                double distance = curvature - minCurvature;
-                double realIdx = distance / curvatureStepSize;
-                int64_t leftIdx = floor(realIdx);
-                int64_t rightIdx = leftIdx + 1;
-                if (leftIdx == lookupTable.size() - 1)
-                {
-                    rightIdx--; // Bump it left 1, it doesnt really matter anymore anyways.
-                }
+        //         double distance = curvature - minMax.minCurvature;
+        //         double realIdx = distance / curvatureStepSize;
+        //         int64_t leftIdx = floor(realIdx);
+        //         int64_t rightIdx = leftIdx + 1;
+        //         if (leftIdx == lookupTable.size() - 1)
+        //         {
+        //             rightIdx--; // Bump it left 1, it doesnt really matter anymore anyways.
+        //         }
 
-                double leftLookup = lookupTable[leftIdx];
+        //         double leftLookup = lookupTable[leftIdx];
 
-                double rightLookup = lookupTable[rightIdx];
+        //         double rightLookup = lookupTable[rightIdx];
 
-                double leftDist = distance - (leftIdx * curvatureStepSize);
+        //         double leftDist = distance - (leftIdx * curvatureStepSize);
 
-                double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
-                // Take the log10 of the interpolated results
-                double interpolatedResultLog10 = std::log10(interpolatedResult);
-                // Lets do weights as doubles for now
-                double segmentWeightLog10 = interpolatedResultLog10;
+        //         double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
+        //         // Take the log10 of the interpolated results
+        //         double interpolatedResultLog10 = std::log10(interpolatedResult);
+        //         // Lets do weights as doubles for now
+        //         double segmentWeightLog10 = interpolatedResultLog10;
 
-                // Update the running path weight. We also want to cache the segment weights
-                runningPathWeightLog10 += segmentWeightLog10;
-            }
-            return runningPathWeightLog10;
-        }
+        //         // Update the running path weight. We also want to cache the segment weights
+        //         runningPathWeightLog10 += segmentWeightLog10;
+        //     }
+        //     return runningPathWeightLog10;
+        // }
 
         namespace NormalizerStuff
         {

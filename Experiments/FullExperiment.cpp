@@ -225,6 +225,10 @@ int main(int argc, char *argv[])
         {
             std::cout << "\tTotal experiment weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] << std::endl;
             std::cout << "\tAvg path weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
+            ofs << "Scatter value: " << experimentParams.weightingParameters.scatterValues[scatterIdx] << std::endl;
+            ofs << "\tTotal experiment weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] << std::endl;
+            ofs << "\tAvg path weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
+
         }
         ofs << std::endl;
 

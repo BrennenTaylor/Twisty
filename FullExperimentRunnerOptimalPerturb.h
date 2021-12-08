@@ -26,7 +26,7 @@ namespace twisty
         FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper);
         virtual ~FullExperimentRunnerOptimalPerturb();
 
-        virtual std::optional<ExperimentResults> RunnerSpecificRunExperiment() override;
+        virtual ExperimentRunner::RunnerSpecificResults RunnerSpecificRunExperiment() override;
 
     private:
         void GeometryPerturb(
@@ -48,13 +48,13 @@ namespace twisty
             std::vector<double>& globalPathWeights,
             std::vector<double>& cachedSegmentWeights,
             float segmentLength,
-            std::vector<twisty::PathWeighting::WeightLookupTableIntegral*> weightingIntegrals,
+            twisty::PathWeighting::WeightLookupTableIntegral* weightingIntegralPtr,
             const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
             const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
         );
 
         void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread,
-            int numLookupEvaluators, float arclength, int64_t numSegmentsPerCurve,
+            float arclength, int64_t numSegmentsPerCurve,
             const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeightsLog10,
             std::vector<boost::multiprecision::cpp_dec_float_100>& threadScatterWeights, boost::multiprecision::cpp_dec_float_100 pathNormalizer);
     };

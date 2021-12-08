@@ -23,6 +23,68 @@ namespace twisty
     {
     }
 
+    std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperiment()
+    {
+        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
+
+        /* --------------------- */
+
+        std::cout << "Random Seeds: " << std::endl;
+        std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
+        std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
+
+        m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
+        if (!m_upInitialCurve)
+        {
+            printf("Both bootstrap versions failed, now we have to error out.\n");
+            return {};
+        }
+
+        if (m_experimentParams.outputPathBatches)
+        {
+            BeginPathBatchOutput();
+
+            std::stringstream pathBinaryFilenameSS;
+            pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
+            pathBinaryFilenameSS << "Paths_Binary"
+                                 << ".pbd";
+
+            std::filesystem::path binaryFilePath = m_pathBatchOutputPath;
+            binaryFilePath.append(pathBinaryFilenameSS.str());
+            m_curvesBinaryFile.open(binaryFilePath, std::ios::binary);
+
+            std::stringstream pathMetadataFilenameSS;
+            pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
+            pathMetadataFilenameSS << "Paths_Metadata"
+                                   << ".pmd";
+
+            std::filesystem::path metadataFilePath = m_pathBatchOutputPath;
+            metadataFilePath.append(pathMetadataFilenameSS.str());
+            m_curvesMetadataFile.open(metadataFilePath);
+        }
+
+        const RunnerSpecificResults runnerSpecificResult = RunnerSpecificRunExperiment();
+
+        auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
+
+        std::cout << "Experiment Time Reporting: " << std::endl;
+        auto runExperimentTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(runExperimentTimeEnd - runExperimentTimeStart);
+        std::cout << "\tTotal Experiment Time: " << runExperimentTimeMs.count() << "ms" << std::endl;
+
+        std::cout << "\tRunner Specific Setup (ms): " << runnerSpecificResult.setupMsCount << std::endl;
+        std::cout << "\tRunner Specific Perturb (ms): " << runnerSpecificResult.runExperimentMsCount << std::endl;
+        std::cout << "\tRunner Specific Weighting (ms): " << runnerSpecificResult.weightingMsCount << std::endl;
+
+        if (m_experimentParams.outputPathBatches)
+        {
+            EndPathBatchOutput();
+
+            m_curvesBinaryFile.close();
+            m_curvesMetadataFile.close();
+        }
+        return runnerSpecificResult.experimentResults;
+    }
+
     bool ExperimentRunner::BeginPathBatchOutput()
     {
 
@@ -120,63 +182,5 @@ namespace twisty
         std::ofstream jsonOfstream(indexJsonPath.string());
         jsonOfstream << buffer.GetString() << std::endl;
         jsonOfstream.close();
-    }
-
-    std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperiment()
-    {
-        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
-
-        /* --------------------- */
-
-        std::cout << "Random Seeds: " << std::endl;
-        std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
-        std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
-
-        m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
-        if (!m_upInitialCurve)
-        {
-            printf("Both bootstrap versions failed, now we have to error out.\n");
-            return {};
-        }
-
-        if (m_experimentParams.outputPathBatches)
-        {
-            BeginPathBatchOutput();
-
-            std::stringstream pathBinaryFilenameSS;
-            pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
-            pathBinaryFilenameSS << "Paths_Binary"
-                                 << ".pbd";
-
-            std::filesystem::path binaryFilePath = m_pathBatchOutputPath;
-            binaryFilePath.append(pathBinaryFilenameSS.str());
-            m_curvesBinaryFile.open(binaryFilePath, std::ios::binary);
-
-            std::stringstream pathMetadataFilenameSS;
-            pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
-            pathMetadataFilenameSS << "Paths_Metadata"
-                                   << ".pmd";
-
-            std::filesystem::path metadataFilePath = m_pathBatchOutputPath;
-            metadataFilePath.append(pathMetadataFilenameSS.str());
-            m_curvesMetadataFile.open(metadataFilePath);
-        }
-
-        std::optional<ExperimentRunner::ExperimentResults> result = RunnerSpecificRunExperiment();
-
-        auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
-
-        std::cout << "Experiment Time Reporting: " << std::endl;
-        auto runExperimentTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(runExperimentTimeEnd - runExperimentTimeStart);
-        std::cout << "\tTotal Experiment Time: " << runExperimentTimeMs.count() << "ms" << std::endl;
-
-        if (m_experimentParams.outputPathBatches)
-        {
-            EndPathBatchOutput();
-
-            m_curvesBinaryFile.close();
-            m_curvesMetadataFile.close();
-        }
-        return result;
     }
 }

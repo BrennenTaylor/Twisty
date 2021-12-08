@@ -103,7 +103,7 @@ namespace twisty
     {
     }
 
-    std::optional<ExperimentRunner::ExperimentResults> FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
+    ExperimentRunner::RunnerSpecificResults FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     {
         int64_t numFailures = 0;
         int64_t totalFailures = 0;
@@ -178,11 +178,8 @@ namespace twisty
         boundaryConditions.m_endDir = m_upInitialCurve->m_targetTangent;
         
         // Constants
-        double minCurvature = 0.0;
-        double maxCurvature = 0.0;
-        // TODO: Change this to float rather than double
-        twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, minCurvature, maxCurvature, ds);
-        const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
+        twisty::PathWeighting::MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, ds);
+        const float curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
 
         auto experimentTimeStart = std::chrono::high_resolution_clock::now();
 
@@ -308,24 +305,20 @@ namespace twisty
             CleanupCudaDevice();
         }
 
-        // {
-        //     auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
-        //     std::cout << "\tsetup Time: " << timeMs.count() << "ms - " << ((float)timeMs.count() / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        // }
-
-        // {
-        //     std::cout << "\tperturb Time: " << perturbTimeCount << "ms - " << ((float)perturbTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        // }
-
-        // {
-        //     std::cout << "\tweighting Time: " << weightCalcTimeCount << "ms - " << ((float)weightCalcTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        // }
+        auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
 
         ExperimentResults results;
         results.experimentWeights.push_back(bigTotalExperimentWeight);
         results.totalPathsGenerated = numCombinedWeightValuesTotal * MaxNumberOfPaths;
         results.numFailedPaths = 0;
-        return results;
+
+        ExperimentRunner::RunnerSpecificResults specificResult;
+        specificResult.experimentResults = std::make_optional<ExperimentResults>(results);
+        specificResult.setupMsCount = timeMs.count();
+        specificResult.runExperimentMsCount = perturbTimeCount;
+        specificResult.weightingMsCount = weightCalcTimeCount;
+
+        return specificResult;
     }
 
     bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaDevice()
@@ -755,52 +748,6 @@ namespace twisty
         twisty::WeightingParameters weightingParams_cuda)
     {
         return 0.0;
-        //if (!pCurvatureStart || (numCurvatures == 0))
-        //{
-        //    return 0.0;
-        //}
-
-        ////double ds = weightIntegral.GetDs();
-        //const auto& weightingParams = weightIntegral.GetWeightingParams();
-        //double minCurvature = 0.0;
-        //double maxCurvature = 0.0;
-        //twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
-        //const double curvatureStepSize = (maxCurvature - minCurvature) / weightingParams.numCurvatureSteps;
-        //auto& lookupTable = weightIntegral.AccessLookupTable();
-
-        //const float c = weightingParams.scatter + weightingParams.absorbtion;
-        //const float absorbtionConst = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
-        //const float absorbtionConstLog10 = std::log10(absorbtionConst);
-
-        //// Calculate value
-        //double runningPathWeightLog10 = 0.0;
-        //for (int64_t segIdx = 0; segIdx < numCurvatures; ++segIdx)
-        //{
-        //    // Extract curvature
-        //    double curvature = pCurvatureStart[segIdx];
-        //    double distance = curvature - minCurvature;
-        //    double realIdx = distance / curvatureStepSize;
-        //    int64_t leftIdx = floor(realIdx);
-        //    int64_t rightIdx = leftIdx + 1;
-
-        //    double leftLookup = lookupTable[leftIdx];
-        //    double rightLookup = lookupTable[rightIdx];
-
-        //    double leftDist = distance - (leftIdx * curvatureStepSize);
-
-        //    double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
-        //    // Take the natural log of the interpolated results
-        //    double interpolatedResultLog10 = std::log10(interpolatedResult);
-        //    // Lets do weights as doubles for now
-        //    double segmentWeightLog10 = interpolatedResultLog10;
-
-        //    // Take natural log of this constant
-        //    segmentWeightLog10 += absorbtionConstLog10;
-
-        //    // Update the running path weight. We also want to cache the segment weights
-        //    runningPathWeightLog10 += segmentWeightLog10;
-        //}
-        //return runningPathWeightLog10;
     }
 
     __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryPerturbKernel(

@@ -1023,11 +1023,8 @@ namespace twisty
         double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
         twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
         
-
-        double minCurvature = 0.0;
-        double maxCurvature = 0.0;
-        twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
-        const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
+        twisty::PathWeighting::MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, ds);
+        const float curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
 
         // Do non dispatch specific setup
         {

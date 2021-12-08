@@ -123,11 +123,8 @@ namespace twisty
         boundaryConditions.m_endDir = m_upInitialCurve->m_targetTangent;
         
         // Constants
-        double minCurvature = 0.0;
-        double maxCurvature = 0.0;
-        // TODO: Change this to float rather than double
-        twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
-        const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
+        twisty::PathWeighting::MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, ds);
+        const float curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
 
         // This is a horible hack to make sure we always purturb a new curve
         Curve curveToBend = *m_upInitialCurve;
@@ -569,32 +566,11 @@ namespace twisty
                         {
                             leftRotationAngle = -1.0 * (TwistyPi - angle);
                         }
-
-                        //std::cout << "Perturb: " << std::endl;
-                        //std::cout << "\tN: " << N << std::endl;
-                        //std::cout << "\tXss1: " << Xss1 << std::endl;
-                        //std::cout << "\tXs: " << Xs << std::endl;
-                        //std::cout << "\tXsp1: " << Xsp1 << std::endl;
-                        //std::cout << "\tPL: " << PL << std::endl;
-                        //std::cout << "\tZL: " << ZL << std::endl;
-
-                        //std::cout << "\tNL: " << NL << std::endl;
-                        //std::cout << "\tXsp1PLnorm: " << Xsp1PLnorm << std::endl;
-                        //std::cout << "\tsideDistL: " << sideDistL << std::endl;
-                        //std::cout << "\tcosAngle: " << cosAngle << std::endl;
-                        //std::cout << "\tangle: " << angle << std::endl;
-                        //std::cout << "\tleftRotationAngle: " << leftRotationAngle << std::endl;
                     }
 
 
                     double rightRotationAngle = 0.0;
                     {
-                        //#if defined(DetailedPurturb) && defined(SingleThreadMode)
-                        //                    printf("Axis before (%.6f, %.6f, %.6f)\n",
-                        //                        N_R[0], N_R[1], N_R[2]
-                        //                    );
-                        //#endif
-
                         const Farlor::Vector3 Xes1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex - 1];
                         const Farlor::Vector3 Xe = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex];
                         const Farlor::Vector3 Xep1 = scratchPositionSpaceLeft[CurrentThreadPosStartIdx + rightPointIndex + 1];
@@ -634,21 +610,6 @@ namespace twisty
                         {
                             rightRotationAngle = -1.0 * (TwistyPi - angle);
                         }
-
-                        //std::cout << "Perturb: " << std::endl;
-                        //std::cout << "\tN: " << N << std::endl;
-                        //std::cout << "\tXes1: " << Xes1 << std::endl;
-                        //std::cout << "\tXe: " << Xe << std::endl;
-                        //std::cout << "\tXep1: " << Xep1 << std::endl;
-                        //std::cout << "\tPR: " << PR << std::endl;
-                        //std::cout << "\tZR: " << ZR << std::endl;
-
-                        //std::cout << "\tNR: " << NR << std::endl;
-                        //std::cout << "\tXes1PLnorm: " << Xes1PLnorm << std::endl;
-                        //std::cout << "\tcosAngle: " << cosAngle << std::endl;
-                        //std::cout << "\tangle: " << angle << std::endl;
-                        //std::cout << "\tsideDistR: " << sideDistR << std::endl;
-                        //std::cout << "\trightRotationAngle: " << rightRotationAngle << std::endl;
                     }
 
                     // Overwrite angle
