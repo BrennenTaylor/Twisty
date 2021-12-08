@@ -52,6 +52,29 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
         experimentParams.curvePurturbSeed = (int)config.lookup("experiment.experimentParams.random.perturbSeed");
 
         // Weighting parameter stuff
+        int weightFunction = (int)config.lookup("experiment.experimentParams.weighting.weightFunction");
+        switch (weightFunction)
+        {
+            // Radiative Transfer weight function
+            case 0:
+            {
+                experimentParams.weightingParameters.weightingMethod = twisty::WeightingMethod::RadiativeTransfer;
+            } break;
+
+            // Simplified Model
+            case 1:
+            {
+                experimentParams.weightingParameters.weightingMethod = twisty::WeightingMethod::SimplifiedModel;
+            }
+            break;
+
+            // Default to the simplified model
+            default:
+            {
+                experimentParams.weightingParameters.weightingMethod = twisty::WeightingMethod::RadiativeTransfer;
+            }   break;
+        }
+
         experimentParams.weightingParameters.mu = config.lookup("experiment.experimentParams.weighting.mu");
         experimentParams.weightingParameters.eps = config.lookup("experiment.experimentParams.weighting.eps");
         experimentParams.weightingParameters.numStepsInt = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");
