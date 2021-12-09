@@ -52,18 +52,24 @@ namespace twisty
             std::cout << "WARNING: Only one scatter value supported, defaulting to first specified scatter parameter" << std::endl;
         }
         m_experimentParams.weightingParameters.scatter = m_experimentParams.weightingParameters.scatterValues[0];
-        std::unique_ptr<twisty::PathWeighting::WeightLookupTableIntegral> lookupEvaluator =
-            std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(m_experimentParams.weightingParameters,
-            m_upInitialCurve->m_segmentLength
-        );
+        std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
+
+        if (m_experimentParams.weightingParameters.weightingMethod == WeightingMethod::SimplifiedModel)
+        {
+            lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(m_experimentParams.weightingParameters,
+                                                                               m_upInitialCurve->m_segmentLength);
+        }
+        else
+        {
+            lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(m_experimentParams.weightingParameters,
+                                                                                                 m_upInitialCurve->m_segmentLength);
+        }
+            
         lookupEvaluator->ExportValues(m_experimentParams.experimentDirPath);
 
         twisty::PerturbUtils::BoundaryConditions boundaryConditions = m_upInitialCurve->GetBoundaryConditions();
 
         // Constants
-        twisty::PathWeighting::MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(m_experimentParams.weightingParameters, m_upInitialCurve->m_segmentLength);
-        const float curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
-
         int64_t numSystemThreads = std::thread::hardware_concurrency();
         int64_t numPurturbThreads = m_experimentParams.maxPerturbThreads;
 
@@ -152,7 +158,7 @@ namespace twisty
         // Stores the weights to read back from the experiment?
         // Export path batch cache size -> How many compressed paths we can track at once?
         // Per scatter value, which we will focus on one atm.
-        std::vector<double> compressedWeightBuffer(ExportPathBatchCacheSize * m_experimentParams.weightingParameters.scatterValues.size());
+        std::vector<double> compressedWeightBuffer(ExportPathBatchCacheSize);
 
         std::stringstream fnFilenameSS;
         fnFilenameSS << "SavedFN";
@@ -161,11 +167,6 @@ namespace twisty
         const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilenameSS.str();
         std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = nullptr;
 
-        //if (m_experimentParams.pathNormalizerType == PathNormalizerType::Default)
-        //{
-        //    upFN = std::make_unique<PathWeighting::NormalizerStuff::BaseNormalizer>();
-        //}
-        //else
         // We dont need this actually, so we can just load the default one
         {
             // If we can load the fn data, load it
@@ -205,14 +206,16 @@ namespace twisty
         std::cout << "Z: " << Z << std::endl;
         std::cout << "|Z|: " << Z.Magnitude() << std::endl;
 
-        PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = PathWeighting::NormalizerStuff::Norm(fn, m_upInitialCurve->m_numSegments,
-            Z.Magnitude(), boundaryConditions.arclength);
-
+        PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0;
+        if (m_experimentParams.weightingParameters.weightingMethod == WeightingMethod::RadiativeTransfer)
+        {
+            pathNormalizer = PathWeighting::NormalizerStuff::Norm(fn, m_upInitialCurve->m_numSegments,
+                                                 Z.Magnitude(), boundaryConditions.arclength);
+        }
         const boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10 = boost::multiprecision::log10(pathNormalizer);
 
         std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
         std::cout << "PathNormalizerLog10: " << pathNormalizerLog10 << std::endl;
-        //exit(1);
 
         auto setupTimeEnd = std::chrono::high_resolution_clock::now();
         /* --------------------- */
@@ -236,7 +239,7 @@ namespace twisty
         boost::multiprecision::cpp_dec_float_100 minimumPathWeight = 0.0;
         boost::multiprecision::cpp_dec_float_100 maximumPathWeight = 0.0;
 
-        twisty::PathWeighting::WeightLookupTableIntegral* weightingIntegralsRawPointer = lookupEvaluator.get();
+        twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralsRawPointer = lookupEvaluator.get();
 
         std::ofstream bigfloatOFS;
         if (m_experimentParams.outputBigFloatWeights)
@@ -248,7 +251,6 @@ namespace twisty
             bigfloatOFS.open(weightDirectoryPath.c_str());
             bigfloatOFS << m_experimentParams.numPathsInExperiment << std::endl;
         }
-
 
         for (int64_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
         {
@@ -263,31 +265,69 @@ namespace twisty
                 std::vector<std::thread> threads(numPurturbThreads);
                 for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx)
                 {
-                    std::thread newThread(&FullExperimentRunnerOptimalPerturb::GeometryPerturb, this,
-                        threadIdx,
-                        pathsInDispatch,
-                        numPathsPerThread,
-                        m_experimentParams.numPathsToSkip,
-                        m_experimentParams.numSegmentsPerCurve,
-                        std::ref(perThreadRngGenerators),
-                        std::ref(perThreadCurvePositions),
-                        std::ref(perThreadCurveTangents),
-                        std::ref(perThreadCurveCurvatures),
-                        std::ref(perThreadPositionScratchLeft),
-                        std::ref(perThreadTangentScratchLeft),
-                        std::ref(perThreadCurvatureScratchLeft),
-                        std::ref(perThreadPositionScratchRight),
-                        std::ref(perThreadTangentScratchRight),
-                        std::ref(perThreadCurvatureScratchRight),
-                        std::ref(compressedWeightBuffer),
-                        std::ref(cachedSegmentWeights),
-                        m_upInitialCurve->m_segmentLength,
-                        weightingIntegralsRawPointer,
-                        boundaryConditions,
-                        fn
-                    );
+                    switch (m_experimentParams.perturbMethod)
+                    {
 
-                    threads[threadIdx] = std::move(newThread);
+                        case ExperimentRunner::PerturbMethod::GeometricMinCurvature:
+                        {
+                            std::cout << "Error: GeometricMinCurvature Not implemented" << std::endl;
+                            exit(1);
+                        } break;
+
+                        case ExperimentRunner::PerturbMethod::GeometricCombined:
+                        {
+                            std::thread newThread(&FullExperimentRunnerOptimalPerturb::GeometryCombined, this,
+                                threadIdx,
+                                pathsInDispatch,
+                                numPathsPerThread,
+                                m_experimentParams.numPathsToSkip,
+                                m_experimentParams.numSegmentsPerCurve,
+                                std::ref(perThreadRngGenerators),
+                                std::ref(perThreadCurvePositions),
+                                std::ref(perThreadCurveTangents),
+                                std::ref(perThreadCurveCurvatures),
+                                std::ref(perThreadPositionScratchLeft),
+                                std::ref(perThreadTangentScratchLeft),
+                                std::ref(perThreadCurvatureScratchLeft),
+                                std::ref(perThreadPositionScratchRight),
+                                std::ref(perThreadTangentScratchRight),
+                                std::ref(perThreadCurvatureScratchRight),
+                                std::ref(compressedWeightBuffer),
+                                std::ref(cachedSegmentWeights),
+                                m_upInitialCurve->m_segmentLength,
+                                weightingIntegralsRawPointer,
+                                boundaryConditions,
+                                fn
+                            );
+                            threads[threadIdx] = std::move(newThread);
+                        } break;
+
+                        case ExperimentRunner::PerturbMethod::GeometricRandom:
+                        default:
+                        {
+                            std::thread newThread(&FullExperimentRunnerOptimalPerturb::GeometryRandom, this,
+                                threadIdx,
+                                pathsInDispatch,
+                                numPathsPerThread,
+                                m_experimentParams.numPathsToSkip,
+                                m_experimentParams.numSegmentsPerCurve,
+                                std::ref(perThreadRngGenerators),
+                                std::ref(perThreadCurvePositions),
+                                std::ref(perThreadCurveTangents),
+                                std::ref(perThreadCurveCurvatures),
+                                std::ref(perThreadPositionScratchLeft),
+                                std::ref(perThreadTangentScratchLeft),
+                                std::ref(perThreadCurvatureScratchLeft),
+                                std::ref(compressedWeightBuffer),
+                                std::ref(cachedSegmentWeights),
+                                m_upInitialCurve->m_segmentLength,
+                                weightingIntegralsRawPointer,
+                                boundaryConditions,
+                                fn
+                            );
+                            threads[threadIdx] = std::move(newThread);
+                        } break;
+                    };
                 }
 
                 for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx)
@@ -336,8 +376,9 @@ namespace twisty
                 for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
                 {
                     std::thread newThread(&FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel, this, threadIdx, pathsInDispatch, numWeightsPerThread, m_upInitialCurve->m_arclength,
-                        m_upInitialCurve->m_numSegments, std::ref(compressedWeightBuffer), std::ref(bigFloatWeightsLog10), std::ref(threadWeights),
-                        pathNormalizer);
+                        m_upInitialCurve->m_numSegments, m_experimentParams.weightingParameters.weightingMethod,
+                        std::ref(compressedWeightBuffer), std::ref(bigFloatWeightsLog10), std::ref(threadWeights),
+                        pathNormalizer, pathNormalizerLog10);
                     threads[threadIdx] = std::move(newThread);
                 }
 
@@ -351,7 +392,7 @@ namespace twisty
 
                 for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
                 {
-                        totalDispatchWeight += threadWeights[threadIdx];
+                    totalDispatchWeight += threadWeights[threadIdx];
                 }
             }
 
@@ -368,7 +409,7 @@ namespace twisty
                 for (int64_t i = 0; i < bigFloatWeightsLog10.size(); ++i)
                 {
                     // We have to add in the path normalizer here as it wasnt acounted for anywhere else before this for these specific saved off weights
-                    bigfloatOFS << (bigFloatWeightsLog10[i] + pathNormalizerLog10) << std::endl;
+                    bigfloatOFS << (bigFloatWeightsLog10[i]) << std::endl;
                 }
             }
 
@@ -405,9 +446,10 @@ namespace twisty
     }
 
     void FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread,
-        float arclength, int64_t numSegmentsPerCurve,
+        float arclength, int64_t numSegmentsPerCurve, const twisty::WeightingMethod weightingMethod,
         const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeightsLog10,
-        std::vector<boost::multiprecision::cpp_dec_float_100>& threadScatterWeights, boost::multiprecision::cpp_dec_float_100 pathNormalizer)
+        std::vector<boost::multiprecision::cpp_dec_float_100>& threadScatterWeights, boost::multiprecision::cpp_dec_float_100 pathNormalizer,
+        boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10)
     {
         for (int64_t i = 0; i < numWeightsPerThread; i++)
         {
@@ -417,21 +459,166 @@ namespace twisty
                 break;
             }
 
-            int64_t actualIdx = threadIdx * numWeightsPerThread;
-            const boost::multiprecision::cpp_dec_float_100 bigfloatCompressed = compressedWeights[actualIdx];
-            const boost::multiprecision::cpp_dec_float_100 decompressed = boost::multiprecision::pow(10.0, bigfloatCompressed);
-            const boost::multiprecision::cpp_dec_float_100 pathWeight = decompressed * pathNormalizer;
+            boost::multiprecision::cpp_dec_float_100 bigFloatPathWeightLog10 = compressedWeights[idx];
+            boost::multiprecision::cpp_dec_float_100 bigfloatPathWeight = boost::multiprecision::pow(10.0, bigFloatPathWeightLog10);
+            if (weightingMethod == WeightingMethod::RadiativeTransfer)
+            {
+                bigFloatPathWeightLog10 += pathNormalizerLog10;
+                bigfloatPathWeight *= pathNormalizer;
+            }
 
             // Pulled from Jerry analysis
-            bigFloatWeightsLog10[idx] = bigfloatCompressed;
-            threadScatterWeights[threadIdx] += pathWeight;
+            bigFloatWeightsLog10[idx] = bigFloatPathWeightLog10;
+            threadScatterWeights[threadIdx] += bigfloatPathWeight;
+        }
+    }
+
+    void FullExperimentRunnerOptimalPerturb::GeometryRandom(
+        int64_t threadIdx,
+        int64_t numExperimentPaths,
+        int64_t numPathsPerThread,
+        int64_t numPathsToSkipPerThread,
+        int64_t numSegmentsPerCurve,
+        std::vector<std::mt19937_64>& rngGenerators,
+        std::vector<Farlor::Vector3>& globalPos,
+        std::vector<Farlor::Vector3>& globalTans,
+        std::vector<float>& globalCurvatures,
+        std::vector<Farlor::Vector3>& scratchPositionSpace,
+        std::vector<Farlor::Vector3>& scratchTangentSpace,
+        std::vector<float>& scratchCurvatureSpace,
+        std::vector<double>& globalPathWeights,
+        std::vector<double>& cachedSegmentWeights,
+        float segmentLength,
+        twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
+        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
+        const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
+    )
+    {
+        const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
+        const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
+        const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
+
+        const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
+        const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
+        const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
+
+        // Now, we can begin the actual algorithm
+        {
+            int64_t numCurvesInBatch = 0;
+            int64_t outputIdx = 0;
+
+            for (int64_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread); ++pathCount)
+            {
+                // Expect to go negative, thus int
+                int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+
+                // We can exit once this point is reached as we have generated all the paths necessary for this thread
+                if (currentPathIdx >= numExperimentPaths)
+                {
+                    // We dont want to continue if we have already generated the correct number of paths.
+                    break;
+                }
+
+                // Do the perturb now
+
+                // Each time, we first copy the "old path" to the "scratch space"
+                for (uint32_t segIdx = 0; segIdx <= numSegmentsPerCurve; ++segIdx)
+                {
+                    scratchPositionSpace[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
+                }
+
+                // Update the tangents and curvatures
+                {
+                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpace[CurrentThreadPosStartIdx],
+                        &scratchTangentSpace[CurrentThreadTanStartIdx],
+                        numSegmentsPerCurve, boundaryConditions);
+
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpace[CurrentThreadTanStartIdx],
+                        &scratchCurvatureSpace[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve, boundaryConditions,
+                        m_experimentParams.weightingParameters);
+                }
+
+                std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 2), 25)); // uniform, unbiased
+                int64_t diff = diffDist(rngGenerators[threadIdx]);
+
+                std::uniform_int_distribution<int> leftPointIndexUniformDist(1, numSegmentsPerCurve - diff - 1); // uniform, unbiased
+                int64_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
+
+                int64_t rightPointIndex = leftPointIndex + diff;
+
+                assert((rightPointIndex - leftPointIndex) >= diff);
+                assert(leftPointIndex < rightPointIndex);
+
+                // We need two frames for each segment to get the new curvature and torsion.
+                // we need the frame left of the segment, as well as the frame right of the segment.
+                // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
+                const Farlor::Vector3 leftPoint = scratchPositionSpace[CurrentThreadPosStartIdx + leftPointIndex];
+                const Farlor::Vector3 rightPoint = scratchPositionSpace[CurrentThreadPosStartIdx + rightPointIndex];
+
+                const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
+
+                std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
+                double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
+
+                //  Rotation
+                {
+                    float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+                    RotationMatrixAroundAxis(randRotationAngle, (float*)(&N), rotationMatrix);
+
+                    for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
+                    {
+                        Farlor::Vector3 shiftedPoint = scratchPositionSpace[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
+                        // Rotate and stuff back in shifted point
+                        RotateVectorByMatrix(rotationMatrix, (float*)(&shiftedPoint));
+                        // Update the point with the rotated version
+                        scratchPositionSpace[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
+                    }
+
+                    //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                    //We can do a different approach later.
+                    // Here, we want to do a perturb update call
+                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpace[CurrentThreadPosStartIdx],
+                        &scratchTangentSpace[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
+
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpace[CurrentThreadTanStartIdx],
+                        &scratchCurvatureSpace[CurrentThreadCurvatureStartIdx],
+                        numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+                }
+
+                for (uint32_t i = 0; i <= numSegmentsPerCurve; i++)
+                {
+                    globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpace[CurrentThreadPosStartIdx + i];
+                }
+
+                twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
+                    &globalTans[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
+
+                twisty::PerturbUtils::UpdateCurvaturesFromTangents(&globalTans[CurrentThreadTanStartIdx],
+                    &globalCurvatures[CurrentThreadCurvatureStartIdx],
+                    numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+
+                double scatteringWeight = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                        numSegmentsPerCurve, *weightingIntegralPtr);
+
+                if (pathCount < numPathsToSkipPerThread)
+                {
+                    // Skip
+                }
+                else
+                {
+                    // Else, contribute to the paths
+                    int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+                    assert(currentPathIdx >= numPathsPerThread * threadIdx);
+
+
+                    globalPathWeights[currentPathIdx] = scatteringWeight;
+                }
+            }
         }
     }
 
 
-
-
-    void FullExperimentRunnerOptimalPerturb::GeometryPerturb(
+    void FullExperimentRunnerOptimalPerturb::GeometryCombined(
         int64_t threadIdx,
         int64_t numExperimentPaths,
         int64_t numPathsPerThread,
@@ -450,33 +637,28 @@ namespace twisty
         std::vector<double>& globalPathWeights,
         std::vector<double>& cachedSegmentWeights,
         float segmentLength,
-        twisty::PathWeighting::WeightLookupTableIntegral* weightingIntegralPtr,
+        twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
         const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
     )
     {
-        uint32_t numPathsAccepted = 0;
-        uint32_t numPathsUnaccepted = 0;
-        uint32_t numPathsUnacceptedTangentPdf = 0;
-        uint32_t numPathsUnacceptedCurvaturePdf = 0;
-
     // TODO: Move this to the experiment runner
-#if defined(ExportPathBatches)
+// #if defined(ExportPathBatches)
 
-        // This should be per thread
-        int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
-        std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
-        {
-            for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx)
-            {
-                for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                {
-                    int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
-                    pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
-                }
-            }
-        }
-#endif      
+//         // This should be per thread
+//         int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
+//         std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
+//         {
+//             for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx)
+//             {
+//                 for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+//                 {
+//                     int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
+//                     pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+//                 }
+//             }
+//         }
+// #endif      
         const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
         const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
         const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
@@ -509,30 +691,31 @@ namespace twisty
             {
                 // Expect to go negative, thus int
                 int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+
                 // We can exit once this point is reached as we have generated all the paths necessary for this thread
                 if (currentPathIdx >= numExperimentPaths)
                 {
-#if defined(ExportPathBatches)
-                    if (numCurvesInBatch > 0)
-                    {
-                        m_exportPathBatchesMutex.lock();
+// #if defined(ExportPathBatches)
+//                     if (numCurvesInBatch > 0)
+//                     {
+//                         m_exportPathBatchesMutex.lock();
 
-                        if (threadIdx == 11)
-                        {
-                            std::cout << "Should be exporting thread 12" << std::endl;
-                        }
+//                         if (threadIdx == 11)
+//                         {
+//                             std::cout << "Should be exporting thread 12" << std::endl;
+//                         }
 
-                        m_curvesMetadataFile << threadIdx << " ";
-                        m_curvesMetadataFile << outputIdx << " ";
-                        m_curvesMetadataFile << numCurvesInBatch << std::endl;
+//                         m_curvesMetadataFile << threadIdx << " ";
+//                         m_curvesMetadataFile << outputIdx << " ";
+//                         m_curvesMetadataFile << numCurvesInBatch << std::endl;
 
-                        m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                        numCurvesInBatch = 0;
-                        outputIdx++;
+//                         m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+//                         numCurvesInBatch = 0;
+//                         outputIdx++;
 
-                        m_exportPathBatchesMutex.unlock();
-                    }
-#endif
+//                         m_exportPathBatchesMutex.unlock();
+//                     }
+// #endif
                     // We dont want to continue if we have already generated the correct number of paths.
                     break;
                 }
@@ -839,9 +1022,6 @@ namespace twisty
                     &globalCurvatures[CurrentThreadCurvatureStartIdx],
                     numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
 
-                numPathsAccepted++;
-
-
                 double scatteringWeight = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
                         numSegmentsPerCurve, *weightingIntegralPtr);
 
@@ -858,56 +1038,51 @@ namespace twisty
 
                     globalPathWeights[currentPathIdx] = scatteringWeight;
 
-                    if (m_experimentParams.outputPathBatches)
-                    {
-                        // Add the path to the path batch
-                        for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                        {
-                            Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
-                            pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
-                        }
-                        numCurvesInBatch++;
+                    // if (m_experimentParams.outputPathBatches)
+                    // {
+                    //     // Add the path to the path batch
+                    //     for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+                    //     {
+                    //         Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                    //         pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
+                    //     }
+                    //     numCurvesInBatch++;
 
-                        if (numCurvesInBatch == ExportPathBatchCacheSize)
-                        {
-                            m_exportPathBatchesMutex.lock();
+                    //     if (numCurvesInBatch == ExportPathBatchCacheSize)
+                    //     {
+                    //         m_exportPathBatchesMutex.lock();
 
-                            m_curvesMetadataFile << threadIdx << " ";
-                            m_curvesMetadataFile << outputIdx << " ";
-                            m_curvesMetadataFile << numCurvesInBatch << std::endl;
+                    //         m_curvesMetadataFile << threadIdx << " ";
+                    //         m_curvesMetadataFile << outputIdx << " ";
+                    //         m_curvesMetadataFile << numCurvesInBatch << std::endl;
 
-                            m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                            numCurvesInBatch = 0;
-                            outputIdx++;
+                    //         m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                    //         numCurvesInBatch = 0;
+                    //         outputIdx++;
 
-                            m_exportPathBatchesMutex.unlock();
-                        }
-                    }
+                    //         m_exportPathBatchesMutex.unlock();
+                    //     }
+                    // }
                 }
             }
 
-            if(m_experimentParams.outputPathBatches)
-            {
-                if (numCurvesInBatch > 0)
-                {
-                    m_exportPathBatchesMutex.lock();
+            // if(m_experimentParams.outputPathBatches)
+            // {
+            //     if (numCurvesInBatch > 0)
+            //     {
+            //         m_exportPathBatchesMutex.lock();
 
-                    m_curvesMetadataFile << threadIdx << " ";
-                    m_curvesMetadataFile << outputIdx << " ";
-                    m_curvesMetadataFile << numCurvesInBatch << std::endl;
+            //         m_curvesMetadataFile << threadIdx << " ";
+            //         m_curvesMetadataFile << outputIdx << " ";
+            //         m_curvesMetadataFile << numCurvesInBatch << std::endl;
 
-                    m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                    numCurvesInBatch = 0;
-                    outputIdx++;
+            //         m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+            //         numCurvesInBatch = 0;
+            //         outputIdx++;
 
-                    m_exportPathBatchesMutex.unlock();
-                }
-            }
+            //         m_exportPathBatchesMutex.unlock();
+            //     }
+            // }
         }
-
-        std::cout << "Num path accepted: " << numPathsAccepted << std::endl;
-        std::cout << "Num path unaccepted: " << numPathsUnaccepted << std::endl;
-        std::cout << "Num path unaccepted tangents: " << numPathsUnacceptedTangentPdf << std::endl;
-        std::cout << "Num path unaccepted curvature: " << numPathsUnacceptedCurvaturePdf << std::endl;
     }
 }

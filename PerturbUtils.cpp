@@ -56,10 +56,10 @@ namespace twisty
                         auto& tanRight = pTangents[i + 1];
                         {   
                             const float curvature = tanRight.Normalized().Dot(tanLeft.Normalized());
-                            pCurvatures[i] = curvature;
+                            pCurvatures[i] = -curvature; // Negate curvature so that an increase in curvature leads to higher weight values
                         }
                     }
-                }
+                } break;
                 default:
                 {
                     std::cout << "Unsupported weighting function, unknown curvature definition" << std::endl;

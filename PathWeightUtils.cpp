@@ -241,6 +241,7 @@ namespace twisty
             m_curvatureStepSize = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
             auto CalculateSimpleWeightValue = [weightingParams, ds](double curvature) -> double {
+                curvature *= -1.0; // All curvatures in this mode are negated
                 const double alpha = 1.0 / (weightingParams.scatter * ds * weightingParams.mu);
                 const double leftComponent = std::exp(-1.0 * alpha);
                 const double rightComponent = std::exp(alpha * curvature);

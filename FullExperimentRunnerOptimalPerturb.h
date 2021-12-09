@@ -29,7 +29,29 @@ namespace twisty
         virtual ExperimentRunner::RunnerSpecificResults RunnerSpecificRunExperiment() override;
 
     private:
-        void GeometryPerturb(
+
+        void GeometryRandom(
+            int64_t threadIdx,
+            int64_t numExperimentPaths,
+            int64_t numPathsPerThread,
+            int64_t numPathsToSkipPerThread,
+            int64_t numSegmentsPerCurve,
+            std::vector<std::mt19937_64>& rngGenerators,
+            std::vector<Farlor::Vector3>& globalPos,
+            std::vector<Farlor::Vector3>& globalTans,
+            std::vector<float>& globalCurvatures,
+            std::vector<Farlor::Vector3>& scratchPositionSpace,
+            std::vector<Farlor::Vector3>& scratchTangentSpace,
+            std::vector<float>& scratchCurvatureSpace,
+            std::vector<double>& globalPathWeights,
+            std::vector<double>& cachedSegmentWeights,
+            float segmentLength,
+            twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
+            const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
+            const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
+        );
+
+        void GeometryCombined(
             int64_t threadIdx,
             int64_t numExperimentPaths,
             int64_t numPathsPerThread,
@@ -48,14 +70,15 @@ namespace twisty
             std::vector<double>& globalPathWeights,
             std::vector<double>& cachedSegmentWeights,
             float segmentLength,
-            twisty::PathWeighting::WeightLookupTableIntegral* weightingIntegralPtr,
+            twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
             const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
             const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
         );
 
         void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights, int64_t numWeightsPerThread,
-            float arclength, int64_t numSegmentsPerCurve,
+            float arclength, int64_t numSegmentsPerCurve, const twisty::WeightingMethod weightingMethod,
             const std::vector<double>& compressedWeights, std::vector<boost::multiprecision::cpp_dec_float_100>& bigFloatWeightsLog10,
-            std::vector<boost::multiprecision::cpp_dec_float_100>& threadScatterWeights, boost::multiprecision::cpp_dec_float_100 pathNormalizer);
+            std::vector<boost::multiprecision::cpp_dec_float_100>& threadScatterWeights, boost::multiprecision::cpp_dec_float_100 pathNormalizer,
+            boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10);
     };
 }

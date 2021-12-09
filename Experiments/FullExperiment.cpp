@@ -75,6 +75,32 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
             }   break;
         }
 
+        // Perturb method stuff
+        int perturbMethod = (int)config.lookup("experiment.experimentParams.perturbMethod");
+        switch (perturbMethod)
+        {
+            // Simplified Model
+            case 1:
+            {
+                experimentParams.perturbMethod = twisty::ExperimentRunner::PerturbMethod::GeometricMinCurvature;
+            }
+            break;
+
+            // Simplified Model
+            case 2:
+            {
+                experimentParams.perturbMethod = twisty::ExperimentRunner::PerturbMethod::GeometricCombined;
+            }
+            break;
+
+            // Default to the simplified model
+            case 0:
+            default:
+            {
+                experimentParams.perturbMethod = twisty::ExperimentRunner::PerturbMethod::GeometricRandom;
+            }   break;
+        }
+
         experimentParams.weightingParameters.mu = config.lookup("experiment.experimentParams.weighting.mu");
         experimentParams.weightingParameters.eps = config.lookup("experiment.experimentParams.weighting.eps");
         experimentParams.weightingParameters.numStepsInt = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");

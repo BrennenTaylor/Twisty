@@ -36,10 +36,11 @@ namespace twisty
             uint64_t index;
         };
 
-        enum class PathNormalizerType
+        enum class PerturbMethod
         {
-            None, // This is a default normalizer of 1
-            PDF // This is the one derived for the phytra 5 work
+            GeometricRandom,
+            GeometricMinCurvature,
+            GeometricCombined
         };
 
         struct ExperimentParameters
@@ -60,7 +61,8 @@ namespace twisty
             uint32_t curvePurturbSeed = 0;
             twisty::WeightingParameters weightingParameters;
             float rotateInitialSeedCurveRadians = 0.0f;
-            PathNormalizerType pathNormalizerType = PathNormalizerType::PDF;
+
+            PerturbMethod perturbMethod = PerturbMethod::GeometricRandom;
 
             // Set to 0 if we default to max user machine threads
             int32_t maxPerturbThreads = 0;
