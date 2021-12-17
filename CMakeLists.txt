@@ -8,6 +8,7 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 option(USE_CUDA "Enable Cuda and GPU runner?" TRUE)
 if (USE_CUDA)
 SET(CUDA_SEPARABLE_COMPILATION ON)
+SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 enable_language(CUDA)
 if(NOT DEFINED CMAKE_CUDA_STANDARD)
     set(CMAKE_CUDA_STANDARD 17)
@@ -31,12 +32,6 @@ ENDIF()
 
 set(CMAKE_CXX_STANDARD 17)
 
-if (USE_CUDA)
-SET(CUDA_SEPARABLE_COMPILATION ON)
-SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-set_source_files_properties(CurvePerturbUtils.cpp PROPERTIES LANGUAGE CUDA)
-endif (USE_CUDA)
-
 add_library(Twisty
     BezierCurve.h
     BezierCurve.cpp
@@ -45,7 +40,7 @@ add_library(Twisty
     Curve.h
     Curve.cpp
     CurvePerturbUtils.h
-    CurvePerturbUtils.cpp
+    CurvePerturbUtils.cu
     CurveUtils.h
     CurveUtils.cpp
     CurveGen.cu
@@ -59,6 +54,8 @@ add_library(Twisty
 
     # GeometricPerturbUtils.h
     # GeometricPerturbUtils.cpp
+    FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
+    FullExperimentRunnerOptimalPerturbOptimized_GPU.h
 
     Integrate.h
     MathConsts.h
@@ -69,10 +66,13 @@ add_library(Twisty
 )
 
 if (USE_CUDA)
-target_sources(Twisty
-    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
-    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.h
-)
+
+set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+# target_sources(Twisty
+#     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
+#     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.h
+# )
 target_compile_definitions(Twisty
     PUBLIC USE_CUDA
 )

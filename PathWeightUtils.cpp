@@ -2,6 +2,8 @@
 
 #include "MathConsts.h"
 
+#include "CurvePerturbUtils.h"
+
 #include <algorithm>
 #include <assert.h>
 #include <filesystem>
@@ -211,14 +213,14 @@ namespace twisty
             // Perform integration. Per disertation page 34, when bn is constant, wn peaks at kds. As a result, normalizeation is used.
             // This is due to an overflow. However, as we already are using a big float library, do we even need to deal with this?
             double firstVal = 0.0f;
-            // double normalizerWithZeroCurvature = 0.0f;
+            double normalizerWithZeroCurvature = 0.0f;
             {
                 double stepSize = (weightingParams.maxBound - weightingParams.minBound) / (weightingParams.numStepsInt - 1);
                 for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i)
                 {
                     double p = i * stepSize;
                     firstVal += Integrand(p, kds, bds) * stepSize;
-                    // normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
+                    normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
                 }
             }
 
@@ -226,7 +228,7 @@ namespace twisty
             double c = weightingParams.absorbtion + weightingParams.scatter;
             double constant = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
             // TODO: For now, lets try not including this
-            return constant * firstVal;
+            return constant * firstVal / normalizerWithZeroCurvature;
         }
 
         // Lookup table integrand

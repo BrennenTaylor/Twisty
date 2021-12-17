@@ -64,37 +64,75 @@ namespace twisty
     namespace PerturbUtils
     {
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-        void UpdateTangentsFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
-            const uint32_t numSegments, const BoundaryConditions& boundaryConditions)
+        __host__ void UpdateTangentsFromPos(Farlor::Vector3 *pPositions, Farlor::Vector3 *pTangents,
+            const uint32_t numSegments, const BoundaryConditions &boundaryConditions)
         {
-            UpdateTangentsFromPosCudaSafe((float*)pPositions, (float*)pTangents, numSegments, boundaryConditions);
+            BoundaryConditions_CudaSafe cs;
+            cs.m_startPos[0] = boundaryConditions.m_startPos.m_data[0];
+            cs.m_startPos[1] = boundaryConditions.m_startPos.m_data[1];
+            cs.m_startPos[2] = boundaryConditions.m_startPos.m_data[2];
+
+            cs.m_startDir[0] = boundaryConditions.m_startDir.m_data[0];
+            cs.m_startDir[1] = boundaryConditions.m_startDir.m_data[1];
+            cs.m_startDir[2] = boundaryConditions.m_startDir.m_data[2];
+
+            cs.m_endPos[0] = boundaryConditions.m_endPos.m_data[0];
+            cs.m_endPos[1] = boundaryConditions.m_endPos.m_data[1];
+            cs.m_endPos[2] = boundaryConditions.m_endPos.m_data[2];
+
+            cs.m_endDir[0] = boundaryConditions.m_endDir.m_data[0];
+            cs.m_endDir[1] = boundaryConditions.m_endDir.m_data[1];
+            cs.m_endDir[2] = boundaryConditions.m_endDir.m_data[2];
+
+            cs.arclength = boundaryConditions.arclength;
+
+            UpdateTangentsFromPosCudaSafe((float *)pPositions, (float *)pTangents, numSegments, cs);
         }
 
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-        void UpdateCurvaturesFromTangents(Farlor::Vector3* pTangents, float* pCurvatures,
-            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp)
+        __host__ void UpdateCurvaturesFromTangents(Farlor::Vector3 *pTangents, float *pCurvatures,
+            const uint32_t numSegments, const BoundaryConditions &boundaryConditions, const twisty::WeightingParameters &wp)
         {
-            UpdateCurvaturesFromTangentsCudaSafe((float*)pTangents, pCurvatures, numSegments, boundaryConditions, wp);
+            BoundaryConditions_CudaSafe cs;
+            cs.m_startPos[0] = boundaryConditions.m_startPos.m_data[0];
+            cs.m_startPos[1] = boundaryConditions.m_startPos.m_data[1];
+            cs.m_startPos[2] = boundaryConditions.m_startPos.m_data[2];
+
+            cs.m_startDir[0] = boundaryConditions.m_startDir.m_data[0];
+            cs.m_startDir[1] = boundaryConditions.m_startDir.m_data[1];
+            cs.m_startDir[2] = boundaryConditions.m_startDir.m_data[2];
+
+            cs.m_endPos[0] = boundaryConditions.m_endPos.m_data[0];
+            cs.m_endPos[1] = boundaryConditions.m_endPos.m_data[1];
+            cs.m_endPos[2] = boundaryConditions.m_endPos.m_data[2];
+
+            cs.m_endDir[0] = boundaryConditions.m_endDir.m_data[0];
+            cs.m_endDir[1] = boundaryConditions.m_endDir.m_data[1];
+            cs.m_endDir[2] = boundaryConditions.m_endDir.m_data[2];
+
+            cs.arclength = boundaryConditions.arclength;
+
+            UpdateCurvaturesFromTangentsCudaSafe((float*)pTangents, pCurvatures, numSegments, cs, wp);
         }
 
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
         __host__ __device__ void UpdateTangentsFromPosCudaSafe(float* pPositions, float* pTangents,
-            const uint32_t numSegments, const BoundaryConditions& boundaryConditions)
+            const uint32_t numSegments, const BoundaryConditions_CudaSafe& csBoundaryConditions)
         {
-            const float ds = boundaryConditions.arclength / numSegments;
+            const float ds = csBoundaryConditions.arclength / numSegments;
 
             // Set initial and final positions
-            pPositions[0 * 3 + 0] = boundaryConditions.m_startPos.m_data[0];
-            pPositions[0 * 3 + 1] = boundaryConditions.m_startPos.m_data[1];
-            pPositions[0 * 3 + 2] = boundaryConditions.m_startPos.m_data[2];
+            pPositions[0 * 3 + 0] = csBoundaryConditions.m_startPos[0];
+            pPositions[0 * 3 + 1] = csBoundaryConditions.m_startPos[1];
+            pPositions[0 * 3 + 2] = csBoundaryConditions.m_startPos[2];
 
-            pPositions[1 * 3 + 0] = pPositions[0 * 3 + 0] + ds * boundaryConditions.m_startDir.m_data[0];
-            pPositions[1 * 3 + 1] = pPositions[0 * 3 + 1] + ds * boundaryConditions.m_startDir.m_data[1];
-            pPositions[1 * 3 + 2] = pPositions[0 * 3 + 2] + ds * boundaryConditions.m_startDir.m_data[2];
+            pPositions[1 * 3 + 0] = pPositions[0 * 3 + 0] + ds * csBoundaryConditions.m_startDir[0];
+            pPositions[1 * 3 + 1] = pPositions[0 * 3 + 1] + ds * csBoundaryConditions.m_startDir[1];
+            pPositions[1 * 3 + 2] = pPositions[0 * 3 + 2] + ds * csBoundaryConditions.m_startDir[2];
 
-            pPositions[numSegments * 3 + 0] = boundaryConditions.m_endPos.m_data[0];
-            pPositions[numSegments * 3 + 1] = boundaryConditions.m_endPos.m_data[1];
-            pPositions[numSegments * 3 + 2] = boundaryConditions.m_endPos.m_data[2];
+            pPositions[numSegments * 3 + 0] = csBoundaryConditions.m_endPos[0];
+            pPositions[numSegments * 3 + 1] = csBoundaryConditions.m_endPos[1];
+            pPositions[numSegments * 3 + 2] = csBoundaryConditions.m_endPos[2];
 
             for (uint32_t i = 1; i < numSegments; ++i)
             {
@@ -106,14 +144,14 @@ namespace twisty
                 pTangents[i * 3 + 1] = diff_y / diff_length;
                 pTangents[i * 3 + 2] = diff_z / diff_length;
             }
-            pTangents[numSegments * 3 + 0] = boundaryConditions.m_endDir.m_data[0];
-            pTangents[numSegments * 3 + 1] = boundaryConditions.m_endDir.m_data[1];
-            pTangents[numSegments * 3 + 2] = boundaryConditions.m_endDir.m_data[2];
+            pTangents[numSegments * 3 + 0] = csBoundaryConditions.m_endDir[0];
+            pTangents[numSegments * 3 + 1] = csBoundaryConditions.m_endDir[1];
+            pTangents[numSegments * 3 + 2] = csBoundaryConditions.m_endDir[2];
         }
 
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
         __host__ __device__ void UpdateCurvaturesFromTangentsCudaSafe(float* pTangents, float* pCurvatures,
-            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp)
+            const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions, const twisty::WeightingParameters& wp)
         {
             const float ds = boundaryConditions.arclength / numSegments;
 
@@ -173,7 +211,7 @@ namespace twisty
                 } break;
                 default:
                 {
-                    assert(false);
+                    // assert(false);
                 } break;
             };
         }

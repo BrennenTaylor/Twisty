@@ -315,9 +315,6 @@ namespace twisty
                                 std::ref(perThreadCurvePositions),
                                 std::ref(perThreadCurveTangents),
                                 std::ref(perThreadCurveCurvatures),
-                                std::ref(perThreadPositionScratchLeft),
-                                std::ref(perThreadTangentScratchLeft),
-                                std::ref(perThreadCurvatureScratchLeft),
                                 std::ref(compressedWeightBuffer),
                                 std::ref(cachedSegmentWeights),
                                 m_upInitialCurve->m_segmentLength,
@@ -459,6 +456,8 @@ namespace twisty
                 break;
             }
 
+            std::cout << "Compressed weight: " << compressedWeights[idx] << std::endl;
+
             boost::multiprecision::cpp_dec_float_100 bigFloatPathWeightLog10 = compressedWeights[idx];
             boost::multiprecision::cpp_dec_float_100 bigfloatPathWeight = boost::multiprecision::pow(10.0, bigFloatPathWeightLog10);
             if (weightingMethod == WeightingMethod::RadiativeTransfer)
@@ -483,9 +482,6 @@ namespace twisty
         std::vector<Farlor::Vector3>& globalPos,
         std::vector<Farlor::Vector3>& globalTans,
         std::vector<float>& globalCurvatures,
-        std::vector<Farlor::Vector3>& scratchPositionSpace,
-        std::vector<Farlor::Vector3>& scratchTangentSpace,
-        std::vector<float>& scratchCurvatureSpace,
         std::vector<double>& globalPathWeights,
         std::vector<double>& cachedSegmentWeights,
         float segmentLength,
@@ -521,23 +517,6 @@ namespace twisty
 
                 // Do the perturb now
 
-                // Each time, we first copy the "old path" to the "scratch space"
-                for (uint32_t segIdx = 0; segIdx <= numSegmentsPerCurve; ++segIdx)
-                {
-                    scratchPositionSpace[CurrentThreadPosStartIdx + segIdx] = globalPos[CurrentThreadPosStartIdx + segIdx];
-                }
-
-                // Update the tangents and curvatures
-                {
-                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpace[CurrentThreadPosStartIdx],
-                        &scratchTangentSpace[CurrentThreadTanStartIdx],
-                        numSegmentsPerCurve, boundaryConditions);
-
-                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpace[CurrentThreadTanStartIdx],
-                        &scratchCurvatureSpace[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve, boundaryConditions,
-                        m_experimentParams.weightingParameters);
-                }
-
                 std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 2), 25)); // uniform, unbiased
                 int64_t diff = diffDist(rngGenerators[threadIdx]);
 
@@ -552,8 +531,8 @@ namespace twisty
                 // We need two frames for each segment to get the new curvature and torsion.
                 // we need the frame left of the segment, as well as the frame right of the segment.
                 // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
-                const Farlor::Vector3 leftPoint = scratchPositionSpace[CurrentThreadPosStartIdx + leftPointIndex];
-                const Farlor::Vector3 rightPoint = scratchPositionSpace[CurrentThreadPosStartIdx + rightPointIndex];
+                const Farlor::Vector3 leftPoint = globalPos[CurrentThreadPosStartIdx + leftPointIndex];
+                const Farlor::Vector3 rightPoint = globalPos[CurrentThreadPosStartIdx + rightPointIndex];
 
                 const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
 
@@ -567,35 +546,23 @@ namespace twisty
 
                     for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
                     {
-                        Farlor::Vector3 shiftedPoint = scratchPositionSpace[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
+                        Farlor::Vector3 shiftedPoint = globalPos[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
                         // Rotate and stuff back in shifted point
                         RotateVectorByMatrix(rotationMatrix, (float*)(&shiftedPoint));
                         // Update the point with the rotated version
-                        scratchPositionSpace[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
+                        globalPos[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
                     }
 
                     //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                     //We can do a different approach later.
                     // Here, we want to do a perturb update call
-                    twisty::PerturbUtils::UpdateTangentsFromPos(&scratchPositionSpace[CurrentThreadPosStartIdx],
-                        &scratchTangentSpace[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
+                    twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
+                        &globalTans[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
 
-                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpace[CurrentThreadTanStartIdx],
-                        &scratchCurvatureSpace[CurrentThreadCurvatureStartIdx],
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents(&globalTans[CurrentThreadTanStartIdx],
+                        &globalCurvatures[CurrentThreadCurvatureStartIdx],
                         numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                 }
-
-                for (uint32_t i = 0; i <= numSegmentsPerCurve; i++)
-                {
-                    globalPos[CurrentThreadPosStartIdx + i] = scratchPositionSpace[CurrentThreadPosStartIdx + i];
-                }
-
-                twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
-                    &globalTans[CurrentThreadTanStartIdx], numSegmentsPerCurve, boundaryConditions);
-
-                twisty::PerturbUtils::UpdateCurvaturesFromTangents(&globalTans[CurrentThreadTanStartIdx],
-                    &globalCurvatures[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
 
                 double scatteringWeight = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
                         numSegmentsPerCurve, *weightingIntegralPtr);

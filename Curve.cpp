@@ -1,5 +1,7 @@
 #include "Curve.h"
 
+#include "CurvePerturbUtils.h"
+
 #include <assert.h>
 #include <filesystem>
 #include <fstream>
@@ -94,7 +96,7 @@ namespace twisty
         return upInitialCurve;
     }
 
-    twisty::PerturbUtils::BoundaryConditions Curve::GetBoundaryConditions() const
+    const twisty::PerturbUtils::BoundaryConditions& Curve::GetBoundaryConditions() const
     {
         twisty::PerturbUtils::BoundaryConditions bc;
         bc.arclength = m_arclength;

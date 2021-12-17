@@ -11,6 +11,8 @@
 
 #include <cuda_runtime_api.h>
 
+#include "CurvePerturbUtils.h"
+
 #include "ExperimentRunner.h"
 #include "PathWeightUtils.h"
 #include "PerturbUtils.h"
@@ -27,7 +29,7 @@
 // TODO: Keep looking, there has to be something better
 #define MaxDoubleLog10 300
 #define MaxNumberOfPathsLog10 6.0
-#define MaxNumberOfPaths 1000000
+#define MaxNumPathsPerCombinedWeight 1000000
 
 namespace twisty
 {
@@ -39,14 +41,14 @@ namespace twisty
     class FullExperimentRunnerOptimalPerturbOptimized_GPU : public ExperimentRunner
     {
     public:
-        struct BoundaryConditions_CUDA
-        {
-            float m_startPos[3] = { 0.0f, 0.0f, 0.0f };
-            float m_startDir[3] = { 1.0f, 0.0f, 0.0f };
-            float m_endPos[3] = { 0.0f, 0.0f, 0.0f };
-            float m_endDir[3] = { 1.0f, 0.0f, 0.0f };
-            float arclength = 0.0f;
-        };
+        // struct BoundaryConditions_CUDA
+        // {
+        //     float m_startPos[3] = { 0.0f, 0.0f, 0.0f };
+        //     float m_startDir[3] = { 1.0f, 0.0f, 0.0f };
+        //     float m_endPos[3] = { 0.0f, 0.0f, 0.0f };
+        //     float m_endDir[3] = { 1.0f, 0.0f, 0.0f };
+        //     float arclength = 0.0f;
+        // };
 
 
         struct CombinedWeightValues_C
@@ -183,56 +185,32 @@ namespace twisty
         float* m_pPerGlobalThreadScratchSpaceTangents = nullptr;
         float* m_pPerGlobalThreadScratchSpaceCurvatures = nullptr;
         
-        float* m_pPerGlobalThreadWorkingScratchSpacePositions = nullptr;
-        float* m_pPerGlobalThreadWorkingScratchSpaceTangents = nullptr;
-        float* m_pPerGlobalThreadWorkingScratchSpaceCurvatures = nullptr;
+        // float* m_pPerGlobalThreadWorkingScratchSpacePositions = nullptr;
+        // float* m_pPerGlobalThreadWorkingScratchSpaceTangents = nullptr;
+        // float* m_pPerGlobalThreadWorkingScratchSpaceCurvatures = nullptr;
 
         CombinedWeightValues_C* m_pPerThreadCombinedWeightValues = nullptr;
         CombinedWeightValues_C* m_pFinalCombinedValues = nullptr;
     };
 
     __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurandState(uint32_t seed, curandState_t* pStates, uint32_t maxNumStates);
-    // __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryCombinedKernel(
+
+    // __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
     //     int64_t numCombinedWeightValuesTotal,
     //     int64_t numCombinedWeightValuesPerWarp,
     //     int64_t numCombinedWeightValuesPerThread,
     //     int64_t numPathsToSkipPerThread,
     //     int64_t numSegmentsPerCurve,
     //     curandState_t* pCurandStates,
-    //     float* pPerGlobalThreadLeftScratchSpacePositions,
-    //     float* pPerGlobalThreadRightScratchSpacePositions,
+    //     float* pPerGlobalThreadScratchSpacePositions,
+    //     float* pPerGlobalThreadScratchSpaceTangents, 
+    //     float* pPerGlobalThreadScratchSpaceCurvatures,
     //     float* pPerGlobalThreadWorkingScratchSpacePositions,
-    //     float* pPerGlobalThreadLeftScratchSpaceTangents, 
-    //     float* pPerGlobalThreadRightScratchSpaceTangents,
     //     float* pPerGlobalThreadWorkingScratchSpaceTangents,
-    //     float* pPerGlobalThreadLeftScratchSpaceCurvatures,
-    //     float* pPerGlobalThreadRightScratchSpaceCurvatures,
     //     float* pPerGlobalThreadWorkingScratchSpaceCurvatures,
     //     FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pPerThreadCombinedWeightValues,
     //     FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
-    //     //float segmentLength,
-    //     //const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
-    //     const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
+    //     const twisty::PerturbUtils::BoundaryConditions_CudaSafe& boundaryConditions,
     //     double* pLookupTable
-    //     //const PathWeighting::NormalizerStuff::FN& fn
     // );
-
-        __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
-        int64_t numCombinedWeightValuesTotal,
-        int64_t numCombinedWeightValuesPerWarp,
-        int64_t numCombinedWeightValuesPerThread,
-        int64_t numPathsToSkipPerThread,
-        int64_t numSegmentsPerCurve,
-        curandState_t* pCurandStates,
-        float* pPerGlobalThreadScratchSpacePositions,
-        float* pPerGlobalThreadScratchSpaceTangents, 
-        float* pPerGlobalThreadScratchSpaceCurvatures,
-        float* pPerGlobalThreadWorkingScratchSpacePositions,
-        float* pPerGlobalThreadWorkingScratchSpaceTangents,
-        float* pPerGlobalThreadWorkingScratchSpaceCurvatures,
-        FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pPerThreadCombinedWeightValues,
-        FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
-        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
-        double* pLookupTable
-    );
 }

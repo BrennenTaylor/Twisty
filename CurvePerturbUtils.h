@@ -61,6 +61,15 @@ namespace twisty
             float arclength = 0.0f;
         };
 
+        struct BoundaryConditions_CudaSafe
+        {
+            float m_startPos[3] = { 0.0, 0.0, 0.0 };
+            float m_startDir[3] = {0.0, 0.0, 0.0};
+            float m_endPos[3] = {0.0, 0.0, 0.0};
+            float m_endDir[3] = {0.0, 0.0, 0.0};
+            float arclength = 0.0f;
+        };
+
         void UpdateTangentsFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
             const uint32_t numSegments, const BoundaryConditions& boundaryConditions);
 
@@ -68,9 +77,9 @@ namespace twisty
             const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp);
 
         __device__ __host__ void UpdateTangentsFromPosCudaSafe(float* pPositions, float* pTangents,
-            const uint32_t numSegments, const BoundaryConditions& boundaryConditions);
+            const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions);
 
         __device__ __host__ void UpdateCurvaturesFromTangentsCudaSafe(float* pTangents, float* pCurvatures,
-            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp);
+            const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions, const twisty::WeightingParameters& wp);
     }
 }

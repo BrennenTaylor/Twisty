@@ -93,8 +93,24 @@ namespace twisty
         pVector[2] = val[2];
     }
 
+        __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
+            int64_t numCombinedWeightValuesTotal,
+            int64_t numCombinedWeightValuesPerWarp,
+            int64_t numPathsPerThread,
+            int64_t numPathsToSkipPerThread,
+            int64_t numSegmentsPerCurve,
+            curandState_t *pCurandStates,
+            float *pPerGlobalThreadScratchSpacePositions,
+            float *pPerGlobalThreadScratchSpaceTangents,
+            float *pPerGlobalThreadScratchSpaceCurvatures,
+            FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C *pPerThreadCombinedWeightValues,
+            FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C *pFinalCombinedValues,
+            const twisty::WeightingParameters &weightingParams,
+            const twisty::PerturbUtils::BoundaryConditions_CudaSafe &csBoundaryConditions,
+            const double *pLookupTable
+        );
 
-    FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(ExperimentRunner::ExperimentParameters& experimentParams, Bootstrapper& bootstrapper)
+        FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
         : ExperimentRunner(experimentParams, bootstrapper)
     {
     }
@@ -144,16 +160,17 @@ namespace twisty
 
         const uint32_t warpPathCount = 1000000;
         const uint32_t numGlobalPerturbThreads = PerturbGridSize * PerturbWarpSize;
-        
-        uint32_t numThreadBatches = (m_experimentParams.numPathsInExperiment + warpPathCount - 1) / warpPathCount;
-        uint32_t numCachedWeightsPerWarp = (numThreadBatches + PerturbGridSize - 1) / PerturbGridSize;
-        uint32_t numPathsPerThread = warpPathCount / PerturbWarpSize;
-        
+
+        const uint32_t numCombinedWeightValuesTotal = (m_experimentParams.numPathsInExperiment + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight;
+        const uint32_t numCombinedWeightValuesPerWarp = (numCombinedWeightValuesTotal + PerturbGridSize - 1) / PerturbGridSize;
+        const uint32_t numPathsPerThread = (MaxNumPathsPerCombinedWeight + PerturbWarpSize - 1) / PerturbWarpSize;
+
+        std::cout << "Num Global Perturb Threads: " << numGlobalPerturbThreads << std::endl;
         std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
         std::cout << "numPathsPerBatch: " << warpPathCount << std::endl;
-        std::cout << "Num Thread Batches: " << numThreadBatches << std::endl;
-        std::cout << "Num cached weights per warp: " << numCachedWeightsPerWarp << std::endl;
-        std::cout << "Num paths per thread: " << numPathsPerThread << std::endl;
+        std::cout << "Num Thread Batches: " << numCombinedWeightValuesTotal << std::endl;
+        std::cout << "Num cached weights per warp: " << numCombinedWeightValuesPerWarp << std::endl;
+        // std::cout << "Num paths per thread: " << numPathsPerThread << std::endl;
         std::cout << "Perturb Warp Size required: " << PerturbWarpSize << std::endl;
         std::cout << "Perturb Grid Size required: " << PerturbGridSize << std::endl;
 
@@ -176,7 +193,7 @@ namespace twisty
  
         auto setupCudaPerturbStart = std::chrono::high_resolution_clock::now();
         {
-            result = SetupCudaPerturb(numGlobalPerturbThreads, numThreadBatches);
+            result = SetupCudaPerturb(numGlobalPerturbThreads, numCombinedWeightValuesTotal);
             if (!result)
             {
                 printf("Failed to setup Cuda Perturb\n");
@@ -270,16 +287,33 @@ namespace twisty
 
         std::cout << "numPathsInExperiment specified: " << m_experimentParams.numPathsInExperiment << std::endl;
 
-        const uint32_t numCombinedWeightValuesTotal = (m_experimentParams.numPathsInExperiment + MaxNumberOfPaths - 1)
-            / MaxNumberOfPaths;
-        const uint32_t numCombinedWeightValuesPerWarp = (numCombinedWeightValuesTotal + PerturbGridSize - 1) / PerturbGridSize;
-        const uint32_t numCombinedWeightValuesPerThread = (MaxNumberOfPaths + PerturbWarpSize - 1) / PerturbWarpSize;
-
-        std::cout << "numPathsInExperiment generated: " << numCombinedWeightValuesTotal * MaxNumberOfPaths << std::endl;
+        std::cout << "numPathsInExperiment generated: " << numCombinedWeightValuesTotal * MaxNumPathsPerCombinedWeight << std::endl;
+        std::cout << "numCombinedWeightValuesTotal: " << numCombinedWeightValuesTotal << std::endl;
+        std::cout << "numCombinedWeightValuesPerWarp: " << numCombinedWeightValuesPerWarp << std::endl;
+        std::cout << "numPathsPerThread: " << numPathsPerThread << std::endl;
 
         std::vector<twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues> combinedWeightValues(numCombinedWeightValuesTotal);
 
         auto perturbTimeStart = std::chrono::high_resolution_clock::now();
+
+        twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions;
+        csBoundaryConditions.m_startPos[0] = boundaryConditions.m_startPos[0];
+        csBoundaryConditions.m_startPos[1] = boundaryConditions.m_startPos[1];
+        csBoundaryConditions.m_startPos[2] = boundaryConditions.m_startPos[2];
+
+        csBoundaryConditions.m_startDir[0] = boundaryConditions.m_startDir[0];
+        csBoundaryConditions.m_startDir[1] = boundaryConditions.m_startDir[1];
+        csBoundaryConditions.m_startDir[2] = boundaryConditions.m_startDir[2];
+
+        csBoundaryConditions.m_endPos[0] = boundaryConditions.m_endPos[0];
+        csBoundaryConditions.m_endPos[1] = boundaryConditions.m_endPos[1];
+        csBoundaryConditions.m_endPos[2] = boundaryConditions.m_endPos[2];
+
+        csBoundaryConditions.m_endDir[0] = boundaryConditions.m_endDir[0];
+        csBoundaryConditions.m_endDir[1] = boundaryConditions.m_endDir[1];
+        csBoundaryConditions.m_endDir[2] = boundaryConditions.m_endDir[2];
+
+        csBoundaryConditions.arclength = boundaryConditions.arclength;
 
         {
             dim3 gridSize(PerturbWarpSize, 1, 1);
@@ -287,28 +321,30 @@ namespace twisty
             size_t sharedMemorySizeBytes = 0;
             cudaStream_t stream = 0;
 
+            std::cout << "Dispatching with: " << std::endl;
+            std::cout << "\tGrid Size: " << PerturbWarpSize << std::endl;
+            std::cout << "\tBlock Size: " << PerturbGridSize << std::endl;
+
             FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel << <gridSize, blockSize, sharedMemorySizeBytes, stream >> >
                 (
                     numCombinedWeightValuesTotal,
                     numCombinedWeightValuesPerWarp,
-                    numCombinedWeightValuesPerThread,
+                    numPathsPerThread,
                     m_experimentParams.numPathsToSkip,
                     m_experimentParams.numSegmentsPerCurve,
                     m_pPerGlobalThreadRandStates,
                     m_pPerGlobalThreadScratchSpacePositions,
                     m_pPerGlobalThreadScratchSpaceTangents,
                     m_pPerGlobalThreadScratchSpaceCurvatures,
-                    m_pPerGlobalThreadWorkingScratchSpacePositions,
-                    m_pPerGlobalThreadWorkingScratchSpaceTangents,
-                    m_pPerGlobalThreadWorkingScratchSpaceCurvatures,
                     m_pPerThreadCombinedWeightValues,
                     m_pFinalCombinedValues,
-                    boundaryConditions,
-                    nullptr
+                    m_experimentParams.weightingParameters,
+                    csBoundaryConditions,
+                    lookupEvaluator->AccessLookupTable().data()
                 );
 
-            CudaSafeErrorCheck(cudaGetLastError(), "Rand state init kernal launch");
-            CudaSafeErrorCheck(cudaDeviceSynchronize(), "Rand state kernel sync");
+            CudaSafeErrorCheck(cudaGetLastError(), "GPU_GeometryRandomKernel kernal launch");
+            CudaSafeErrorCheck(cudaDeviceSynchronize(), "GPU_GeometryRandomKernel kernel sync");
         }
 
         auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
@@ -342,7 +378,7 @@ namespace twisty
 
         ExperimentResults results;
         results.experimentWeights.push_back(bigTotalExperimentWeight);
-        results.totalPathsGenerated = numCombinedWeightValuesTotal * MaxNumberOfPaths;
+        results.totalPathsGenerated = numCombinedWeightValuesTotal * MaxNumPathsPerCombinedWeight;
         results.numFailedPaths = 0;
 
         ExperimentRunner::RunnerSpecificResults specificResult;
@@ -470,30 +506,30 @@ namespace twisty
 
         // Every global thread needs its own curve scratch space
         CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadScratchSpacePositions, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3)),
-            "Cuda malloc Left Scratch Space Positions");
+            "Cuda malloc Scratch Space Positions");
         usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3));
 
         // Every global thread needs its own curve scratch space left and right and working
         CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadScratchSpaceTangents, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3)),
-            "Cuda malloc Left Scratch Space Tangents");
+            "Cuda malloc Scratch Space Tangents");
         usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3));
 
         // Every global thread needs its own curve scratch space left and right and working
         CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadScratchSpaceCurvatures, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (1)),
-            "Cuda malloc Left Scratch Space Curvatures");
+            "Cuda malloc Scratch Space Curvatures");
         usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (1));
 
-        CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadWorkingScratchSpacePositions, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3)),
-            "Cuda malloc Working Scratch Space Positions");
-        usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3));
+        // CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadWorkingScratchSpacePositions, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3)),
+        //     "Cuda malloc  Working Scratch Space Positions");
+        // usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3));
 
-        CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadWorkingScratchSpaceTangents, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3)),
-            "Cuda malloc Working Scratch Space Tangents");
-        usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3));
+        // CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadWorkingScratchSpaceTangents, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3)),
+        //     "Cuda malloc Working Scratch Space Tangents");
+        // usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (3));
 
-        CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadWorkingScratchSpaceCurvatures, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (1)),
-            "Cuda malloc Working Scratch Space Curvatures");
-        usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (1));
+        // CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerGlobalThreadWorkingScratchSpaceCurvatures, sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (1)),
+        //     "Cuda malloc Working Scratch Space Curvatures");
+        // usedMemoryInBytes += (sizeof(float) * numGlobalPerturbThreads * m_upInitialCurve->m_numSegments * (1));
 
         CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerThreadCombinedWeightValues, sizeof(CombinedWeightValues_C) * numGlobalPerturbThreads),
             "Cuda malloc combined weight values per thread");
@@ -543,9 +579,6 @@ namespace twisty
         const int64_t NumPosPerCurve = (m_upInitialCurve->m_numSegments + 1);
         const int64_t NumTanPerCurve = (m_upInitialCurve->m_numSegments + 1);
         const int64_t NumCurvaturePerCurve = (m_upInitialCurve->m_numSegments);
-        const int64_t NumPosFloatsPerCurve = NumPosPerCurve * 3;
-        const int64_t NumTanFloatsPerCurve = NumPosPerCurve * 3;
-        const int64_t NumCurvatureFloatsPerCurve = NumPosPerCurve * 1;
 
         // TODO: Should this be intermixed somehow for better performance?
         uint64_t idx = 0;
@@ -554,7 +587,6 @@ namespace twisty
             for (int64_t posIdx = 0; posIdx < NumPosPerCurve; posIdx++)
             {
                 cudaMemcpy((void*)&m_pPerGlobalThreadScratchSpacePositions[idx], (void*)initialCurvePositions.data(), initialCurvePositions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice);
-                cudaMemcpy((void*)&m_pPerGlobalThreadWorkingScratchSpacePositions[idx], (void*)initialCurvePositions.data(), initialCurvePositions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice);
             }
             idx += initialCurvePositions.size() * 3;
         }
@@ -565,7 +597,6 @@ namespace twisty
             for (int64_t tanIdx = 0; tanIdx < NumTanPerCurve; tanIdx++)
             {
                 cudaMemcpy((void*)&m_pPerGlobalThreadScratchSpaceTangents[idx], (void*)initialCurveTangents.data(), initialCurveTangents.size() * sizeof(float) * 3, cudaMemcpyHostToDevice);
-                cudaMemcpy((void*)&m_pPerGlobalThreadWorkingScratchSpaceTangents[idx], (void*)initialCurveTangents.data(), initialCurveTangents.size() * sizeof(float) * 3, cudaMemcpyHostToDevice);
             }
             idx += initialCurveTangents.size() * 3;
         }
@@ -576,7 +607,6 @@ namespace twisty
             for (int64_t curvatureIdx = 0; curvatureIdx < NumCurvaturePerCurve; curvatureIdx++)
             {
                 cudaMemcpy((void*)&m_pPerGlobalThreadScratchSpaceCurvatures[idx], (void*)initialCurveCurvatures.data(), initialCurveCurvatures.size() * sizeof(float) * 1, cudaMemcpyHostToDevice);
-                cudaMemcpy((void*)&m_pPerGlobalThreadWorkingScratchSpaceCurvatures[idx], (void*)initialCurveCurvatures.data(), initialCurveCurvatures.size() * sizeof(float) * 1, cudaMemcpyHostToDevice);
             }
 
             idx += initialCurveCurvatures.size();
@@ -601,14 +631,14 @@ namespace twisty
         CudaSafeErrorCheck(cudaFree((void*)m_pPerThreadCombinedWeightValues),
             "Cuda free combined weight values per thread");
 
-        CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadWorkingScratchSpaceCurvatures),
-            "Cuda free Working Scratch Space Curvatures");
+        // CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadWorkingScratchSpaceCurvatures),
+        //     "Cuda free Working Scratch Space Curvatures");
 
-        CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadWorkingScratchSpaceTangents),
-            "Cuda free Working Scratch Space Tangents");
+        // CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadWorkingScratchSpaceTangents),
+        //     "Cuda free Working Scratch Space Tangents");
 
-        CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadWorkingScratchSpacePositions),
-            "Cuda free Working Scratch Space Positions");
+        // CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadWorkingScratchSpacePositions),
+        //     "Cuda free Working Scratch Space Positions");
 
         CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadScratchSpaceCurvatures),
             "Cuda free Left Scratch Space Curvatures");
@@ -654,7 +684,7 @@ namespace twisty
         //// If it is larger, we need to rescale everything around that new value
 
         //// New difference
-        //double newMaxPossibleFinalWeightLog10 = valueLog10 + MaxNumberOfPathsLog10;
+        //double newMaxPossibleFinalWeightLog10 = valueLog10 + MaxNumPathsPerCombinedWeightLog10;
         //double newOffset = MaxDoubleLog10 - newMaxPossibleFinalWeightLog10;
 
         //double offsetDelta = newOffset - pData->m_offset;
@@ -761,31 +791,23 @@ namespace twisty
     __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
         int64_t numCombinedWeightValuesTotal,
         int64_t numCombinedWeightValuesPerWarp,
-        int64_t numCombinedWeightValuesPerThread,
+        int64_t numPathsPerThread,
         int64_t numPathsToSkipPerThread,
         int64_t numSegmentsPerCurve,
         curandState_t* pCurandStates,
         float* pPerGlobalThreadScratchSpacePositions,
         float* pPerGlobalThreadScratchSpaceTangents,
         float* pPerGlobalThreadScratchSpaceCurvatures,
-        float* pPerGlobalThreadWorkingScratchSpacePositions,
-        float* pPerGlobalThreadWorkingScratchSpaceTangents,
-        float* pPerGlobalThreadWorkingScratchSpaceCurvatures,
         FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pPerThreadCombinedWeightValues,
         FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
         const twisty::WeightingParameters& weightingParams,
-        const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
-        double* pLookupTable
-        
-        //const PathWeighting::NormalizerStuff::FN& fn
+        const twisty::PerturbUtils::BoundaryConditions_CudaSafe& csBoundaryConditions,
+        const double* pLookupTable
     )
     {
         const uint32_t globalThreadIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
         uint32_t numPathsAccepted = 0;
-        uint32_t numPathsUnaccepted = 0;
-        uint32_t numPathsUnacceptedTangentPdf = 0;
-        uint32_t numPathsUnacceptedCurvaturePdf = 0;
 
         const int32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
         const int32_t NumTanPerCurve = (numSegmentsPerCurve + 1);
@@ -807,7 +829,7 @@ namespace twisty
             }
 
             // We need a loop over the batches
-            for (int64_t combinedWeightValuesThreadIdx = 0; combinedWeightValuesThreadIdx < numCombinedWeightValuesPerThread; combinedWeightValuesThreadIdx++)
+            for (int64_t combinedWeightValuesThreadIdx = 0; combinedWeightValuesThreadIdx < numPathsPerThread; combinedWeightValuesThreadIdx++)
             {
                 // Ok, now we first want to reset the combined weight stuff
                 FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C_Reset(&pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + threadIdx.x]);
@@ -820,55 +842,8 @@ namespace twisty
                     // This will modify pCurrentThreadCurve
                     // Remember, the structure of this is:
                     // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
-
-                    // Start at the thread's first path idx
-
-                    int64_t numCurvesInBatch = 0;
-                    int64_t outputIdx = 0;
-
-                    bool useOptimal = false;
-                    const uint32_t numRandom = 1000;
-                    const uint32_t numOptimal = 5000;
-                    uint32_t countCurrentMethod = 0;
-
-                    for (int64_t pathCount = 0; pathCount < (numToSkip + MaxNumberOfPaths); ++pathCount)
+                    for (int64_t pathCount = 0; pathCount < (numToSkip + MaxNumPathsPerCombinedWeight); ++pathCount)
                     {
-                        // Do the perturb now
-                        // Each time, we first copy the "old path" to the "scratch space"
-                        for (uint32_t segIdx = 0; segIdx <= numSegmentsPerCurve; ++segIdx)
-                        {
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + segIdx * 3 + 0] = pPerGlobalThreadWorkingScratchSpacePositions[CurrentThreadPosStartIdx + segIdx * 3 + 0];
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + segIdx * 3 + 1] = pPerGlobalThreadWorkingScratchSpacePositions[CurrentThreadPosStartIdx + segIdx * 3 + 1];
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + segIdx * 3 + 2] = pPerGlobalThreadWorkingScratchSpacePositions[CurrentThreadPosStartIdx + segIdx * 3 + 2];
-                        }
-
-                        FullExperimentRunnerOptimalPerturbOptimized_GPU::BoundaryConditions_CUDA boundaryConditions_cuda;
-                        boundaryConditions_cuda.arclength = boundaryConditions.arclength;
-
-                        boundaryConditions_cuda.m_startPos[0] = boundaryConditions.m_startPos.x;
-                        boundaryConditions_cuda.m_startPos[1] = boundaryConditions.m_startPos.y;
-                        boundaryConditions_cuda.m_startPos[2] = boundaryConditions.m_startPos.z;
-
-                        boundaryConditions_cuda.m_endPos[0] = boundaryConditions.m_endPos.x;
-                        boundaryConditions_cuda.m_endPos[1] = boundaryConditions.m_endPos.y;
-                        boundaryConditions_cuda.m_endPos[2] = boundaryConditions.m_endPos.z;
-
-                        boundaryConditions_cuda.m_startDir[0] = boundaryConditions.m_startDir.x;
-                        boundaryConditions_cuda.m_startDir[1] = boundaryConditions.m_startDir.y;
-                        boundaryConditions_cuda.m_startDir[2] = boundaryConditions.m_startDir.z;
-
-                        boundaryConditions_cuda.m_endDir[0] = boundaryConditions.m_endDir.x;
-                        boundaryConditions_cuda.m_endDir[1] = boundaryConditions.m_endDir.y;
-                        boundaryConditions_cuda.m_endDir[2] = boundaryConditions.m_endDir.z;
-
-                        twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(&pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx],
-                            &pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx],
-                            numSegmentsPerCurve, boundaryConditions);
-
-                        twisty::PerturbUtils::UpdateCurvaturesFromTangentsCudaSafe(&pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx],
-                            &pPerGlobalThreadScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx],
-                            numSegmentsPerCurve, boundaryConditions, weightingParams);
-
                         // Should be 2 - 180
                         int64_t diff = floorf(curand_uniform(&pCurandStates[globalThreadIdx]) * 178.0) + 2;
 
@@ -927,34 +902,15 @@ namespace twisty
                             // Here, we want to do a perturb update call
                             twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(&pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx],
                                 &pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx],
-                                numSegmentsPerCurve, boundaryConditions);
+                                numSegmentsPerCurve, csBoundaryConditions);
 
                             twisty::PerturbUtils::UpdateCurvaturesFromTangentsCudaSafe(&pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx],
                                 &pPerGlobalThreadScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx],
-                                numSegmentsPerCurve, boundaryConditions, weightingParams);
+                                numSegmentsPerCurve, csBoundaryConditions, weightingParams);
                         }
 
-                        double pathWeightLog10 = 0.0;// = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CUDA(&(pPerGlobalThreadLeftScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx]),
-                            //numSegmentsPerCurve, pLookupTable);
-
-                        // Now we have a candidate path
-                        // We perform metropolis and see if we want to accept the path, i.e. copy the scratch space values to the actual curve values, or reroll a new curve
-                        {
-                            for (uint32_t i = 0; i <= numSegmentsPerCurve; i++)
-                            {
-                                pPerGlobalThreadWorkingScratchSpacePositions[CurrentThreadPosStartIdx + i * 3 + 0] = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + i * 3 + 0];
-                                pPerGlobalThreadWorkingScratchSpacePositions[CurrentThreadPosStartIdx + i * 3 + 1] = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + i * 3 + 1];
-                                pPerGlobalThreadWorkingScratchSpacePositions[CurrentThreadPosStartIdx + i * 3 + 2] = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + i * 3 + 2];
-                            }
-
-                            twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(&pPerGlobalThreadWorkingScratchSpacePositions[CurrentThreadPosStartIdx],
-                                &pPerGlobalThreadWorkingScratchSpaceTangents[CurrentThreadTanStartIdx],
-                                numSegmentsPerCurve, boundaryConditions);
-
-                            twisty::PerturbUtils::UpdateCurvaturesFromTangentsCudaSafe(&pPerGlobalThreadWorkingScratchSpaceTangents[CurrentThreadTanStartIdx],
-                                &pPerGlobalThreadWorkingScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx],
-                                numSegmentsPerCurve, boundaryConditions, weightingParams);
-                        }
+                        double pathWeightLog10 = 1.0; // = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CUDA(&(pPerGlobalThreadLeftScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx]),
+                        //numSegmentsPerCurve, pLookupTable);
 
                         numPathsAccepted++;
                         if (pathCount < numPathsToSkipPerThread)
@@ -987,12 +943,6 @@ namespace twisty
 
             __syncthreads();
         }
-
-
-        //std::cout << "Num path accepted: " << numPathsAccepted << std::endl;
-        //std::cout << "Num path unaccepted: " << numPathsUnaccepted << std::endl;
-        //std::cout << "Num path unaccepted tangents: " << numPathsUnacceptedTangentPdf << std::endl;
-        //std::cout << "Num path unaccepted curvature: " << numPathsUnacceptedCurvaturePdf << std::endl;
     }
 
 }
