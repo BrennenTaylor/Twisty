@@ -18,6 +18,8 @@
 #include "BezierCurve.h"
 #include "PerturbUtils.h"
 
+#include "CurvePerturbUtils.h"
+
 #include <FMath/Vector3.h>
 
 #include <memory>

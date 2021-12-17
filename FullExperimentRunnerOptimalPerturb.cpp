@@ -642,23 +642,23 @@ namespace twisty
         const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
     )
     {
-    // TODO: Move this to the experiment runner
-// #if defined(ExportPathBatches)
+        // if (m_experimentParams.exportGeneratedCurves)
+        // {
+        //     // This should be per thread
+        //     int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
+        //     std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
+        //     {
+        //         for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx)
+        //         {
+        //             for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
+        //             {
+        //                 int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
+        //                 pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+        //             }
+        //         }
+        //     }
+        // }
 
-//         // This should be per thread
-//         int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
-//         std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
-//         {
-//             for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx)
-//             {
-//                 for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-//                 {
-//                     int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
-//                     pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
-//                 }
-//             }
-//         }
-// #endif      
         const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
         const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
         const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;

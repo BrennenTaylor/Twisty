@@ -11,8 +11,6 @@
 
 #pragma once
 
-#include "PerturbUtils.h"
-
 #include <FMath/Vector3.h>
 #include <FMath/Matrix3x3.h>
 
@@ -20,6 +18,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+namespace twisty
+{
+    namespace PerturbUtils
+    {
+        struct BoundaryConditions;
+    }
+}
 
 /**
  * @brief Contains all functionality of the twisty project
@@ -78,7 +84,7 @@ namespace twisty
         //     StoredTangents = 1
         // };
 
-        twisty::PerturbUtils::BoundaryConditions GetBoundaryConditions() const;
+        const twisty::PerturbUtils::BoundaryConditions& GetBoundaryConditions() const;
 
     public:
         uint32_t m_numSegments = 0;

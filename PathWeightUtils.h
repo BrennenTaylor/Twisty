@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Curve.h"
-#include "PerturbUtils.h"
 
 #include <boost/serialization/nvp.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
@@ -12,6 +11,14 @@
 #include <vector>
 
 #define BigFloatMultiprecision
+
+namespace twisty
+{
+    namespace PerturbUtils
+    {
+        struct BoundaryConditions;
+    }
+}
 
 namespace twisty
 {

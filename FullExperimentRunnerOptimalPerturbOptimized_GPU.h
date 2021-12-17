@@ -179,16 +179,12 @@ namespace twisty
         curandState_t* m_pPerGlobalThreadRandStates = nullptr;
         
         
-        float* m_pPerGlobalThreadLeftScratchSpacePositions = nullptr;
-        float* m_pPerGlobalThreadRightScratchSpacePositions = nullptr;
-        float* m_pPerGlobalThreadWorkingScratchSpacePositions = nullptr;
+        float* m_pPerGlobalThreadScratchSpacePositions = nullptr;
+        float* m_pPerGlobalThreadScratchSpaceTangents = nullptr;
+        float* m_pPerGlobalThreadScratchSpaceCurvatures = nullptr;
         
-        float* m_pPerGlobalThreadLeftScratchSpaceTangents = nullptr;
-        float* m_pPerGlobalThreadRightScratchSpaceTangents = nullptr;
+        float* m_pPerGlobalThreadWorkingScratchSpacePositions = nullptr;
         float* m_pPerGlobalThreadWorkingScratchSpaceTangents = nullptr;
-
-        float* m_pPerGlobalThreadLeftScratchSpaceCurvatures = nullptr;
-        float* m_pPerGlobalThreadRightScratchSpaceCurvatures = nullptr;
         float* m_pPerGlobalThreadWorkingScratchSpaceCurvatures = nullptr;
 
         CombinedWeightValues_C* m_pPerThreadCombinedWeightValues = nullptr;
@@ -196,28 +192,47 @@ namespace twisty
     };
 
     __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurandState(uint32_t seed, curandState_t* pStates, uint32_t maxNumStates);
-    __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryPerturbKernel(
+    // __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryCombinedKernel(
+    //     int64_t numCombinedWeightValuesTotal,
+    //     int64_t numCombinedWeightValuesPerWarp,
+    //     int64_t numCombinedWeightValuesPerThread,
+    //     int64_t numPathsToSkipPerThread,
+    //     int64_t numSegmentsPerCurve,
+    //     curandState_t* pCurandStates,
+    //     float* pPerGlobalThreadLeftScratchSpacePositions,
+    //     float* pPerGlobalThreadRightScratchSpacePositions,
+    //     float* pPerGlobalThreadWorkingScratchSpacePositions,
+    //     float* pPerGlobalThreadLeftScratchSpaceTangents, 
+    //     float* pPerGlobalThreadRightScratchSpaceTangents,
+    //     float* pPerGlobalThreadWorkingScratchSpaceTangents,
+    //     float* pPerGlobalThreadLeftScratchSpaceCurvatures,
+    //     float* pPerGlobalThreadRightScratchSpaceCurvatures,
+    //     float* pPerGlobalThreadWorkingScratchSpaceCurvatures,
+    //     FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pPerThreadCombinedWeightValues,
+    //     FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
+    //     //float segmentLength,
+    //     //const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
+    //     const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
+    //     double* pLookupTable
+    //     //const PathWeighting::NormalizerStuff::FN& fn
+    // );
+
+        __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
         int64_t numCombinedWeightValuesTotal,
         int64_t numCombinedWeightValuesPerWarp,
         int64_t numCombinedWeightValuesPerThread,
         int64_t numPathsToSkipPerThread,
         int64_t numSegmentsPerCurve,
         curandState_t* pCurandStates,
-        float* pPerGlobalThreadLeftScratchSpacePositions,
-        float* pPerGlobalThreadRightScratchSpacePositions,
+        float* pPerGlobalThreadScratchSpacePositions,
+        float* pPerGlobalThreadScratchSpaceTangents, 
+        float* pPerGlobalThreadScratchSpaceCurvatures,
         float* pPerGlobalThreadWorkingScratchSpacePositions,
-        float* pPerGlobalThreadLeftScratchSpaceTangents, 
-        float* pPerGlobalThreadRightScratchSpaceTangents,
         float* pPerGlobalThreadWorkingScratchSpaceTangents,
-        float* pPerGlobalThreadLeftScratchSpaceCurvatures,
-        float* pPerGlobalThreadRightScratchSpaceCurvatures,
         float* pPerGlobalThreadWorkingScratchSpaceCurvatures,
         FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pPerThreadCombinedWeightValues,
         FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
-        //float segmentLength,
-        //const twisty::PathWeighting::WeightLookupTableIntegral& weightingIntegral,
         const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         double* pLookupTable
-        //const PathWeighting::NormalizerStuff::FN& fn
     );
 }

@@ -57,3 +57,125 @@ namespace twisty
         pVector[2] = val[2];
     }
 }
+
+
+namespace twisty
+{
+    namespace PerturbUtils
+    {
+        // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
+        void UpdateTangentsFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
+            const uint32_t numSegments, const BoundaryConditions& boundaryConditions)
+        {
+            UpdateTangentsFromPosCudaSafe((float*)pPositions, (float*)pTangents, numSegments, boundaryConditions);
+        }
+
+        // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
+        void UpdateCurvaturesFromTangents(Farlor::Vector3* pTangents, float* pCurvatures,
+            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp)
+        {
+            UpdateCurvaturesFromTangentsCudaSafe((float*)pTangents, pCurvatures, numSegments, boundaryConditions, wp);
+        }
+
+        // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
+        __host__ __device__ void UpdateTangentsFromPosCudaSafe(float* pPositions, float* pTangents,
+            const uint32_t numSegments, const BoundaryConditions& boundaryConditions)
+        {
+            const float ds = boundaryConditions.arclength / numSegments;
+
+            // Set initial and final positions
+            pPositions[0 * 3 + 0] = boundaryConditions.m_startPos.m_data[0];
+            pPositions[0 * 3 + 1] = boundaryConditions.m_startPos.m_data[1];
+            pPositions[0 * 3 + 2] = boundaryConditions.m_startPos.m_data[2];
+
+            pPositions[1 * 3 + 0] = pPositions[0 * 3 + 0] + ds * boundaryConditions.m_startDir.m_data[0];
+            pPositions[1 * 3 + 1] = pPositions[0 * 3 + 1] + ds * boundaryConditions.m_startDir.m_data[1];
+            pPositions[1 * 3 + 2] = pPositions[0 * 3 + 2] + ds * boundaryConditions.m_startDir.m_data[2];
+
+            pPositions[numSegments * 3 + 0] = boundaryConditions.m_endPos.m_data[0];
+            pPositions[numSegments * 3 + 1] = boundaryConditions.m_endPos.m_data[1];
+            pPositions[numSegments * 3 + 2] = boundaryConditions.m_endPos.m_data[2];
+
+            for (uint32_t i = 1; i < numSegments; ++i)
+            {
+                float diff_x = pPositions[(i + 1) * 3 + 0] - pPositions[(i - 1) * 3 + 0];
+                float diff_y = pPositions[(i + 1) * 3 + 1] - pPositions[(i - 1) * 3 + 1];
+                float diff_z = pPositions[(i + 1) * 3 + 2] - pPositions[(i - 1) * 3 + 2];
+                float diff_length = sqrt(diff_x * diff_x + diff_y * diff_y + diff_z * diff_z);
+                pTangents[i * 3 + 0] = diff_x / diff_length;
+                pTangents[i * 3 + 1] = diff_y / diff_length;
+                pTangents[i * 3 + 2] = diff_z / diff_length;
+            }
+            pTangents[numSegments * 3 + 0] = boundaryConditions.m_endDir.m_data[0];
+            pTangents[numSegments * 3 + 1] = boundaryConditions.m_endDir.m_data[1];
+            pTangents[numSegments * 3 + 2] = boundaryConditions.m_endDir.m_data[2];
+        }
+
+        // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
+        __host__ __device__ void UpdateCurvaturesFromTangentsCudaSafe(float* pTangents, float* pCurvatures,
+            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp)
+        {
+            const float ds = boundaryConditions.arclength / numSegments;
+
+            switch (wp.weightingMethod)
+            {
+                case twisty::WeightingMethod::RadiativeTransfer:
+                {
+                    // Update segments
+                    for (uint32_t i = 0; i < numSegments; ++i)
+                    {
+                        const float tanLeft_x = pTangents[i * 3 + 0];
+                        const float tanLeft_y = pTangents[i * 3 + 1];
+                        const float tanLeft_z = pTangents[i * 3 + 2];
+                        
+                        const float tanRight_x = pTangents[(i + 1) * 3 + 0];
+                        const float tanRight_y = pTangents[(i + 1) * 3 + 1];
+                        const float tanRight_z = pTangents[(i + 1) * 3 + 2];
+
+                        {
+                            const float scaledDiff_x = (tanRight_x - tanLeft_x) * (1.0f / ds);
+                            const float scaledDiff_y = (tanRight_y - tanLeft_y) * (1.0f / ds);
+                            const float scaledDiff_z = (tanRight_z - tanLeft_z) * (1.0f / ds);
+
+                            pCurvatures[i] = sqrt(scaledDiff_x * scaledDiff_x + scaledDiff_y * scaledDiff_y + 
+                                scaledDiff_z * scaledDiff_z);
+                        }
+                    }
+                } break;
+                case twisty::WeightingMethod::SimplifiedModel:
+                {
+                    // Update segments
+                    for (uint32_t i = 0; i < numSegments; ++i)
+                    {
+                        float tanLeft_x = pTangents[i * 3 + 0];
+                        float tanLeft_y = pTangents[i * 3 + 1];
+                        float tanLeft_z = pTangents[i * 3 + 2];
+                        const float leftLength = sqrt(tanLeft_x * tanLeft_x + tanLeft_y * tanLeft_y + 
+                                tanLeft_z * tanLeft_z);
+                        tanLeft_x /= leftLength;
+                        tanLeft_y /= leftLength;
+                        tanLeft_z /= leftLength;
+
+                        float tanRight_x = pTangents[(i + 1) * 3 + 0];
+                        float tanRight_y = pTangents[(i + 1) * 3 + 1];
+                        float tanRight_z = pTangents[(i + 1) * 3 + 2];
+                        const float rightLength = sqrt(tanRight_x * tanRight_x + tanRight_y * tanRight_y + 
+                                tanRight_z * tanRight_z);
+                        tanRight_x /= rightLength;
+                        tanRight_y /= rightLength;
+                        tanRight_z /= rightLength;
+
+                        {   
+                            const float curvature = (tanLeft_x * tanRight_x) + (tanLeft_y * tanRight_y) + (tanLeft_z * tanRight_z);
+                            pCurvatures[i] = -curvature; // Negate curvature so that an increase in curvature leads to higher weight values
+                        }
+                    }
+                } break;
+                default:
+                {
+                    assert(false);
+                } break;
+            };
+        }
+    }
+}
