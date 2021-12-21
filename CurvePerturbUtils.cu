@@ -1,5 +1,7 @@
 #include "CurvePerturbUtils.h"
 
+#include "PathWeightUtils.h"
+
 #include <cmath>
 
 // Cuda Functions

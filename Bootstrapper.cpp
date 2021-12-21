@@ -183,12 +183,16 @@ namespace twisty
             upGeneratedCurve->m_positions[rightIdx + xsPos + remainingSegmentCountDiv2] = x_t + rightIdx * ds * rightDir;
         }
         
-        twisty::PerturbUtils::BoundaryConditions boundaryConditions;
-        boundaryConditions.arclength = upGeneratedCurve->m_arclength;
-        boundaryConditions.m_startPos = upGeneratedCurve->m_basePos;
-        boundaryConditions.m_startDir = upGeneratedCurve->m_baseTangent;
-        boundaryConditions.m_endPos = upGeneratedCurve->m_targetPos;
-        boundaryConditions.m_endDir = upGeneratedCurve->m_targetTangent;
+        twisty::PerturbUtils::BoundaryConditions boundaryConditions = upGeneratedCurve->GetBoundaryConditions();
+        // boundaryConditions.arclength = upGeneratedCurve->m_arclength;
+        // boundaryConditions.m_startPos = upGeneratedCurve->m_basePos;
+        // boundaryConditions.m_startDir = upGeneratedCurve->m_baseTangent;
+        // boundaryConditions.m_endPos = upGeneratedCurve->m_targetPos;
+        // boundaryConditions.m_endDir = upGeneratedCurve->m_targetTangent;
+
+        std::cout << "Boundary conditions in bootstrapper: " << std::endl;
+        std::cout << "\tStart pos and Dir: " << boundaryConditions.m_startPos << ", " << boundaryConditions.m_startDir << std::endl;
+        std::cout << "\tEnd pos and Dir: " << boundaryConditions.m_endPos << ", " << boundaryConditions.m_endDir << std::endl;
 
         // No curvature update
         twisty::PerturbUtils::UpdateTangentsFromPos(upGeneratedCurve->m_positions.data(),

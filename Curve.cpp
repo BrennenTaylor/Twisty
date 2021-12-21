@@ -96,7 +96,7 @@ namespace twisty
         return upInitialCurve;
     }
 
-    const twisty::PerturbUtils::BoundaryConditions& Curve::GetBoundaryConditions() const
+    twisty::PerturbUtils::BoundaryConditions Curve::GetBoundaryConditions() const
     {
         twisty::PerturbUtils::BoundaryConditions bc;
         bc.arclength = m_arclength;

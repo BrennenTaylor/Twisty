@@ -4,8 +4,6 @@
 
 #include <FMath\Vector3.h>
 
-#include "PathWeightUtils.h"
-
 #if defined(USE_CUDA)
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
@@ -43,10 +41,10 @@ namespace twisty
     __device__ __host__ void RotateVectorByMatrix(float* pRotationMatrix, float* pVector);
 }
 
-// namespace twisty
-// {
-//     struct WeightingParameters;
-// }
+namespace twisty
+{
+    struct WeightingParameters;
+}
 
 namespace twisty
 {

@@ -272,6 +272,7 @@ int main(int argc, char *argv[])
         
         for (int scatterIdx = 0; scatterIdx < results.experimentWeights.size(); scatterIdx++)
         {
+
             std::cout << "\tTotal experiment weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] << std::endl;
             std::cout << "\tAvg path weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
             ofs << "Scatter value: " << experimentParams.weightingParameters.scatterValues[scatterIdx] << std::endl;

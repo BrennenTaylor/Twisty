@@ -1,5 +1,6 @@
 #include "FullExperimentRunnerOptimalPerturb.h"
 
+#include "CombinedWeightUtils.h"
 #include "CurvePerturbUtils.h"
 #include "CurveUtils.h"
 #include "MathConsts.h"
@@ -20,15 +21,7 @@
 
 #define ExportPathBatches
 
-#if defined(ExportPathBatches)
-
 const static int64_t ExportPathBatchCacheSize = 100000;
-
-#else
-
-const int64_t ExportPathBatchCacheSize = 1000000;
-
-#endif
 
 namespace twisty
 {
@@ -45,6 +38,8 @@ namespace twisty
     ExperimentRunner::RunnerSpecificResults FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     {
         auto setupTimeStart = std::chrono::high_resolution_clock::now();
+
+        assert(m_experimentParams.weightingParameters.scatter.size() > 0);
 
         // TODO: For now, we simply will support one scattering value 
         if (m_experimentParams.weightingParameters.scatterValues.size() > 1)
@@ -85,9 +80,12 @@ namespace twisty
             numPurturbThreads = numSystemThreads;
         }
 
+        assert(numPurturbThreads > 0);
+
         std::cout << "Using " << numPurturbThreads << " threads for purturbation." << std::endl;
 
         // Setup rng stuff
+        // TODO: Set this up more correctly, based on https://www.pcg-random.org/posts/cpp-seeding-surprises.html
         std::vector<std::mt19937_64> perThreadRngGenerators(numPurturbThreads);
         int64_t seed = m_experimentParams.curvePurturbSeed;
         if (seed == 0)
@@ -97,6 +95,12 @@ namespace twisty
         for (int64_t i = 0; i < numPurturbThreads; ++i)
         {
             perThreadRngGenerators[i] = std::mt19937_64(seed + i);
+        }
+
+        std::vector<CombinedWeightValues_C> perThreadCombinedWeightValues(numPurturbThreads);
+        for (int i = 0; i < numPurturbThreads; i++)
+        {
+            CombinedWeightValues_C_Reset(perThreadCombinedWeightValues[i]);
         }
 
         // Setup data structures
@@ -235,10 +239,6 @@ namespace twisty
         long long perturbTimeCount = 0;
         long long weightCalcTimeCount = 0;
 
-        // We need a number of dispatches
-        boost::multiprecision::cpp_dec_float_100 minimumPathWeight = 0.0;
-        boost::multiprecision::cpp_dec_float_100 maximumPathWeight = 0.0;
-
         twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralsRawPointer = lookupEvaluator.get();
 
         std::ofstream bigfloatOFS;
@@ -252,6 +252,7 @@ namespace twisty
             bigfloatOFS << m_experimentParams.numPathsInExperiment << std::endl;
         }
 
+        std::vector<CombinedWeightValues_C> perDispatchCombinedWeightValues(numDispatches);
         for (int64_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
         {
             auto dispatchTimeStart = std::chrono::high_resolution_clock::now();
@@ -317,6 +318,7 @@ namespace twisty
                                 std::ref(perThreadCurveCurvatures),
                                 std::ref(compressedWeightBuffer),
                                 std::ref(cachedSegmentWeights),
+                                std::ref(perThreadCombinedWeightValues),
                                 m_upInitialCurve->m_segmentLength,
                                 weightingIntegralsRawPointer,
                                 boundaryConditions,
@@ -360,6 +362,15 @@ namespace twisty
 
             std::cout << "Using " << numWeightingThreads << " threads for weighting." << std::endl;
 
+            boost::multiprecision::cpp_dec_float_100 combinedCombinedWeight = 0.0;
+            std::cout << "\tCombined Weight Values" << std::endl;
+            for (auto& combinedWeightValue : perThreadCombinedWeightValues)
+            {
+                std::cout << "\tCombinedWeightValue: " << ExtractFinalValue(combinedWeightValue) << std::endl;
+                combinedCombinedWeight += ExtractFinalValue(combinedWeightValue);
+            }
+            std::cout << "Combined combined weight: " << combinedCombinedWeight << std::endl;
+
             boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
             int64_t numWeightsPerThread = (pathsInDispatch + numWeightingThreads - 1) / numWeightingThreads;
             {
@@ -394,6 +405,7 @@ namespace twisty
             }
 
             std::cout << "Dispatch " << dispatchIdx << " Weight: " << totalDispatchWeight << std::endl;
+            std::cout << "\tAverage Path Weight: " << totalDispatchWeight / pathsInDispatch << std::endl;
             bigTotalExperimentWeight += totalDispatchWeight;
 
             auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
@@ -412,19 +424,19 @@ namespace twisty
 
             numPathsLeft -= pathsInDispatch;
             numPathsGenerated += pathsInDispatch;
+            std::cout << "Paths in dispatch: " << pathsInDispatch << std::endl;
 
             auto dispatchTimeEnd = std::chrono::high_resolution_clock::now();
             auto dispatchRunTime = std::chrono::duration_cast<std::chrono::milliseconds>(dispatchTimeEnd - dispatchTimeStart);
             std::cout << "\tDispatch " << dispatchIdx  << " Time: " << dispatchRunTime.count() << "ms" << std::endl;
         }
 
+        std::cout << "Paths in experiment: " << numPathsGenerated << std::endl;
+
         if (m_experimentParams.outputBigFloatWeights)
         {
             bigfloatOFS.close();
         }
-
-        std::cout << "Minimum Weight: " << minimumPathWeight << std::endl;
-        std::cout << "Maximum Weight: " << maximumPathWeight << std::endl;
 
         auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart); 
 
@@ -456,15 +468,15 @@ namespace twisty
                 break;
             }
 
-            std::cout << "Compressed weight: " << compressedWeights[idx] << std::endl;
+            // std::cout << "Compressed weight: " << compressedWeights[idx] << std::endl;
 
             boost::multiprecision::cpp_dec_float_100 bigFloatPathWeightLog10 = compressedWeights[idx];
             boost::multiprecision::cpp_dec_float_100 bigfloatPathWeight = boost::multiprecision::pow(10.0, bigFloatPathWeightLog10);
-            if (weightingMethod == WeightingMethod::RadiativeTransfer)
-            {
-                bigFloatPathWeightLog10 += pathNormalizerLog10;
-                bigfloatPathWeight *= pathNormalizer;
-            }
+            // if (weightingMethod == WeightingMethod::RadiativeTransfer)
+            // {
+            //     bigFloatPathWeightLog10 += pathNormalizerLog10;
+            //     bigfloatPathWeight *= pathNormalizer;
+            // }
 
             // Pulled from Jerry analysis
             bigFloatWeightsLog10[idx] = bigFloatPathWeightLog10;
@@ -484,6 +496,7 @@ namespace twisty
         std::vector<float>& globalCurvatures,
         std::vector<double>& globalPathWeights,
         std::vector<double>& cachedSegmentWeights,
+        std::vector<CombinedWeightValues_C>& perThreadCombinedWeightValues,
         float segmentLength,
         twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
         const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
@@ -497,6 +510,8 @@ namespace twisty
         const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
         const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
         const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
+
+        CombinedWeightValues_C_Reset(perThreadCombinedWeightValues[threadIdx]);
 
         // Now, we can begin the actual algorithm
         {
@@ -537,7 +552,7 @@ namespace twisty
                 const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
 
                 std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
-                double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
+                double randRotationAngle = 0.0;// zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
 
                 //  Rotation
                 {
@@ -564,7 +579,7 @@ namespace twisty
                         numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                 }
 
-                double scatteringWeight = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
                         numSegmentsPerCurve, *weightingIntegralPtr);
 
                 if (pathCount < numPathsToSkipPerThread)
@@ -577,8 +592,9 @@ namespace twisty
                     int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
                     assert(currentPathIdx >= numPathsPerThread * threadIdx);
 
+                    globalPathWeights[currentPathIdx] = scatteringWeightLog10;
 
-                    globalPathWeights[currentPathIdx] = scatteringWeight;
+                    CombinedWeightValues_C_AddValue(perThreadCombinedWeightValues[threadIdx], scatteringWeightLog10);
                 }
             }
         }

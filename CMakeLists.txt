@@ -37,6 +37,8 @@ add_library(Twisty
     BezierCurve.cpp
     Bootstrapper.h
     Bootstrapper.cpp
+    CombinedWeightUtils.h
+    CombinedWeightUtils.cu
     Curve.h
     Curve.cpp
     CurvePerturbUtils.h

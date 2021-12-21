@@ -26,3 +26,4 @@ CachedPython/
 *.zip
 python_sandbox/
 *.xlsx
+*cppcheck*

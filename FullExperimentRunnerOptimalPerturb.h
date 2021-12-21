@@ -13,6 +13,8 @@
 #include "PathWeightUtils.h"
 #include "PerturbUtils.h"
 
+#include "CombinedWeightUtils.h"
+
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
 #include <optional>
@@ -40,11 +42,9 @@ namespace twisty
             std::vector<Farlor::Vector3>& globalPos,
             std::vector<Farlor::Vector3>& globalTans,
             std::vector<float>& globalCurvatures,
-            // std::vector<Farlor::Vector3>& scratchPositionSpace,
-            // std::vector<Farlor::Vector3>& scratchTangentSpace,
-            // std::vector<float>& scratchCurvatureSpace,
             std::vector<double>& globalPathWeights,
             std::vector<double>& cachedSegmentWeights,
+            std::vector<CombinedWeightValues_C>& perThreadCombinedWeightValues,
             float segmentLength,
             twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
             const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,

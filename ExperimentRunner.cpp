@@ -1,5 +1,7 @@
 #include "ExperimentRunner.h"
 
+#include "Curve.h"
+
 #include <sstream>
 
 namespace twisty

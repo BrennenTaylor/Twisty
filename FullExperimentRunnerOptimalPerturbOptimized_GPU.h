@@ -13,6 +13,8 @@
 
 #include "CurvePerturbUtils.h"
 
+#include "CombinedWeightUtils.h"
+
 #include "ExperimentRunner.h"
 #include "PathWeightUtils.h"
 #include "PerturbUtils.h"
@@ -25,12 +27,6 @@
 #include <optional>
 #include <random>
 
-// Currently implemented as #defines as there is no good way that I can find to make these a class specific constant.
-// TODO: Keep looking, there has to be something better
-#define MaxDoubleLog10 300
-#define MaxNumberOfPathsLog10 6.0
-#define MaxNumPathsPerCombinedWeight 1000000
-
 namespace twisty
 {
     /**
@@ -40,105 +36,6 @@ namespace twisty
 
     class FullExperimentRunnerOptimalPerturbOptimized_GPU : public ExperimentRunner
     {
-    public:
-        // struct BoundaryConditions_CUDA
-        // {
-        //     float m_startPos[3] = { 0.0f, 0.0f, 0.0f };
-        //     float m_startDir[3] = { 1.0f, 0.0f, 0.0f };
-        //     float m_endPos[3] = { 0.0f, 0.0f, 0.0f };
-        //     float m_endDir[3] = { 1.0f, 0.0f, 0.0f };
-        //     float arclength = 0.0f;
-        // };
-
-
-        struct CombinedWeightValues_C
-        {
-            uint32_t m_numValues = 0;
-            double m_runningTotal = 0.0;
-            double m_offset = 0.0;
-            double m_maxWeightLog10 = 0.0;
-            double m_maxPossibleFinalWeightLog10 = 0.0;
-        };
-
-        __host__ __device__ void static CombinedWeightValues_C_Reset(CombinedWeightValues_C* pData)
-        {
-            pData->m_numValues = 0;
-            pData->m_runningTotal = 0.0;
-            pData->m_offset = 0.0;
-            pData->m_maxWeightLog10 = 0.0;
-            pData->m_maxPossibleFinalWeightLog10 = 0.0;
-        }
-
-        __host__ __device__ void static CombinedWeightValues_C_AddValue(CombinedWeightValues_C* pData, double valueLog10)
-        {
-            // In the case we haven't added a value yet, we can early out
-            if (pData->m_numValues == 0)
-            {
-                pData->m_maxWeightLog10 = valueLog10;
-                pData->m_maxPossibleFinalWeightLog10 = pData->m_maxWeightLog10 + MaxNumberOfPathsLog10;
-                pData->m_offset = MaxDoubleLog10 - pData->m_maxPossibleFinalWeightLog10;
-                pData->m_runningTotal += pow(10.0, (valueLog10 + pData->m_offset));
-                pData->m_numValues++;
-                return;
-            }
-
-
-            // If we already have a value and its not larger than the current max, then throw it in.
-            if (pData->m_maxWeightLog10 > valueLog10)
-            {
-                pData->m_runningTotal += pow(10.0, (valueLog10 + pData->m_offset));
-                pData->m_numValues++;
-                return;
-            }
-
-            // If it is larger, we need to rescale everything around that new value
-
-            // New difference
-            double newMaxPossibleFinalWeightLog10 = valueLog10 + MaxNumberOfPathsLog10;
-            double newOffset = MaxDoubleLog10 - newMaxPossibleFinalWeightLog10;
-
-            double offsetDelta = newOffset - pData->m_offset;
-            double log10RunningTotal = log10(pData->m_runningTotal);
-            double adjustedLog10RunningTotal = log10RunningTotal + offsetDelta;
-            pData->m_runningTotal = pow(10.0, adjustedLog10RunningTotal);
-
-            // Update
-            pData->m_maxWeightLog10 = valueLog10;
-            pData->m_maxPossibleFinalWeightLog10 = newMaxPossibleFinalWeightLog10;
-            pData->m_offset = newOffset;
-
-            pData->m_runningTotal += pow(10.0, (valueLog10 + pData->m_offset));
-            pData->m_numValues++;
-        }
-
-        // Responsable for storing up to 10^6 big float values as double internally, while maintaining a significant amount of precision
-        class CombinedWeightValues
-        {
-
-        public:
-            __host__ __device__ void AddValue(double valueLog10)
-            {
-                CombinedWeightValues_C_AddValue(&m_data, valueLog10);
-            }
-
-            boost::multiprecision::cpp_dec_float_100 ExtractFinalValue()
-            {
-                // TODO: Do we need this, or can we simply compute using running total and offset?
-                if (m_data.m_numValues == 0)
-                {
-                    return 0.0;
-                }
-
-                boost::multiprecision::cpp_dec_float_100 runningTotalLog10 = std::log10(m_data.m_runningTotal);
-                runningTotalLog10 -= m_data.m_offset;
-                return boost::multiprecision::pow(10.0, runningTotalLog10);
-            }
-
-        public:
-            CombinedWeightValues_C m_data;
-        };
-
-
     public:
 
         /**
@@ -180,37 +77,13 @@ namespace twisty
 
         curandState_t* m_pPerGlobalThreadRandStates = nullptr;
         
-        
         float* m_pPerGlobalThreadScratchSpacePositions = nullptr;
         float* m_pPerGlobalThreadScratchSpaceTangents = nullptr;
         float* m_pPerGlobalThreadScratchSpaceCurvatures = nullptr;
-        
-        // float* m_pPerGlobalThreadWorkingScratchSpacePositions = nullptr;
-        // float* m_pPerGlobalThreadWorkingScratchSpaceTangents = nullptr;
-        // float* m_pPerGlobalThreadWorkingScratchSpaceCurvatures = nullptr;
 
         CombinedWeightValues_C* m_pPerThreadCombinedWeightValues = nullptr;
         CombinedWeightValues_C* m_pFinalCombinedValues = nullptr;
     };
 
     __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurandState(uint32_t seed, curandState_t* pStates, uint32_t maxNumStates);
-
-    // __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
-    //     int64_t numCombinedWeightValuesTotal,
-    //     int64_t numCombinedWeightValuesPerWarp,
-    //     int64_t numCombinedWeightValuesPerThread,
-    //     int64_t numPathsToSkipPerThread,
-    //     int64_t numSegmentsPerCurve,
-    //     curandState_t* pCurandStates,
-    //     float* pPerGlobalThreadScratchSpacePositions,
-    //     float* pPerGlobalThreadScratchSpaceTangents, 
-    //     float* pPerGlobalThreadScratchSpaceCurvatures,
-    //     float* pPerGlobalThreadWorkingScratchSpacePositions,
-    //     float* pPerGlobalThreadWorkingScratchSpaceTangents,
-    //     float* pPerGlobalThreadWorkingScratchSpaceCurvatures,
-    //     FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pPerThreadCombinedWeightValues,
-    //     FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
-    //     const twisty::PerturbUtils::BoundaryConditions_CudaSafe& boundaryConditions,
-    //     double* pLookupTable
-    // );
 }
