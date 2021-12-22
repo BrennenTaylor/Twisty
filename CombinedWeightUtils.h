@@ -36,5 +36,7 @@ namespace twisty
 
     __host__ __device__ void CombinedWeightValues_C_Reset(CombinedWeightValues_C& combinedWeightValue);
     __host__ __device__ void CombinedWeightValues_C_AddValue(CombinedWeightValues_C& combinedWeightValue, double valueLog10);
+    __host__ __device__ CombinedWeightValues_C CombinedWeightValues_C_CombineValues(const CombinedWeightValues_C& firstCombinedWeightValue,
+        const CombinedWeightValues_C& secondCombinedWeightValue);
     boost::multiprecision::cpp_dec_float_100 ExtractFinalValue(const CombinedWeightValues_C& combinedWeightValue);
 }

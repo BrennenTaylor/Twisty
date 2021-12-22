@@ -39,7 +39,7 @@ namespace twisty
     {
         auto setupTimeStart = std::chrono::high_resolution_clock::now();
 
-        assert(m_experimentParams.weightingParameters.scatter.size() > 0);
+        assert(m_experimentParams.weightingParameters.scatterValues.size() > 0);
 
         // TODO: For now, we simply will support one scattering value 
         if (m_experimentParams.weightingParameters.scatterValues.size() > 1)
@@ -97,11 +97,11 @@ namespace twisty
             perThreadRngGenerators[i] = std::mt19937_64(seed + i);
         }
 
-        std::vector<CombinedWeightValues_C> perThreadCombinedWeightValues(numPurturbThreads);
-        for (int i = 0; i < numPurturbThreads; i++)
-        {
-            CombinedWeightValues_C_Reset(perThreadCombinedWeightValues[i]);
-        }
+        //std::vector<CombinedWeightValues_C> perThreadCombinedWeightValues(numPurturbThreads);
+        //for (int i = 0; i < numPurturbThreads; i++)
+        //{
+        //    CombinedWeightValues_C_Reset(perThreadCombinedWeightValues[i]);
+        //}
 
         // Setup data structures
         std::vector<Farlor::Vector3> initialCurvePositions = m_upInitialCurve->m_positions;
@@ -122,47 +122,59 @@ namespace twisty
         std::vector<Farlor::Vector3> perThreadCurveTangents(NumTanPerCurve * numPurturbThreads);
         std::vector<float> perThreadCurveCurvatures(NumCurvaturePerCurve * numPurturbThreads);
 
-        std::vector<Farlor::Vector3> perThreadPositionScratchLeft(NumPosPerCurve * numPurturbThreads);
-        std::vector<Farlor::Vector3> perThreadTangentScratchLeft(NumTanPerCurve * numPurturbThreads);
-        std::vector<float> perThreadCurvatureScratchLeft(NumCurvaturePerCurve * numPurturbThreads);
-
-        std::vector<Farlor::Vector3> perThreadPositionScratchRight(NumPosPerCurve * numPurturbThreads);
-        std::vector<Farlor::Vector3> perThreadTangentScratchRight(NumTanPerCurve * numPurturbThreads);
-        std::vector<float> perThreadCurvatureScratchRight(NumCurvaturePerCurve * numPurturbThreads);
-
         for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx)
         {
             // Copy Pos
             for (int64_t posIdx = 0; posIdx < NumPosPerCurve; posIdx++)
             {
                 perThreadCurvePositions[NumPosPerCurve * threadIdx + posIdx] = initialCurvePositions[posIdx];
-                perThreadPositionScratchLeft[NumPosPerCurve * threadIdx + posIdx] = initialCurvePositions[posIdx];
-                perThreadPositionScratchRight[NumPosPerCurve * threadIdx + posIdx] = initialCurvePositions[posIdx];
             }
 
             // Copy Tan
             for (int64_t tanIdx = 0; tanIdx < NumTanPerCurve; tanIdx++)
             {
                 perThreadCurveTangents[NumTanPerCurve * threadIdx + tanIdx] = initialCurveTangents[tanIdx];
-                perThreadTangentScratchLeft[NumTanPerCurve * threadIdx + tanIdx] = initialCurveTangents[tanIdx];
-                perThreadTangentScratchRight[NumTanPerCurve * threadIdx + tanIdx] = initialCurveTangents[tanIdx];
             }
 
             // Copy Curvatures
             for (int64_t curvatureIdx = 0; curvatureIdx < NumCurvaturePerCurve; curvatureIdx++)
             {
                 perThreadCurveCurvatures[NumCurvaturePerCurve * threadIdx + curvatureIdx] = initialCurveCurvatures[curvatureIdx];
-                perThreadCurvatureScratchLeft[NumCurvaturePerCurve * threadIdx + curvatureIdx] = initialCurveCurvatures[curvatureIdx];
-                perThreadCurvatureScratchRight[NumCurvaturePerCurve * threadIdx + curvatureIdx] = initialCurveCurvatures[curvatureIdx];
             }
         }
 
+        
+        std::vector<Farlor::Vector3> perThreadPositionScratchLeft;
+        std::vector<Farlor::Vector3> perThreadTangentScratchLeft;
+        std::vector<float> perThreadCurvatureScratchLeft;
+
+        std::vector<Farlor::Vector3> perThreadPositionScratchRight;
+        std::vector<Farlor::Vector3> perThreadTangentScratchRight;
+        std::vector<float> perThreadCurvatureScratchRight;
+
+        std::vector<double> cachedSegmentWeights;
+        std::vector<double> compressedWeightBuffer;
+
+        // Only in this case do we allocate room
+        if (m_experimentParams.perturbMethod != ExperimentRunner::PerturbMethod::GeometricRandom)
+        {
+            perThreadPositionScratchLeft = perThreadCurvePositions;
+            perThreadTangentScratchLeft = perThreadCurveTangents;
+            perThreadCurvatureScratchLeft = perThreadCurveCurvatures;
+
+            perThreadPositionScratchRight = perThreadCurvePositions;
+            perThreadTangentScratchRight = perThreadCurveTangents;
+            perThreadCurvatureScratchRight = perThreadCurveCurvatures;
+
+            cachedSegmentWeights.resize(m_experimentParams.numSegmentsPerCurve * numPurturbThreads);
+            compressedWeightBuffer.resize(ExportPathBatchCacheSize);
+        }
+
         // Cached weights: num segments X num perturb threads
-        std::vector<double> cachedSegmentWeights(m_experimentParams.numSegmentsPerCurve * numPurturbThreads);
         // Stores the weights to read back from the experiment?
         // Export path batch cache size -> How many compressed paths we can track at once?
         // Per scatter value, which we will focus on one atm.
-        std::vector<double> compressedWeightBuffer(ExportPathBatchCacheSize);
+
 
         std::stringstream fnFilenameSS;
         fnFilenameSS << "SavedFN";
@@ -226,12 +238,13 @@ namespace twisty
 
 
         /* --------------------- */
-        const int64_t numDispatches = (m_experimentParams.numPathsInExperiment + ExportPathBatchCacheSize - 1) / ExportPathBatchCacheSize;
+        const int64_t numCombinedWeightValues = (m_experimentParams.numPathsInExperiment + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight;
+
+        // const int64_t numDispatches = (m_experimentParams.numPathsInExperiment + ExportPathBatchCacheSize - 1) / ExportPathBatchCacheSize;
         std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
-        std::cout << "numPathsPerBatch: " << ExportPathBatchCacheSize << std::endl;
-        std::cout << "Num dispatches required: " << numDispatches << std::endl;
-        int64_t numPathsLeft = m_experimentParams.numPathsInExperiment;
-        int64_t numPathsGenerated = 0;
+        // std::cout << "numPathsPerBatch: " << ExportPathBatchCacheSize << std::endl;
+        // std::cout << "Num dispatches required: " << numDispatches << std::endl;
+        std::cout << "Num combined weight values needed: " << numCombinedWeightValues << std::endl;
 
         // We need to calculate the absorbtion/scattering piece
         boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
@@ -252,17 +265,17 @@ namespace twisty
             bigfloatOFS << m_experimentParams.numPathsInExperiment << std::endl;
         }
 
-        std::vector<CombinedWeightValues_C> perDispatchCombinedWeightValues(numDispatches);
-        for (int64_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
+        std::vector<CombinedWeightValues_C> perDispatchCombinedWeightValues(numCombinedWeightValues);
+        int32_t numCombinedWeightValuesPerThread = (numCombinedWeightValues + numPurturbThreads - 1) / numPurturbThreads;
+        std::cout << "Num combined weight values per thread: " << numCombinedWeightValuesPerThread << std::endl;
+
+        // Single dispatch, with a number of threads
         {
             auto dispatchTimeStart = std::chrono::high_resolution_clock::now();
 
             auto perturbTimeStart = std::chrono::high_resolution_clock::now();
-
-            int64_t pathsInDispatch = std::min(ExportPathBatchCacheSize, numPathsLeft);
-            std::cout << "Paths in dispatch " << dispatchIdx << ": " << pathsInDispatch << std::endl;
             {
-                int64_t numPathsPerThread = (pathsInDispatch + numPurturbThreads - 1) / numPurturbThreads;
+                int64_t numPathsPerThread = MaxNumPathsPerCombinedWeight * numCombinedWeightValuesPerThread;
                 std::vector<std::thread> threads(numPurturbThreads);
                 for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx)
                 {
@@ -277,30 +290,8 @@ namespace twisty
 
                         case ExperimentRunner::PerturbMethod::GeometricCombined:
                         {
-                            std::thread newThread(&FullExperimentRunnerOptimalPerturb::GeometryCombined, this,
-                                threadIdx,
-                                pathsInDispatch,
-                                numPathsPerThread,
-                                m_experimentParams.numPathsToSkip,
-                                m_experimentParams.numSegmentsPerCurve,
-                                std::ref(perThreadRngGenerators),
-                                std::ref(perThreadCurvePositions),
-                                std::ref(perThreadCurveTangents),
-                                std::ref(perThreadCurveCurvatures),
-                                std::ref(perThreadPositionScratchLeft),
-                                std::ref(perThreadTangentScratchLeft),
-                                std::ref(perThreadCurvatureScratchLeft),
-                                std::ref(perThreadPositionScratchRight),
-                                std::ref(perThreadTangentScratchRight),
-                                std::ref(perThreadCurvatureScratchRight),
-                                std::ref(compressedWeightBuffer),
-                                std::ref(cachedSegmentWeights),
-                                m_upInitialCurve->m_segmentLength,
-                                weightingIntegralsRawPointer,
-                                boundaryConditions,
-                                fn
-                            );
-                            threads[threadIdx] = std::move(newThread);
+                            std::cout << "Error: GeometricMinCurvature Not Supported currently" << std::endl;
+                            exit(1);
                         } break;
 
                         case ExperimentRunner::PerturbMethod::GeometricRandom:
@@ -308,7 +299,7 @@ namespace twisty
                         {
                             std::thread newThread(&FullExperimentRunnerOptimalPerturb::GeometryRandom, this,
                                 threadIdx,
-                                pathsInDispatch,
+                                m_experimentParams.numPathsInExperiment,
                                 numPathsPerThread,
                                 m_experimentParams.numPathsToSkip,
                                 m_experimentParams.numSegmentsPerCurve,
@@ -316,13 +307,11 @@ namespace twisty
                                 std::ref(perThreadCurvePositions),
                                 std::ref(perThreadCurveTangents),
                                 std::ref(perThreadCurveCurvatures),
-                                std::ref(compressedWeightBuffer),
-                                std::ref(cachedSegmentWeights),
-                                std::ref(perThreadCombinedWeightValues),
+                                std::ref(perDispatchCombinedWeightValues),
                                 m_upInitialCurve->m_segmentLength,
                                 weightingIntegralsRawPointer,
                                 boundaryConditions,
-                                fn
+                                m_experimentParams.weightingParameters.weightingMethod == twisty::WeightingMethod::RadiativeTransfer ? pathNormalizerLog10.convert_to<double>() : 0.0
                             );
                             threads[threadIdx] = std::move(newThread);
                         } break;
@@ -344,94 +333,24 @@ namespace twisty
             // -------------------
             auto weightingTimeStart = std::chrono::high_resolution_clock::now();
 
-            std::vector<boost::multiprecision::cpp_dec_float_100> bigFloatWeightsLog10(pathsInDispatch);
-            
-            int64_t numWeightingThreads = m_experimentParams.maxWeightThreads;
-
-            if (numSystemThreads < numWeightingThreads)
-            {
-                std::cout << "Requested more threads than system has, defaulting to number of system threads" << std::endl;
-                numWeightingThreads = numSystemThreads;
-            }
-
-            if (numWeightingThreads == 0)
-            {
-                std::cout << "Requested behavior: Use number of system threads" << std::endl;
-                numWeightingThreads = numSystemThreads;
-            }
-
-            std::cout << "Using " << numWeightingThreads << " threads for weighting." << std::endl;
-
-            boost::multiprecision::cpp_dec_float_100 combinedCombinedWeight = 0.0;
-            std::cout << "\tCombined Weight Values" << std::endl;
-            for (auto& combinedWeightValue : perThreadCombinedWeightValues)
-            {
-                std::cout << "\tCombinedWeightValue: " << ExtractFinalValue(combinedWeightValue) << std::endl;
-                combinedCombinedWeight += ExtractFinalValue(combinedWeightValue);
-            }
-            std::cout << "Combined combined weight: " << combinedCombinedWeight << std::endl;
-
             boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
-            int64_t numWeightsPerThread = (pathsInDispatch + numWeightingThreads - 1) / numWeightingThreads;
+            for (auto& combinedWeightValue : perDispatchCombinedWeightValues)
             {
-                std::vector<std::thread> threads(numWeightingThreads);
-                std::vector<boost::multiprecision::cpp_dec_float_100> threadWeights(numWeightingThreads);
-                for (int64_t idx = 0; idx < numWeightingThreads; ++idx)
-                {
-                    threadWeights[idx] = 0.0;
-                }
-                
-                for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
-                {
-                    std::thread newThread(&FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel, this, threadIdx, pathsInDispatch, numWeightsPerThread, m_upInitialCurve->m_arclength,
-                        m_upInitialCurve->m_numSegments, m_experimentParams.weightingParameters.weightingMethod,
-                        std::ref(compressedWeightBuffer), std::ref(bigFloatWeightsLog10), std::ref(threadWeights),
-                        pathNormalizer, pathNormalizerLog10);
-                    threads[threadIdx] = std::move(newThread);
-                }
-
-                for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
-                {
-                    if (threads[threadIdx].joinable())
-                    {
-                        threads[threadIdx].join();
-                    }
-                }
-
-                for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
-                {
-                    totalDispatchWeight += threadWeights[threadIdx];
-                }
+                totalDispatchWeight += ExtractFinalValue(combinedWeightValue);
             }
 
-            std::cout << "Dispatch " << dispatchIdx << " Weight: " << totalDispatchWeight << std::endl;
-            std::cout << "\tAverage Path Weight: " << totalDispatchWeight / pathsInDispatch << std::endl;
+            std::cout << "Dispatch Weight: " << totalDispatchWeight << std::endl;
+            std::cout << "\tAverage Path Weight: " << totalDispatchWeight / m_experimentParams.numPathsInExperiment << std::endl;
             bigTotalExperimentWeight += totalDispatchWeight;
 
             auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
             weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();
             /* --------------------- */
 
-
-            if (m_experimentParams.outputBigFloatWeights)
-            {                
-                for (int64_t i = 0; i < bigFloatWeightsLog10.size(); ++i)
-                {
-                    // We have to add in the path normalizer here as it wasnt acounted for anywhere else before this for these specific saved off weights
-                    bigfloatOFS << (bigFloatWeightsLog10[i]) << std::endl;
-                }
-            }
-
-            numPathsLeft -= pathsInDispatch;
-            numPathsGenerated += pathsInDispatch;
-            std::cout << "Paths in dispatch: " << pathsInDispatch << std::endl;
-
             auto dispatchTimeEnd = std::chrono::high_resolution_clock::now();
             auto dispatchRunTime = std::chrono::duration_cast<std::chrono::milliseconds>(dispatchTimeEnd - dispatchTimeStart);
-            std::cout << "\tDispatch " << dispatchIdx  << " Time: " << dispatchRunTime.count() << "ms" << std::endl;
+            std::cout << "\tDispatch Time: " << dispatchRunTime.count() << "ms" << std::endl;
         }
-
-        std::cout << "Paths in experiment: " << numPathsGenerated << std::endl;
 
         if (m_experimentParams.outputBigFloatWeights)
         {
@@ -442,7 +361,7 @@ namespace twisty
 
         ExperimentResults results;
         results.experimentWeights.push_back(bigTotalExperimentWeight);
-        results.totalPathsGenerated = numPathsGenerated;
+        results.totalPathsGenerated = m_experimentParams.numPathsInExperiment;
         results.numFailedPaths = 0;
 
         ExperimentRunner::RunnerSpecificResults specificResult;
@@ -494,13 +413,11 @@ namespace twisty
         std::vector<Farlor::Vector3>& globalPos,
         std::vector<Farlor::Vector3>& globalTans,
         std::vector<float>& globalCurvatures,
-        std::vector<double>& globalPathWeights,
-        std::vector<double>& cachedSegmentWeights,
-        std::vector<CombinedWeightValues_C>& perThreadCombinedWeightValues,
+        std::vector<CombinedWeightValues_C>& combinedWeightValues,
         float segmentLength,
         twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
         const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
-        const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
+        const double normalizerLog10
     )
     {
         const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
@@ -510,8 +427,6 @@ namespace twisty
         const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
         const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
         const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
-
-        CombinedWeightValues_C_Reset(perThreadCombinedWeightValues[threadIdx]);
 
         // Now, we can begin the actual algorithm
         {
@@ -526,6 +441,7 @@ namespace twisty
                 // We can exit once this point is reached as we have generated all the paths necessary for this thread
                 if (currentPathIdx >= numExperimentPaths)
                 {
+                    printf("Exiting early\n");
                     // We dont want to continue if we have already generated the correct number of paths.
                     break;
                 }
@@ -552,7 +468,7 @@ namespace twisty
                 const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
 
                 std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
-                double randRotationAngle = 0.0;// zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
+                double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
 
                 //  Rotation
                 {
@@ -579,8 +495,11 @@ namespace twisty
                         numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
                 }
 
+
+                // Normalized version
                 double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
                         numSegmentsPerCurve, *weightingIntegralPtr);
+                scatteringWeightLog10 += normalizerLog10;
 
                 if (pathCount < numPathsToSkipPerThread)
                 {
@@ -592,9 +511,16 @@ namespace twisty
                     int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
                     assert(currentPathIdx >= numPathsPerThread * threadIdx);
 
-                    globalPathWeights[currentPathIdx] = scatteringWeightLog10;
+                    int combinedWeightValueIdx = (currentPathIdx / MaxNumPathsPerCombinedWeight);
+                    
+                    if ((currentPathIdx % MaxNumPathsPerCombinedWeight) == 0)
+                    {
+                        printf("****************Calling reset: %d\n", combinedWeightValueIdx);
+                        CombinedWeightValues_C_Reset(combinedWeightValues[combinedWeightValueIdx]);
+                    }
 
-                    CombinedWeightValues_C_AddValue(perThreadCombinedWeightValues[threadIdx], scatteringWeightLog10);
+                    //printf("****************Adding Value: %d, %lf\n", combinedWeightValueIdx, scatteringWeightLog10);
+                    CombinedWeightValues_C_AddValue(combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10);
                 }
             }
         }
@@ -678,27 +604,6 @@ namespace twisty
                 // We can exit once this point is reached as we have generated all the paths necessary for this thread
                 if (currentPathIdx >= numExperimentPaths)
                 {
-// #if defined(ExportPathBatches)
-//                     if (numCurvesInBatch > 0)
-//                     {
-//                         m_exportPathBatchesMutex.lock();
-
-//                         if (threadIdx == 11)
-//                         {
-//                             std::cout << "Should be exporting thread 12" << std::endl;
-//                         }
-
-//                         m_curvesMetadataFile << threadIdx << " ";
-//                         m_curvesMetadataFile << outputIdx << " ";
-//                         m_curvesMetadataFile << numCurvesInBatch << std::endl;
-
-//                         m_curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-//                         numCurvesInBatch = 0;
-//                         outputIdx++;
-
-//                         m_exportPathBatchesMutex.unlock();
-//                     }
-// #endif
                     // We dont want to continue if we have already generated the correct number of paths.
                     break;
                 }

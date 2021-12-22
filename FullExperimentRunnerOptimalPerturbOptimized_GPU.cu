@@ -103,8 +103,8 @@ namespace twisty
             float *pPerGlobalThreadScratchSpacePositions,
             float *pPerGlobalThreadScratchSpaceTangents,
             float *pPerGlobalThreadScratchSpaceCurvatures,
-            FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C *pPerThreadCombinedWeightValues,
-            FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C *pFinalCombinedValues,
+            CombinedWeightValues_C *pPerThreadCombinedWeightValues,
+            CombinedWeightValues_C *pFinalCombinedValues,
             const twisty::WeightingParameters &weightingParams,
             const twisty::PerturbUtils::BoundaryConditions_CudaSafe &csBoundaryConditions,
             const double *pLookupTable
@@ -292,7 +292,7 @@ namespace twisty
         std::cout << "numCombinedWeightValuesPerWarp: " << numCombinedWeightValuesPerWarp << std::endl;
         std::cout << "numPathsPerThread: " << numPathsPerThread << std::endl;
 
-        std::vector<twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues> combinedWeightValues(numCombinedWeightValuesTotal);
+        std::vector<CombinedWeightValues_C> combinedWeightValues(numCombinedWeightValuesTotal);
 
         auto perturbTimeStart = std::chrono::high_resolution_clock::now();
 
@@ -358,7 +358,7 @@ namespace twisty
         // No, we calculating the weighting
         for (auto& combinedWeightValue : combinedWeightValues)
         {
-            bigTotalExperimentWeight += combinedWeightValue.ExtractFinalValue();
+            bigTotalExperimentWeight += ExtractFinalValue(combinedWeightValue);
         }
         bigTotalExperimentWeight *= pathNormalizer;
 
@@ -662,126 +662,6 @@ namespace twisty
         }
     }
 
-    __device__ void MergeCombinedWeightValues(FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pLeft,
-        FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pRight)
-    {
-        //// In the case we haven't added a value yet, we can early out
-        //if (pRight->m_numValues == 0)
-        //{
-        //    // Nothing needs done
-        //    return;
-        //}
-
-
-        //// If we already have a value and its not larger than the current max, then throw it in.
-        //if (pLeft->m_maxWeightLog10 > pRight->m_maxWeightLog10)
-        //{
-        //    pLeft->m_runningTotal += pow(10.0, (valueLog10 + pData->m_offset));
-        //    pLeft->m_numValues++;
-        //    return;
-        //}
-
-        //// If it is larger, we need to rescale everything around that new value
-
-        //// New difference
-        //double newMaxPossibleFinalWeightLog10 = valueLog10 + MaxNumPathsPerCombinedWeightLog10;
-        //double newOffset = MaxDoubleLog10 - newMaxPossibleFinalWeightLog10;
-
-        //double offsetDelta = newOffset - pData->m_offset;
-        //double log10RunningTotal = log10(pData->m_runningTotal);
-        //double adjustedLog10RunningTotal = log10RunningTotal + offsetDelta;
-        //pData->m_runningTotal = pow(10.0, adjustedLog10RunningTotal);
-
-        //// Update
-        //pData->m_maxWeightLog10 = valueLog10;
-        //pData->m_maxPossibleFinalWeightLog10 = newMaxPossibleFinalWeightLog10;
-        //pData->m_offset = newOffset;
-
-        //pData->m_runningTotal += pow(10.0, (valueLog10 + pData->m_offset));
-        //pData->m_numValues++;
-    }
-
-
-    // __device__ void RecalculateTangentsCurvaturesFromPos_CUDA(float* pPositions, float* pTangents, float* pCurvatures, uint32_t numSegmentsPerCurve,
-    //     FullExperimentRunnerOptimalPerturbOptimized_GPU::BoundaryConditions_CUDA boundaryConditions)
-    // {
-    //     const float ds = boundaryConditions.arclength / numSegmentsPerCurve;
-
-    //     // Set initial and final positions
-    //     pPositions[0 * 3 + 0] = boundaryConditions.m_startPos[0];
-    //     pPositions[0 * 3 + 1] = boundaryConditions.m_startPos[1];
-    //     pPositions[0 * 3 + 2] = boundaryConditions.m_startPos[2];
-
-    //     pPositions[1 * 3 + 0] = pPositions[0 * 3 + 0] + ds * boundaryConditions.m_startDir[0];
-    //     pPositions[1 * 3 + 1] = pPositions[0 * 3 + 1] + ds * boundaryConditions.m_startDir[1];
-    //     pPositions[1 * 3 + 2] = pPositions[0 * 3 + 2] + ds * boundaryConditions.m_startDir[2];
-
-
-    //     pPositions[numSegmentsPerCurve * 3 + 0] = boundaryConditions.m_endPos[0];
-    //     pPositions[numSegmentsPerCurve * 3 + 1] = boundaryConditions.m_endPos[1];
-    //     pPositions[numSegmentsPerCurve * 3 + 2] = boundaryConditions.m_endPos[2];
-
-    //     // Update tangents
-    //     // Set first tangent directly, defined by boundary conditions
-    //     pTangents[0 * 3 + 0] = boundaryConditions.m_startDir[0];
-    //     pTangents[0 * 3 + 1] = boundaryConditions.m_startDir[1];
-    //     pTangents[0 * 3 + 2] = boundaryConditions.m_startDir[2];
-
-    //     // Set others via finite difference
-    //     for (uint32_t i = 1; i < numSegmentsPerCurve; ++i)
-    //     {
-    //         float diff_x = pPositions[(i + 1) * 3 + 0] - pPositions[(i - 1) * 3 + 0];
-    //         float diff_y = pPositions[(i + 1) * 3 + 1] - pPositions[(i - 1) * 3 + 1];
-    //         float diff_z = pPositions[(i + 1) * 3 + 2] - pPositions[(i - 1) * 3 + 2];
-    //         float diff_length = sqrt(diff_x * diff_x + diff_y * diff_y + diff_z * diff_z);
-    //         pTangents[i * 3 + 0] = diff_x / diff_length;
-    //         pTangents[i * 3 + 1] = diff_y / diff_length;
-    //         pTangents[i * 3 + 2] = diff_z / diff_length;
-    //     }
-    //     pTangents[numSegmentsPerCurve * 3 + 0] = boundaryConditions.m_endDir[0];
-    //     pTangents[numSegmentsPerCurve * 3 + 1] = boundaryConditions.m_endDir[1];
-    //     pTangents[numSegmentsPerCurve * 3 + 2] = boundaryConditions.m_endDir[2];
-
-    //     // Calculate curvature
-    //     // First, we calcualte only the first using the old method
-    //     {
-    //         float denom = 1.0f / ds;
-    //         float diff_x = (pTangents[1 * 3 + 0] - pTangents[0 * 3 + 0]) * denom;
-    //         float diff_y = (pTangents[1 * 3 + 1] - pTangents[0 * 3 + 1]) * denom;
-    //         float diff_z = (pTangents[1 * 3 + 2] - pTangents[0 * 3 + 2]) * denom;
-    //         float diff_length = sqrt(diff_x * diff_x + diff_y * diff_y + diff_z * diff_z);
-    //         {
-    //             const float curvature = diff_length;
-    //             pCurvatures[0] = curvature;
-    //         }
-    //     }
-
-    //     // All the rest we calculate using the new method
-    //     for (uint32_t i = 1; i < numSegmentsPerCurve; ++i)
-    //     {
-    //         // First, grab tangent
-    //         float tan_x = pTangents[i * 3 + 0];
-    //         float tan_y = pTangents[i * 3 + 1];
-    //         float tan_z = pTangents[i * 3 + 2];
-
-    //         // Second, calculate dp2ds2
-    //         float dp2ds2_x = pPositions[(i + 1) * 3 + 0] + pPositions[(i - 1) * 3 + 0] - 2.0f * pPositions[i * 3 + 0];
-    //         float dp2ds2_y = pPositions[(i + 1) * 3 + 1] + pPositions[(i - 1) * 3 + 1] - 2.0f * pPositions[i * 3 + 1];
-    //         float dp2ds2_z = pPositions[(i + 1) * 3 + 2] + pPositions[(i - 1) * 3 + 2] - 2.0f * pPositions[i * 3 + 2];
-    //         dp2ds2_x *= (1.0f / (ds * ds));
-    //         dp2ds2_y *= (1.0f / (ds * ds));
-    //         dp2ds2_z *= (1.0f / (ds * ds));
-
-    //         // Third, calculate dTds
-    //         float tanDotdp2ds2 = tan_x * dp2ds2_x + tan_y * dp2ds2_y + tan_z * dp2ds2_z;
-
-    //         float dTds_x = dp2ds2_x - tan_x * tanDotdp2ds2;
-    //         float dTds_y = dp2ds2_y - tan_y * tanDotdp2ds2;
-    //         float dTds_z = dp2ds2_z - tan_z * tanDotdp2ds2;
-    //         pCurvatures[i] = sqrt(dTds_x * dTds_x + dTds_y * dTds_y + dTds_z * dTds_z);
-    //     }
-    // }
-
     __device__ double WeightCurveViaCurvatureLog10_CUDA(float* pCurvatureStart, uint32_t numCurvatures, double* pWeightIntegral, double ds,
         twisty::WeightingParameters weightingParams_cuda)
     {
@@ -798,8 +678,8 @@ namespace twisty
         float* pPerGlobalThreadScratchSpacePositions,
         float* pPerGlobalThreadScratchSpaceTangents,
         float* pPerGlobalThreadScratchSpaceCurvatures,
-        FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pPerThreadCombinedWeightValues,
-        FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C* pFinalCombinedValues,
+        CombinedWeightValues_C* pPerThreadCombinedWeightValues,
+        CombinedWeightValues_C* pFinalCombinedValues,
         const twisty::WeightingParameters& weightingParams,
         const twisty::PerturbUtils::BoundaryConditions_CudaSafe& csBoundaryConditions,
         const double* pLookupTable
@@ -832,9 +712,8 @@ namespace twisty
             for (int64_t combinedWeightValuesThreadIdx = 0; combinedWeightValuesThreadIdx < numPathsPerThread; combinedWeightValuesThreadIdx++)
             {
                 // Ok, now we first want to reset the combined weight stuff
-                FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C_Reset(&pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + threadIdx.x]);
+                CombinedWeightValues_C_Reset(pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + threadIdx.x]);
 
-                FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues combinedWeightValue;
                 {
 
                     // This is the perturbation piece.
@@ -920,7 +799,7 @@ namespace twisty
                         else
                         {
                             // Else, contribute to the paths
-                            FullExperimentRunnerOptimalPerturbOptimized_GPU::CombinedWeightValues_C_AddValue(&pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + threadIdx.x], pathWeightLog10);
+                            CombinedWeightValues_C_AddValue(pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + threadIdx.x], pathWeightLog10);
                         }
                     }
                 }
@@ -930,15 +809,18 @@ namespace twisty
 
             if (threadIdx.x == 0)
             {
+                CombinedWeightValues_C combinedResult;
+                CombinedWeightValues_C_Reset(combinedResult);
+
                 const uint32_t globalThreadIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
-                for (uint32_t warpThreadIdx = 1; warpThreadIdx < blockDim.x; ++warpThreadIdx)
+                for (uint32_t warpThreadIdx = 0; warpThreadIdx < blockDim.x; ++warpThreadIdx)
                 {
-                    MergeCombinedWeightValues(&pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + 0], &pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + warpThreadIdx]);
+                    combinedResult = CombinedWeightValues_C_CombineValues(combinedResult, pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + warpThreadIdx]);
                 }
 
                 // Finally, we write to the combined final values
-                (pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp + combinedWeightValuesWarpIdx]) = (pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + 0]);
+                (pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp + combinedWeightValuesWarpIdx]) = combinedResult;//(pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + 0]);
             }
 
             __syncthreads();

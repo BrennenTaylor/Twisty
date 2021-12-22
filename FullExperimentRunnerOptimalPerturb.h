@@ -42,13 +42,11 @@ namespace twisty
             std::vector<Farlor::Vector3>& globalPos,
             std::vector<Farlor::Vector3>& globalTans,
             std::vector<float>& globalCurvatures,
-            std::vector<double>& globalPathWeights,
-            std::vector<double>& cachedSegmentWeights,
             std::vector<CombinedWeightValues_C>& perThreadCombinedWeightValues,
             float segmentLength,
             twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
             const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
-            const PathWeighting::NormalizerStuff::BaseNormalizer& pathNormalizer
+            const double normalizerLog10
         );
 
         void GeometryCombined(
