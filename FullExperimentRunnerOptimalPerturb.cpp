@@ -112,7 +112,7 @@ namespace twisty
         twisty::PerturbUtils::UpdateTangentsFromPos(initialCurvePositions.data(), initialCurveTangents.data(),
             m_upInitialCurve->m_numSegments, boundaryConditions);
         twisty::PerturbUtils::UpdateCurvaturesFromTangents(initialCurveTangents.data(), initialCurveCurvatures.data(),
-            m_upInitialCurve->m_numSegments, boundaryConditions, m_experimentParams.weightingParameters);
+            m_upInitialCurve->m_numSegments, boundaryConditions, (int32_t)m_experimentParams.weightingParameters.weightingMethod);
 
         const int64_t NumPosPerCurve = initialCurvePositions.size();
         const int64_t NumTanPerCurve = initialCurveTangents.size();
@@ -309,7 +309,12 @@ namespace twisty
                                 std::ref(perThreadCurveCurvatures),
                                 std::ref(perDispatchCombinedWeightValues),
                                 m_upInitialCurve->m_segmentLength,
-                                weightingIntegralsRawPointer,
+                                lookupEvaluator->AccessLookupTable().data(),
+                                lookupEvaluator->AccessLookupTable().size(),
+                                lookupEvaluator->GetDs(),
+                                lookupEvaluator->GetMinCurvature(),
+                                lookupEvaluator->GetMaxCurvature(),
+                                lookupEvaluator->GetCurvatureStepSize(),
                                 boundaryConditions,
                                 m_experimentParams.weightingParameters.weightingMethod == twisty::WeightingMethod::RadiativeTransfer ? pathNormalizerLog10.convert_to<double>() : 0.0
                             );
@@ -415,7 +420,12 @@ namespace twisty
         std::vector<float>& globalCurvatures,
         std::vector<CombinedWeightValues_C>& combinedWeightValues,
         float segmentLength,
-        twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
+        const double* pWeightLookupTable,
+        const int32_t weightLookupTableSize,
+        const double ds,
+        const double minCurvature,
+        const double maxCurvature,
+        const double curvatureStepSize,
         const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
         const double normalizerLog10
     )
@@ -492,13 +502,23 @@ namespace twisty
 
                     twisty::PerturbUtils::UpdateCurvaturesFromTangents(&globalTans[CurrentThreadTanStartIdx],
                         &globalCurvatures[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+                        numSegmentsPerCurve, boundaryConditions, (int32_t)m_experimentParams.weightingParameters.weightingMethod);
                 }
 
 
                 // Normalized version
-                double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
-                        numSegmentsPerCurve, *weightingIntegralPtr);
+                // double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                //         numSegmentsPerCurve, *weightingIntegralPtr);
+                double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
+                    &(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                    numSegmentsPerCurve,
+                    pWeightLookupTable,
+                    weightLookupTableSize,
+                    ds,
+                    minCurvature,
+                    maxCurvature,
+                    curvatureStepSize
+                );
                 scatteringWeightLog10 += normalizerLog10;
 
                 if (pathCount < numPathsToSkipPerThread)
@@ -626,7 +646,7 @@ namespace twisty
 
                     twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
                         &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve, boundaryConditions,
-                        m_experimentParams.weightingParameters);
+                        (int32_t)m_experimentParams.weightingParameters.weightingMethod);
                 }
 
                 // Update the right tangents and curvatures
@@ -636,7 +656,7 @@ namespace twisty
 
                     twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceRight[CurrentThreadTanStartIdx],
                         &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve, boundaryConditions,
-                        m_experimentParams.weightingParameters);
+                        (int32_t)m_experimentParams.weightingParameters.weightingMethod);
                 }
 
                 std::uniform_int_distribution<int> diffDist(2, std::min((int)(numSegmentsPerCurve - 2), 25)); // uniform, unbiased
@@ -804,7 +824,7 @@ namespace twisty
 
                     twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceLeft[CurrentThreadTanStartIdx],
                         &scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+                        numSegmentsPerCurve, boundaryConditions, (int32_t)m_experimentParams.weightingParameters.weightingMethod);
                 }
 
                 // Right Rotation
@@ -829,7 +849,7 @@ namespace twisty
 
                     twisty::PerturbUtils::UpdateCurvaturesFromTangents(&scratchTangentSpaceRight[CurrentThreadTanStartIdx],
                         &scratchCurvatureSpaceRight[CurrentThreadCurvatureStartIdx],
-                        numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+                        numSegmentsPerCurve, boundaryConditions, (int32_t)m_experimentParams.weightingParameters.weightingMethod);
                 }
 
                 double leftPathWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(scratchCurvatureSpaceLeft[CurrentThreadCurvatureStartIdx]),
@@ -908,7 +928,7 @@ namespace twisty
 
                 twisty::PerturbUtils::UpdateCurvaturesFromTangents(&globalTans[CurrentThreadTanStartIdx],
                     &globalCurvatures[CurrentThreadCurvatureStartIdx],
-                    numSegmentsPerCurve, boundaryConditions, m_experimentParams.weightingParameters);
+                    numSegmentsPerCurve, boundaryConditions, (int32_t)m_experimentParams.weightingParameters.weightingMethod);
 
                 double scatteringWeight = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
                         numSegmentsPerCurve, *weightingIntegralPtr);

@@ -44,7 +44,12 @@ namespace twisty
             std::vector<float>& globalCurvatures,
             std::vector<CombinedWeightValues_C>& perThreadCombinedWeightValues,
             float segmentLength,
-            twisty::PathWeighting::BaseWeightLookupTable* weightingIntegralPtr,
+            const double* pWeightLookupTable,
+            const int32_t weightLookupTableSize,
+            const double ds,
+            const double minCurvature,
+            const double maxCurvature,
+            const double curvatureStepSize,
             const twisty::PerturbUtils::BoundaryConditions& boundaryConditions,
             const double normalizerLog10
         );

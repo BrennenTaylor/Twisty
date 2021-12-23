@@ -17,7 +17,6 @@
 
 namespace twisty
 {
-
     // A device curve will be of the form
     // For num segments M
     // Positions * (M + 1) followed by Tangents * M
@@ -72,12 +71,12 @@ namespace twisty
             const uint32_t numSegments, const BoundaryConditions& boundaryConditions);
 
         void UpdateCurvaturesFromTangents(Farlor::Vector3* pTangents, float* pCurvatures,
-            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp);
+            const uint32_t numSegments, const BoundaryConditions& boundaryConditions, int32_t weightingMethod);
 
         __device__ __host__ void UpdateTangentsFromPosCudaSafe(float* pPositions, float* pTangents,
             const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions);
 
         __device__ __host__ void UpdateCurvaturesFromTangentsCudaSafe(float* pTangents, float* pCurvatures,
-            const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions, const twisty::WeightingParameters& wp);
+            const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions, int32_t weightingMethod);
     }
 }

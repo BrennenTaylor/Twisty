@@ -96,6 +96,10 @@ namespace twisty
                 return m_ds;
             }
 
+            double GetCurvatureStepSize() const {
+                return m_curvatureStepSize;
+            }
+
             WeightingParameters GetWeightingParams() const {
                 return m_weightingParams;
             }
@@ -158,6 +162,11 @@ namespace twisty
         // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
         // Assumes that integral matches weighting params
         double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
+        
+        __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float* pCurvatureStart, uint32_t numCurvatures,
+            const double* pWeightLookupTable, const int32_t weightLookupTableSize,
+            const double ds, const double minCurvature, const double maxCurvature, const double curvatureStepSize);
+
 
         // double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral);
 

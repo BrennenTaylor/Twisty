@@ -62,7 +62,7 @@ add_library(Twisty
     Integrate.h
     MathConsts.h
     PathWeightUtils.h
-    PathWeightUtils.cpp
+    PathWeightUtils.cu
     PerturbUtils.h
     PerturbUtils.cpp
 )

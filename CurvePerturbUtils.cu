@@ -93,7 +93,7 @@ namespace twisty
 
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
         __host__ void UpdateCurvaturesFromTangents(Farlor::Vector3 *pTangents, float *pCurvatures,
-            const uint32_t numSegments, const BoundaryConditions &boundaryConditions, const twisty::WeightingParameters &wp)
+            const uint32_t numSegments, const BoundaryConditions &boundaryConditions, int32_t weightingMethod)
         {
             BoundaryConditions_CudaSafe cs;
             cs.m_startPos[0] = boundaryConditions.m_startPos.m_data[0];
@@ -114,7 +114,7 @@ namespace twisty
 
             cs.arclength = boundaryConditions.arclength;
 
-            UpdateCurvaturesFromTangentsCudaSafe((float*)pTangents, pCurvatures, numSegments, cs, wp);
+            UpdateCurvaturesFromTangentsCudaSafe((float*)pTangents, pCurvatures, numSegments, cs, weightingMethod);
         }
 
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
@@ -153,13 +153,13 @@ namespace twisty
 
         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
         __host__ __device__ void UpdateCurvaturesFromTangentsCudaSafe(float* pTangents, float* pCurvatures,
-            const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions, const twisty::WeightingParameters& wp)
+            const uint32_t numSegments, const BoundaryConditions_CudaSafe& boundaryConditions, int32_t weightingMethod)
         {
             const float ds = boundaryConditions.arclength / numSegments;
 
-            switch (wp.weightingMethod)
+            switch (weightingMethod)
             {
-                case twisty::WeightingMethod::RadiativeTransfer:
+                case (int32_t)twisty::WeightingMethod::RadiativeTransfer:
                 {
                     // Update segments
                     for (uint32_t i = 0; i < numSegments; ++i)
@@ -182,7 +182,7 @@ namespace twisty
                         }
                     }
                 } break;
-                case twisty::WeightingMethod::SimplifiedModel:
+                case (int32_t)twisty::WeightingMethod::SimplifiedModel:
                 {
                     // Update segments
                     for (uint32_t i = 0; i < numSegments; ++i)

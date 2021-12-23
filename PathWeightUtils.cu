@@ -331,7 +331,7 @@ namespace twisty
 
                     MinMaxCurvature result;
                     result.minCurvature = 0.0;
-                    result.maxCurvature = 2.0 / (ds);
+                    result.maxCurvature = 2.3 / (ds);
                     return result;
                 } break;
                 case WeightingMethod::SimplifiedModel:
@@ -354,42 +354,67 @@ namespace twisty
         }
 
         // Assume we have good pointers
-        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const twisty::PathWeighting::BaseWeightLookupTable& weightIntegral)
+        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures,
+            const twisty::PathWeighting::BaseWeightLookupTable& weightIntegral)
+        {
+            return WeightCurveViaCurvatureLog10_CudaSafe(pCurvatureStart, numCurvatures,
+                weightIntegral.AccessLookupTable().data(), weightIntegral.AccessLookupTable().size(),
+                weightIntegral.GetDs(), weightIntegral.GetMinCurvature(), weightIntegral.GetMaxCurvature(),
+                weightIntegral.GetCurvatureStepSize()
+            );
+        }
+
+        __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float* pCurvatureStart, uint32_t numCurvatures,
+            const double* pWeightLookupTable, const int32_t weightLookupTableSize,
+            const double ds, const double minCurvature, const double maxCurvature, const double curvatureStepSize)
         {
             if (!pCurvatureStart || (numCurvatures == 0))
             {
                 return 0.0;
             }
 
-            double ds = weightIntegral.GetDs();
-            const auto& weightingParams = weightIntegral.GetWeightingParams();
-            MinMaxCurvature minMax = twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds);
-            const double curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) / weightingParams.numCurvatureSteps;
-            auto& lookupTable = weightIntegral.AccessLookupTable();
-
-            // TODO: We shouldnt need this as its included already in the weight table
-            // const float c = weightingParams.scatter + weightingParams.absorbtion;
-            // const float absorbtionConst = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
-            // const float absorbtionConstLog10 = std::log10(absorbtionConst);
-
             // Calculate value
             double runningPathWeightLog10 = 0.0;
-            for (int64_t segIdx = 0; segIdx < numCurvatures; ++segIdx)
+            for (int segIdx = 0; segIdx < numCurvatures; ++segIdx)
             {
                 // Extract curvature
                 double curvature = pCurvatureStart[segIdx];
-                double distance = curvature - minMax.minCurvature;
-                double realIdx = distance / curvatureStepSize;
-                int64_t leftIdx = floor(realIdx);
-                int64_t rightIdx = leftIdx + 1;
+             
+                if (curvature < minCurvature)
+                {
+                    printf("Error: curvature less than min curvature: %lf < %lf\n", curvature, minCurvature);
+                    curvature = minCurvature;
+                }
 
-                if (leftIdx == lookupTable.size() - 1)
+                if (curvature > maxCurvature)
+                {
+                    printf("Error: curvature greater than max curvature: %lf > %lf\n", curvature, maxCurvature);
+                    curvature = maxCurvature;
+                }
+
+                double distance = curvature - minCurvature;
+                double realIdx = distance / curvatureStepSize;
+                uint64_t leftIdx = (uint64_t)floor(realIdx);
+                uint64_t rightIdx = leftIdx + 1;
+
+                if (leftIdx == (weightLookupTableSize - 1))
                 {
                     rightIdx--; // Bump it left 1, it doesnt really matter anymore anyways.
                 }
 
-                double leftLookup = lookupTable[leftIdx];
-                double rightLookup = lookupTable[rightIdx];
+                if (leftIdx < 0)
+                {
+                    printf("Error: less than max curvature: %llu < %llu\n", (unsigned long long)leftIdx, (unsigned long long)0);
+                }
+
+                if (rightIdx >= weightLookupTableSize)
+                {
+                    printf("Curvature: %lf\n", curvature);
+                    printf("Error: greater than max curvature: %llu >= %llu\n", (unsigned long long)rightIdx, (unsigned long long)weightLookupTableSize);
+                }
+
+                double leftLookup = pWeightLookupTable[leftIdx];
+                double rightLookup = pWeightLookupTable[rightIdx];
 
                 double leftDist = distance - (leftIdx * curvatureStepSize);
 

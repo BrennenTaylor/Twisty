@@ -62,7 +62,7 @@ namespace twisty
         bool SetupCuRandStates(uint32_t numGlobalPerturbThreads, uint32_t seed);
         void CleanupCudaRandStates();
 
-        bool SetupCudaPerturb(uint32_t numGlobalPerturbThreads, uint32_t numCombinedWeightValues);
+        bool SetupCudaPerturb(uint32_t numGlobalPerturbThreads, uint32_t numCombinedWeightValues, const std::vector<double>& weightTable);
         void CleanupCudaPerturb();
 
 
@@ -83,6 +83,7 @@ namespace twisty
 
         CombinedWeightValues_C* m_pPerThreadCombinedWeightValues = nullptr;
         CombinedWeightValues_C* m_pFinalCombinedValues = nullptr;
+        double* m_pDeviceWeightLookupTable = nullptr;
     };
 
     __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurandState(uint32_t seed, curandState_t* pStates, uint32_t maxNumStates);
