@@ -40,7 +40,7 @@ namespace twisty
         }
     }
 
-            // Assumes pVector3f is an array of 3 floats
+    // Assumes pVector3f is an array of 3 floats
     static __host__ __device__ void NormalizeVector3f(float* pVector3f)
     {
         float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
@@ -570,10 +570,6 @@ namespace twisty
         twisty::PerturbUtils::UpdateCurvaturesFromTangents(initialCurveTangents.data(), initialCurveCurvatures.data(),
             m_upInitialCurve->m_numSegments, boundaryConditions, (int32_t)m_experimentParams.weightingParameters.weightingMethod);
 
-        const int64_t NumPosPerCurve = initialCurvePositions.size();
-        const int64_t NumTanPerCurve = initialCurveTangents.size();
-        const int64_t NumCurvaturePerCurve = initialCurveCurvatures.size();
-
         // TODO: Should this be intermixed somehow for better performance?
         std::cout << "Copying over intial curves" << std::endl;
         std::cout << "\tNum Global Perturb Threads: " << numGlobalPerturbThreads << std::endl;
@@ -582,9 +578,9 @@ namespace twisty
             uint64_t idx = 0;
             for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx)
             {
-                for (int64_t posIdx = 0; posIdx < NumPosPerCurve; posIdx++)
+                for (int64_t posIdx = 0; posIdx < initialCurvePositions.size(); posIdx++)
                 {
-                    CudaSafeErrorCheck(cudaMemcpy((void*)&m_pPerGlobalThreadScratchSpacePositions[idx], (void*)initialCurvePositions.data(), initialCurvePositions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
+                    CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpacePositions[idx]), (void*)initialCurvePositions.data(), initialCurvePositions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
                         "Copy inital positions to per thread scratch space");
                 }
                 idx += initialCurvePositions.size() * 3;
@@ -596,9 +592,9 @@ namespace twisty
             for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx)
             {
                 // Copy Tan
-                for (int64_t tanIdx = 0; tanIdx < NumTanPerCurve; tanIdx++)
+                for (int64_t tanIdx = 0; tanIdx < initialCurveTangents.size(); tanIdx++)
                 {
-                    CudaSafeErrorCheck(cudaMemcpy((void*)&m_pPerGlobalThreadScratchSpaceTangents[idx], (void*)initialCurveTangents.data(), initialCurveTangents.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
+                    CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpaceTangents[idx]), (void*)initialCurveTangents.data(), initialCurveTangents.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
                         "Copy inital tangents to per thread scratch space");
                 }
                 idx += initialCurveTangents.size() * 3;
@@ -610,14 +606,19 @@ namespace twisty
             for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx)
             {
                 // Copy Curvatures
-                for (int64_t curvatureIdx = 0; curvatureIdx < NumCurvaturePerCurve; curvatureIdx++)
+                for (int64_t curvatureIdx = 0; curvatureIdx < initialCurveCurvatures.size(); curvatureIdx++)
                 {
-                    CudaSafeErrorCheck(cudaMemcpy((void*)&m_pPerGlobalThreadScratchSpaceCurvatures[idx], (void*)initialCurveCurvatures.data(), initialCurveCurvatures.size() * sizeof(float) * 1, cudaMemcpyHostToDevice),
+                    CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpaceCurvatures[idx]), (void*)initialCurveCurvatures.data(), initialCurveCurvatures.size() * sizeof(float), cudaMemcpyHostToDevice),
                         "Copy inital curvatures to per thread scratch space");
                 }
 
                 idx += initialCurveCurvatures.size();
             }
+        }
+
+        for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx)
+        {
+
         }
 
 
@@ -698,8 +699,10 @@ namespace twisty
         const int32_t NumTanPerCurve = (numSegmentsPerCurve + 1);
         const int32_t NumCurvaturesPerCurve = numSegmentsPerCurve;
 
-        const int32_t CurrentThreadPosStartIdx = NumPosPerCurve * globalThreadIdx;
-        const int32_t CurrentThreadTanStartIdx = NumTanPerCurve * globalThreadIdx;
+
+        // As flots
+        const int32_t CurrentThreadPosStartIdx = NumPosPerCurve * 3 * globalThreadIdx;
+        const int32_t CurrentThreadTanStartIdx = NumTanPerCurve * 3 * globalThreadIdx;
         const int32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * globalThreadIdx;
 
         // Ok, we want to loop over the outer batches first, the number per warp
@@ -739,10 +742,10 @@ namespace twisty
                     {
                         // Should be 2 - 180
                         int64_t maxDiff = min((int)(numSegmentsPerCurve - 2), 25);
-                        int64_t diff = floorf(curand_uniform(&pCurandStates[globalThreadIdx]) * (maxDiff - 2)) + 2;
+                        int64_t diff = floorf(curand_uniform(&(pCurandStates[globalThreadIdx])) * (maxDiff - 2)) + 2;
 
                         // -2 from the -1 to offset for the +1, and -1 as required by index
-                        int64_t leftPointIndex = floorf(curand_uniform(&pCurandStates[globalThreadIdx]) * (numSegmentsPerCurve - diff - 2)) + 1;
+                        int64_t leftPointIndex = floorf(curand_uniform(&(pCurandStates[globalThreadIdx])) * (numSegmentsPerCurve - diff - 2)) + 1;
 
                         int64_t rightPointIndex = leftPointIndex + diff;
 
@@ -769,7 +772,7 @@ namespace twisty
                         N_z /= N_length;
 
                         // Overwrite angle
-                        double randRotationAngle = (curand_uniform(&pCurandStates[globalThreadIdx]) * 2.0 - 1.0) * TwistyPi;
+                        double randRotationAngle = (curand_uniform(&(pCurandStates[globalThreadIdx])) * 2.0 - 1.0) * TwistyPi;
                         float N[3] = { N_x, N_y, N_z };
 
                         // Rotation
@@ -792,15 +795,15 @@ namespace twisty
                                 pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + pointIdx * 3 + 2] = shiftedPoint[2] + leftPoint_z;
                             }
 
-                            //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
-                            //We can do a different approach later.
-                            // Here, we want to do a perturb update call
-                            twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(&pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx],
-                                &pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx],
+                            // //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                            // //We can do a different approach later.
+                            // // Here, we want to do a perturb update call
+                            twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(&(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
+                                &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
                                 numSegmentsPerCurve, csBoundaryConditions);
 
-                            twisty::PerturbUtils::UpdateCurvaturesFromTangentsCudaSafe(&pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx],
-                                &pPerGlobalThreadScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx],
+                            twisty::PerturbUtils::UpdateCurvaturesFromTangentsCudaSafe(&(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
+                                &(pPerGlobalThreadScratchSpaceCurvatures[CurrentThreadCurvatureStartIdx]),
                                 numSegmentsPerCurve, csBoundaryConditions, weightingMethod);
                         }
 

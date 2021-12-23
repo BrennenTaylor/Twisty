@@ -535,7 +535,7 @@ namespace twisty
                     
                     if ((currentPathIdx % MaxNumPathsPerCombinedWeight) == 0)
                     {
-                        printf("****************Calling reset: %d\n", combinedWeightValueIdx);
+                        // printf("****************Calling reset: %d\n", combinedWeightValueIdx);
                         CombinedWeightValues_C_Reset(combinedWeightValues[combinedWeightValueIdx]);
                     }
 
