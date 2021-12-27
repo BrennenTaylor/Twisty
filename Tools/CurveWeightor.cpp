@@ -3,6 +3,7 @@
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "ExperimentRunner.h"
+#include "PathWeighters.h"
 
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>

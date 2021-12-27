@@ -4,6 +4,7 @@
 #include "CurvePerturbUtils.h"
 #include "CurveUtils.h"
 #include "MathConsts.h"
+#include "PathWeighters.h"
 
 #include <assert.h>
 #include <ctime>
@@ -234,6 +235,9 @@ namespace twisty
         std::cout << "PathNormalizerLog10: " << pathNormalizerLog10 << std::endl;
 
         auto setupTimeEnd = std::chrono::high_resolution_clock::now();
+
+        long long setupTimeCount = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart).count();
+        ;
         /* --------------------- */
 
 
@@ -362,8 +366,6 @@ namespace twisty
             bigfloatOFS.close();
         }
 
-        auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart); 
-
         ExperimentResults results;
         results.experimentWeights.push_back(bigTotalExperimentWeight);
         results.totalPathsGenerated = m_experimentParams.numPathsInExperiment;
@@ -371,7 +373,7 @@ namespace twisty
 
         ExperimentRunner::RunnerSpecificResults specificResult;
         specificResult.experimentResults = std::make_optional<ExperimentResults>(results);
-        specificResult.setupMsCount = timeMs.count();
+        specificResult.setupMsCount = setupTimeCount;
         specificResult.runExperimentMsCount = perturbTimeCount;
         specificResult.weightingMsCount = weightCalcTimeCount;
 
@@ -478,18 +480,18 @@ namespace twisty
                 const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
 
                 std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
-                double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
+                double randRotationAngle = TwistyPi / 2.0; //zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
 
                 //  Rotation
                 {
                     float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                    RotationMatrixAroundAxis(randRotationAngle, (float*)(&N), rotationMatrix);
+                    RotationMatrixAroundAxis(randRotationAngle, N.m_data, rotationMatrix);
 
                     for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
                     {
                         Farlor::Vector3 shiftedPoint = globalPos[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
                         // Rotate and stuff back in shifted point
-                        RotateVectorByMatrix(rotationMatrix, (float*)(&shiftedPoint));
+                        RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data);
                         // Update the point with the rotated version
                         globalPos[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
                     }

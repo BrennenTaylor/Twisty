@@ -6,6 +6,7 @@
 #include "CurveUtils.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
+#include "PathWeighters.h"
 
 #include <curand.h>
 
@@ -40,52 +41,52 @@ namespace twisty
         }
     }
 
-    // Assumes pVector3f is an array of 3 floats
-    static __host__ __device__ void NormalizeVector3f(float* pVector3f)
-    {
-        float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
-        normalizer = 1.0f / sqrt(normalizer);
-        pVector3f[0] *= normalizer;
-        pVector3f[1] *= normalizer;
-        pVector3f[2] *= normalizer;
-    }
+    // // Assumes pVector3f is an array of 3 floats
+    // static __host__ __device__ void NormalizeVector3f(float* pVector3f)
+    // {
+    //     float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
+    //     normalizer = 1.0f / sqrt(normalizer);
+    //     pVector3f[0] *= normalizer;
+    //     pVector3f[1] *= normalizer;
+    //     pVector3f[2] *= normalizer;
+    // }
 
-    // This has an out parameter
-    static __host__ __device__  void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3)
-    {
-        // Ensure its normalized
-        NormalizeVector3f(pAxisVector3f);
+    // // This has an out parameter
+    // static __host__ __device__  void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3)
+    // {
+    //     // Ensure its normalized
+    //     NormalizeVector3f(pAxisVector3f);
 
-        pMatrix3x3[0] = cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - cos(angle));
-        pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - cos(angle)) - pAxisVector3f[2] * sin(angle);
-        pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - cos(angle)) + pAxisVector3f[1] * sin(angle);
+    //     pMatrix3x3[0] = cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - cos(angle));
+    //     pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - cos(angle)) - pAxisVector3f[2] * sin(angle);
+    //     pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - cos(angle)) + pAxisVector3f[1] * sin(angle);
 
-        pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - cos(angle)) + pAxisVector3f[2] * sin(angle);
-        pMatrix3x3[4] = cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - cos(angle));
-        pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - cos(angle)) - pAxisVector3f[0] * sin(angle);
+    //     pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - cos(angle)) + pAxisVector3f[2] * sin(angle);
+    //     pMatrix3x3[4] = cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - cos(angle));
+    //     pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - cos(angle)) - pAxisVector3f[0] * sin(angle);
 
-        pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - cos(angle)) - pAxisVector3f[1] * sin(angle);
-        pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - cos(angle)) + pAxisVector3f[0] * sin(angle);
-        pMatrix3x3[8] = cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - cos(angle));
-    }
+    //     pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - cos(angle)) - pAxisVector3f[1] * sin(angle);
+    //     pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - cos(angle)) + pAxisVector3f[0] * sin(angle);
+    //     pMatrix3x3[8] = cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - cos(angle));
+    // }
 
-    static __host__ __device__  float DotVector3fVector3f(float* lhs, float* rhs)
-    {
-        return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
-    }
+    // static __host__ __device__  float DotVector3fVector3f(float* lhs, float* rhs)
+    // {
+    //     return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
+    // }
 
-    static __host__ __device__  void RotateVectorByMatrix(float* pRotationMatrix, float* pVector)
-    {
-        float val[3];
-        val[0] = DotVector3fVector3f(pRotationMatrix, pVector);
-        val[1] = DotVector3fVector3f(pRotationMatrix + 3, pVector);
-        val[2] = DotVector3fVector3f(pRotationMatrix + 6, pVector);
+    // static __host__ __device__  void RotateVectorByMatrix(float* pRotationMatrix, float* pVector)
+    // {
+    //     float val[3];
+    //     val[0] = DotVector3fVector3f(pRotationMatrix, pVector);
+    //     val[1] = DotVector3fVector3f(pRotationMatrix + 3, pVector);
+    //     val[2] = DotVector3fVector3f(pRotationMatrix + 6, pVector);
         
-        // Write it back to pVector
-        pVector[0] = val[0];
-        pVector[1] = val[1];
-        pVector[2] = val[2];
-    }
+    //     // Write it back to pVector
+    //     pVector[0] = val[0];
+    //     pVector[1] = val[1];
+    //     pVector[2] = val[2];
+    // }
 
         __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
             int64_t numCombinedWeightValuesTotal,
@@ -267,8 +268,8 @@ namespace twisty
 
         /* --------------------- */
 
-        long long perturbTimeCount = 0;
-        long long weightCalcTimeCount = 0;
+        uint64_t perturbTimeCount = 0;
+        uint64_t weightCalcTimeCount = 0;
 
         std::cout << "numPathsInExperiment specified: " << m_experimentParams.numPathsInExperiment << std::endl;
 
@@ -345,7 +346,7 @@ namespace twisty
         }
 
         auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
-        perturbTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(perturbTimeEnd - perturbTimeStart).count();
+        perturbTimeCount = std::chrono::duration_cast<std::chrono::milliseconds>(perturbTimeEnd - perturbTimeStart).count();
 
         // -------------------
         auto weightingTimeStart = std::chrono::high_resolution_clock::now();
@@ -368,6 +369,7 @@ namespace twisty
         for (auto& combinedWeightValue : combinedWeightValues)
         {
             std::cout << "Combined Weight Value" << std::endl;
+            std::cout << "Extracted Value: " << ExtractFinalValue(combinedWeightValue);
             std::cout << "\tNum Values: " << combinedWeightValue.m_numValues << std::endl;
             std::cout << "\tOffset: " << combinedWeightValue.m_offset << std::endl;
             std::cout << "\tRunning Total: " << combinedWeightValue.m_runningTotal << std::endl;
@@ -378,7 +380,7 @@ namespace twisty
         // bigTotalExperimentWeight *= pathNormalizer;
 
         auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
-        weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();
+        weightCalcTimeCount = std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();
         /* --------------------- */
 
         // Cleanup stuff
@@ -772,13 +774,16 @@ namespace twisty
                         N_z /= N_length;
 
                         // Overwrite angle
-                        double randRotationAngle = (curand_uniform(&(pCurandStates[globalThreadIdx])) * 2.0 - 1.0) * TwistyPi;
+                        float randRotationAngle = TwistyPi / 2.0; //(curand_uniform(&(pCurandStates[globalThreadIdx])) * 2.0 - 1.0) * TwistyPi;
                         float N[3] = { N_x, N_y, N_z };
+                        
+                        // Ensure the rotation axis is normalized before we rotate.
+                        NormalizeVector3f(N);
 
                         // Rotation
                         {
                             float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                            RotationMatrixAroundAxis(randRotationAngle, (float*)(N), rotationMatrix);
+                            RotationMatrixAroundAxis(randRotationAngle, (float *)N, (float *)rotationMatrix);
 
                             for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
                             {
@@ -788,7 +793,7 @@ namespace twisty
                                 shiftedPoint[2] = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + pointIdx * 3 + 2] - leftPoint_z;
 
                                 // Rotate and stuff back in shifted point
-                                RotateVectorByMatrix(rotationMatrix, (float*)(shiftedPoint));
+                                RotateVectorByMatrix((float*)rotationMatrix, (float*)shiftedPoint);
                                 // Update the point with the rotated version
                                 pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + pointIdx * 3 + 0] = shiftedPoint[0] + leftPoint_x;
                                 pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + pointIdx * 3 + 1] = shiftedPoint[1] + leftPoint_y;

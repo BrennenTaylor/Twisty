@@ -65,7 +65,7 @@ namespace twisty
             m_curvesMetadataFile.open(metadataFilePath);
         }
 
-        const RunnerSpecificResults runnerSpecificResult = RunnerSpecificRunExperiment();
+        RunnerSpecificResults runnerSpecificResult = RunnerSpecificRunExperiment();
 
         auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
 
@@ -84,6 +84,10 @@ namespace twisty
             m_curvesBinaryFile.close();
             m_curvesMetadataFile.close();
         }
+        runnerSpecificResult.experimentResults->totalExperimentMS = runExperimentTimeMs.count();
+        runnerSpecificResult.experimentResults->setupExperimentMS = runnerSpecificResult.setupMsCount;
+        runnerSpecificResult.experimentResults->perturbExperimentMS = runnerSpecificResult.runExperimentMsCount;
+        runnerSpecificResult.experimentResults->weightingExperimentMS = runnerSpecificResult.weightingMsCount;
         return runnerSpecificResult.experimentResults;
     }
 

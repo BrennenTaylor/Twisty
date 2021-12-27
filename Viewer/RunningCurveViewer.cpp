@@ -1,5 +1,7 @@
 #include "RunningCurveViewer.h"
 
+#include "CurvePerturbUtils.h"
+
 #include <QTimer>
 
 #include <QDir>
@@ -80,31 +82,6 @@ void RunningCurveViewer::initializeGL()
 
 const bool DetailedPerturb = false;
 
-Farlor::Matrix3x3  RotationMatrixAroundAxis(float angle, Farlor::Vector3 axis)
-{
-    // Ensure its normalized
-    axis.Normalize();
-
-    Farlor::Matrix3x3 rotation(
-        Farlor::Vector3(
-            cos(angle) + axis.x * axis.x * (1.0f - cos(angle)),
-            axis.x * axis.y * (1.0f - cos(angle)) - axis.z * sin(angle),
-            axis.x * axis.z * (1.0f - cos(angle)) + axis.y * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.y * axis.x * (1.0f - cos(angle)) + axis.z * sin(angle),
-            cos(angle) + axis.y * axis.y * (1 - cos(angle)),
-            axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.z * axis.x * (1 - cos(angle)) - axis.y * sin(angle),
-            axis.z * axis.y * (1 - cos(angle)) + axis.x * sin(angle),
-            cos(angle) + axis.z * axis.z * (1 - cos(angle))
-        )
-    );
-    return rotation;
-}
-
 std::pair<float, float> CurvatureAndTorsionBetweenTwoFrames(const Farlor::Matrix3x3& startFrame, const Farlor::Matrix3x3& endFrame, float segmentLength)
 {
     std::pair<float, float> curvatureAndTorsion = { 0.0f, 0.0f };
@@ -176,7 +153,9 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(co
 
     float randomAngle = zeroToTwoPiUniformDist(m_rng);
     //randomAngle = 0.0f;
-    Farlor::Matrix3x3 rotationMatrix = RotationMatrixAroundAxis(randomAngle, axisOfRotation);
+
+    float rotationMatrix[9] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    twisty::RotationMatrixAroundAxis(randomAngle, (float*)axisOfRotation.m_data, (float*)rotationMatrix);
 
     if (DetailedPerturb)
     {
@@ -199,8 +178,8 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(co
     {
         Farlor::Vector3 pointToRotate = points[pointIdx];
         Farlor::Vector3 shiftedPoint = pointToRotate - leftPoint;
-        Farlor::Vector3 rotatedPoint = rotationMatrix * shiftedPoint;
-        Farlor::Vector3 finalPoint = rotatedPoint + leftPoint;
+        twisty::RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data);
+        Farlor::Vector3 finalPoint = shiftedPoint + leftPoint;
         updatedPolyline.push_back(finalPoint);
     }
 

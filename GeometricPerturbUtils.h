@@ -12,13 +12,13 @@
 #endif
 
 // Assumes pVector3f is an array of 3 floats
-FunctionDecoration void NormalizeVector3f(float *pVector3f);
+// FunctionDecoration void NormalizeVector3f(float *pVector3f);
 
-// This has an out parameter
-FunctionDecoration void RotationMatrixAroundAxis(float angle, float *pAxisVector3f, float *pMatrix3x3);
+// // This has an out parameter
+// FunctionDecoration void RotationMatrixAroundAxis(float angle, float *pAxisVector3f, float *pMatrix3x3);
 
-FunctionDecoration float DotVector3fVector3f(float *lhs, float *rhs);
+// FunctionDecoration float DotVector3fVector3f(float *lhs, float *rhs);
 
-FunctionDecoration float MagVector3f(float *pVec);
+// FunctionDecoration float MagVector3f(float *pVec);
 
-FunctionDecoration void RotateVectorByMatrix(float *pRotationMatrix, float *pVector);
+// FunctionDecoration void RotateVectorByMatrix(float *pRotationMatrix, float *pVector);

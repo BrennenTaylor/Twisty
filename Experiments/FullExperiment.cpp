@@ -234,16 +234,16 @@ int main(int argc, char *argv[])
 
         std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
 
-        std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-
         #if defined(USE_CUDA)
         if (experimentParams.useGpu)
         {
             upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU>(experimentParams, bootstrapper);
+            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb_Gpu" << std::endl;
         }
         else
         {
             upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
+            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
         }
         #else
         if (experimentParams.useGpu)
@@ -278,7 +278,10 @@ int main(int argc, char *argv[])
             ofs << "Scatter value: " << experimentParams.weightingParameters.scatterValues[scatterIdx] << std::endl;
             ofs << "\tTotal experiment weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] << std::endl;
             ofs << "\tAvg path weight " << scatterIdx << ": " << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
-
+            ofs << "\tTotal experiment time (ms) " << results.totalExperimentMS << std::endl;
+            ofs << "\tSetup time (ms) " << results.setupExperimentMS << std::endl;
+            ofs << "\tPerturb time (ms) " << results.perturbExperimentMS << std::endl;
+            ofs << "\tWeighting time (ms) " << results.weightingExperimentMS << std::endl;
         }
         ofs << std::endl;
 

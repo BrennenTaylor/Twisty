@@ -98,30 +98,30 @@ std::ofstream curvesMetadataFile;
 
 #endif
 
-static Farlor::Matrix3x3 RotationMatrixAroundAxis(float angle, Farlor::Vector3 axis)
-{
-    // Ensure its normalized
-    axis.Normalize();
+// static Farlor::Matrix3x3 RotationMatrixAroundAxis(float angle, Farlor::Vector3 axis)
+// {
+//     // Ensure its normalized
+//     axis.Normalize();
 
-    Farlor::Matrix3x3 rotation(
-        Farlor::Vector3(
-            cos(angle) + axis.x * axis.x * (1.0f - cos(angle)),
-            axis.x * axis.y * (1.0f - cos(angle)) - axis.z * sin(angle),
-            axis.x * axis.z * (1.0f - cos(angle)) + axis.y * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.y * axis.x * (1.0f - cos(angle)) + axis.z * sin(angle),
-            cos(angle) + axis.y * axis.y * (1 - cos(angle)),
-            axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle)
-        ),
-        Farlor::Vector3(
-            axis.z * axis.x * (1 - cos(angle)) - axis.y * sin(angle),
-            axis.z * axis.y * (1 - cos(angle)) + axis.x * sin(angle),
-            cos(angle) + axis.z * axis.z * (1 - cos(angle))
-        )
-    );
-    return rotation;
-}
+//     Farlor::Matrix3x3 rotation(
+//         Farlor::Vector3(
+//             cos(angle) + axis.x * axis.x * (1.0f - cos(angle)),
+//             axis.x * axis.y * (1.0f - cos(angle)) - axis.z * sin(angle),
+//             axis.x * axis.z * (1.0f - cos(angle)) + axis.y * sin(angle)
+//         ),
+//         Farlor::Vector3(
+//             axis.y * axis.x * (1.0f - cos(angle)) + axis.z * sin(angle),
+//             cos(angle) + axis.y * axis.y * (1 - cos(angle)),
+//             axis.y * axis.z * (1 - cos(angle)) - axis.x * sin(angle)
+//         ),
+//         Farlor::Vector3(
+//             axis.z * axis.x * (1 - cos(angle)) - axis.y * sin(angle),
+//             axis.z * axis.y * (1 - cos(angle)) + axis.x * sin(angle),
+//             cos(angle) + axis.z * axis.z * (1 - cos(angle))
+//         )
+//     );
+//     return rotation;
+// }
 
 namespace twisty
 {

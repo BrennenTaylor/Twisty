@@ -59,7 +59,8 @@ namespace twisty
     __host__ __device__ CombinedWeightValues_C CombinedWeightValues_C_CombineValues(const CombinedWeightValues_C& firstCombinedWeightValue,
         const CombinedWeightValues_C& secondCombinedWeightValue)
     {
-        assert ((firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues) <= MaxNumberOfPathsLog10);
+        // printf("New combined number: %d\n", (firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues));
+        assert((firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues) <= MaxNumPathsPerCombinedWeight);
 
         if (firstCombinedWeightValue.m_numValues > 0 && secondCombinedWeightValue.m_numValues == 0)
         {

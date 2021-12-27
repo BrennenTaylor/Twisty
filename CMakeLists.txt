@@ -10,10 +10,8 @@ if (USE_CUDA)
 SET(CUDA_SEPARABLE_COMPILATION ON)
 SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 enable_language(CUDA)
-if(NOT DEFINED CMAKE_CUDA_STANDARD)
     set(CMAKE_CUDA_STANDARD 17)
     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-endif()
 endif (USE_CUDA)
 
 # Needed for multiprecision float library
@@ -31,6 +29,8 @@ add_subdirectory(tinyexr)
 ENDIF()
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(Twisty
     BezierCurve.h
@@ -61,14 +61,16 @@ add_library(Twisty
 
     Integrate.h
     MathConsts.h
+    PathWeighters.h
+    PathWeighters.cu
     PathWeightUtils.h
-    PathWeightUtils.cu
+    PathWeightUtils.cpp
     PerturbUtils.h
     PerturbUtils.cpp
 )
 
 if (USE_CUDA)
-
+set_property(TARGET Twisty PROPERTY CUDA_STANDARD 17)
 set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 # target_sources(Twisty

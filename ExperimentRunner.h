@@ -80,6 +80,11 @@ namespace twisty
             std::vector<boost::multiprecision::cpp_dec_float_100> experimentWeights;
             uint64_t totalPathsGenerated = 0;
             uint64_t numFailedPaths = 0;
+            int64_t totalExperimentMS = 0;
+            int64_t setupExperimentMS = 0;
+            int64_t perturbExperimentMS = 0;
+            int64_t weightingExperimentMS = 0;
+            
         };
 
     public:
@@ -96,6 +101,7 @@ namespace twisty
         struct RunnerSpecificResults
         {
             std::optional<ExperimentResults> experimentResults;
+            uint64_t experimentRuntimeTotalMS = 0;
             uint64_t setupMsCount = 0;
             uint64_t runExperimentMsCount = 0;
             uint64_t weightingMsCount = 0;

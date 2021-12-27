@@ -34,7 +34,7 @@ namespace twisty
         // Assumes pVector3f is an array of 3 floats
     __device__ __host__ void NormalizeVector3f(float* pVector3f);
     // This has an outparameter
-    __device__ __host__ void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3);
+    __device__ __host__ void RotationMatrixAroundAxis(const float angle, const float* pAxisVector3f, float* pMatrix3x3);
     __device__ __host__ float DotVector3fVector3f(float* lhs, float* rhs);
     __device__ __host__ float MagVector3f(float* pVec);
     __device__ __host__ void RotateVectorByMatrix(float* pRotationMatrix, float* pVector);

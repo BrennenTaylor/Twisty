@@ -18,10 +18,11 @@ namespace twisty
     }
 
     // This has an outparameter
-    __host__ __device__ void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3)
+    __host__ __device__ void RotationMatrixAroundAxis(const float angle, const float* pAxisVector3f, float* pMatrix3x3)
     {
         // Ensure its normalized
-        NormalizeVector3f(pAxisVector3f);
+        // TODO: Make assertion
+        // NormalizeVector3f(pAxisVector3f);
 
         pMatrix3x3[0] = std::cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - std::cos(angle));
         pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - std::cos(angle)) - pAxisVector3f[2] * std::sin(angle);

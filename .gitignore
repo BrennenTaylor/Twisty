@@ -27,3 +27,4 @@ CachedPython/
 python_sandbox/
 *.xlsx
 *cppcheck*
+CudaProfiling/

@@ -1,9 +1,19 @@
 #pragma once
 
-#include "Curve.h"
+#if defined(USE_CUDA)
+#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
+#include <cuda_occupancy.h>
+#include <device_launch_parameters.h>
+#include <math_constants.h>
+#else
+#define __device__
+#define __host__
+#endif
 
-#include <boost/serialization/nvp.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
+
+#include "Curve.h"
 
 #include <fstream>
 #include <functional>
@@ -157,15 +167,6 @@ namespace twisty
             double maxCurvature = 0.0;
         };
         MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters& wp, double ds);
-
-        // Given a vector of curvatures, 1 per segement of a path, weight the path and return the long10 of the weight
-        // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
-        // Assumes that integral matches weighting params
-        double WeightCurveViaCurvatureLog10(float* pCurvatureStart, uint32_t numCurvatures, const BaseWeightLookupTable& weightIntegral);
-        
-        __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float* pCurvatureStart, uint32_t numCurvatures,
-            const double* pWeightLookupTable, const int32_t weightLookupTableSize,
-            const double ds, const double minCurvature, const double maxCurvature, const double curvatureStepSize);
 
 
         // double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents, uint32_t numSegments, const BaseWeightLookupTable& weightIntegral);
