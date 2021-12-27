@@ -7,9 +7,10 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Needed for GPU build
 option(USE_CUDA "Enable Cuda and GPU runner?" TRUE)
 if (USE_CUDA)
+enable_language(CUDA)
+set(CUDA_VERBOSE_BUILD ON)
 SET(CUDA_SEPARABLE_COMPILATION ON)
 SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-enable_language(CUDA)
     set(CMAKE_CUDA_STANDARD 17)
     set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif (USE_CUDA)
@@ -70,9 +71,11 @@ add_library(Twisty
 )
 
 if (USE_CUDA)
+set_property(TARGET Twisty PROPERTY CUDA_ARCHITECTURES 70 72)
 set_property(TARGET Twisty PROPERTY CUDA_STANDARD 17)
 set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -Xptxas -v -maxrregcount=32>)
 # target_sources(Twisty
 #     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
 #     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.h

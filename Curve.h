@@ -87,6 +87,7 @@ namespace twisty
         // };
 
         twisty::PerturbUtils::BoundaryConditions GetBoundaryConditions() const;
+        twisty::PerturbUtils::BoundaryConditions_CudaSafe GetBoundaryConditionsCudaSafe() const;
 
     public:
         uint32_t m_numSegments = 0;

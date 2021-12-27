@@ -106,4 +106,26 @@ namespace twisty
         bc.m_endDir = m_targetTangent;
         return bc;
     }
+
+    twisty::PerturbUtils::BoundaryConditions_CudaSafe Curve::GetBoundaryConditionsCudaSafe() const
+    {
+        twisty::PerturbUtils::BoundaryConditions_CudaSafe bc;
+        bc.arclength = m_arclength;
+        bc.m_startPos[0] = m_basePos.m_data[0];
+        bc.m_startPos[1] = m_basePos.m_data[1];
+        bc.m_startPos[2] = m_basePos.m_data[2];
+
+        bc.m_startDir[0] = m_baseTangent.m_data[0];
+        bc.m_startDir[1] = m_baseTangent.m_data[1];
+        bc.m_startDir[2] = m_baseTangent.m_data[2];
+
+        bc.m_endPos[0] = m_targetPos.m_data[0];
+        bc.m_endPos[1] = m_targetPos.m_data[1];
+        bc.m_endPos[2] = m_targetPos.m_data[2];
+
+        bc.m_endDir[0] = m_targetTangent.m_data[0];
+        bc.m_endDir[1] = m_targetTangent.m_data[1];
+        bc.m_endDir[2] = m_targetTangent.m_data[2];
+        return bc;
+    }
 }
