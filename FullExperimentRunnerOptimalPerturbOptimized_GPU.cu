@@ -536,12 +536,9 @@ namespace twisty
             uint64_t idx = 0;
             for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx)
             {
-                for (int64_t posIdx = 0; posIdx < m_upInitialCurve->m_positions.size(); posIdx++)
-                {
-                    CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpacePositions[idx]), (void*)pInitialCurvePositions,
-                        m_upInitialCurve->m_positions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
-                        "Copy inital positions to per thread scratch space");
-                }
+                CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpacePositions[idx]), (void*)pInitialCurvePositions,
+                    m_upInitialCurve->m_positions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
+                    "Copy inital positions to per thread scratch space");
                 idx += m_upInitialCurve->m_positions.size() * 3;
             }
         }
@@ -550,13 +547,9 @@ namespace twisty
             uint64_t idx = 0;
             for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx)
             {
-                // Copy Tan
-                for (int64_t tanIdx = 0; tanIdx < m_upInitialCurve->m_positions.size(); tanIdx++)
-                {
-                    CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpaceTangents[idx]), (void*)pInitialCurveTangents,
-                        m_upInitialCurve->m_positions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
-                        "Copy inital tangents to per thread scratch space");
-                }
+                CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpaceTangents[idx]), (void*)pInitialCurveTangents,
+                    m_upInitialCurve->m_positions.size() * sizeof(float) * 3, cudaMemcpyHostToDevice),
+                    "Copy inital tangents to per thread scratch space");
                 idx += m_upInitialCurve->m_positions.size() * 3;
             }
         }
@@ -565,24 +558,11 @@ namespace twisty
             uint64_t idx = 0;
             for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx)
             {
-                // Copy Curvatures
-                for (int64_t curvatureIdx = 0; curvatureIdx < (m_upInitialCurve->m_positions.size() - 1); curvatureIdx++)
-                {
-                    CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpaceCurvatures[idx]), (void*)pInitialCurveCurvatures,
-                        (m_upInitialCurve->m_positions.size() - 1) * sizeof(float), cudaMemcpyHostToDevice),
-                        "Copy inital curvatures to per thread scratch space");
-                }
-
+                CudaSafeErrorCheck(cudaMemcpy((void*)&(m_pPerGlobalThreadScratchSpaceCurvatures[idx]), (void*)pInitialCurveCurvatures,
+                    (m_upInitialCurve->m_positions.size() - 1) * sizeof(float), cudaMemcpyHostToDevice),
+                    "Copy inital curvatures to per thread scratch space");
                 idx += (m_upInitialCurve->m_positions.size() - 1);
-            }
         }
-
-        // // TODO: Is this cache even used?
-        // std::vector<CombinedWeightValues_C> perThreadCombinedWeightValues(numGlobalPerturbThreads);
-        // cudaMemcpy((void*)m_pPerThreadCombinedWeightValues, (void*)perThreadCombinedWeightValues.data(), perThreadCombinedWeightValues.size() * sizeof(CombinedWeightValues_C), cudaMemcpyHostToDevice);
-
-        // std::cout << "Num bytes per combined weight value: " << sizeof(CombinedWeightValues_C) << std::endl;
-        // std::cout << "Total num bytes for thread combined weight values: " << sizeof(CombinedWeightValues_C) * perThreadCombinedWeightValues.size() << std::endl;
 
         std::vector<CombinedWeightValues_C> finalCombinedWeights(numCombinedWeightValues);
         for (int i = 0; i < finalCombinedWeights.size(); i++)
