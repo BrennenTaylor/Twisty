@@ -280,7 +280,6 @@ namespace twisty
                     m_pPerGlobalThreadScratchSpacePositions,
                     m_pPerGlobalThreadScratchSpaceTangents,
                     m_pPerGlobalThreadScratchSpaceCurvatures,
-                    // m_pPerThreadCombinedWeightValues,
                     m_pFinalCombinedValues,
                     (int32_t)m_experimentParams.weightingParameters.weightingMethod,
                     m_experimentParams.weightingParameters.weightingMethod == twisty::WeightingMethod::RadiativeTransfer ? pathNormalizerLog10.convert_to<double>() : 0.0,
@@ -586,6 +585,10 @@ namespace twisty
         // std::cout << "Total num bytes for thread combined weight values: " << sizeof(CombinedWeightValues_C) * perThreadCombinedWeightValues.size() << std::endl;
 
         std::vector<CombinedWeightValues_C> finalCombinedWeights(numCombinedWeightValues);
+        for (int i = 0; i < finalCombinedWeights.size(); i++)
+        {
+            CombinedWeightValues_C_Reset(finalCombinedWeights[i]);
+        }
         cudaMemcpy((void*)m_pFinalCombinedValues, (void*)finalCombinedWeights.data(), finalCombinedWeights.size() * sizeof(CombinedWeightValues_C), cudaMemcpyHostToDevice);
 
         cudaMemcpy((void*)m_pDeviceWeightLookupTable, (void*)weightTable.data(), weightTable.size() * sizeof(double), cudaMemcpyHostToDevice);
@@ -597,9 +600,6 @@ namespace twisty
     {
         CudaSafeErrorCheck(cudaFree((void*)m_pFinalCombinedValues),
             "Cuda free combined weight values for final answer");
-
-        // CudaSafeErrorCheck(cudaFree((void*)m_pPerThreadCombinedWeightValues),
-        //     "Cuda free combined weight values per thread");
 
         CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadScratchSpaceCurvatures),
             "Cuda free Left Scratch Space Curvatures");

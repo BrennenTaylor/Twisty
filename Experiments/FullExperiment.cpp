@@ -32,7 +32,7 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     try
     {
         // Values loaded from the config file
-        experimentParams.numPathsInExperiment = (int)config.lookup("experiment.experimentParams.pathsToGenerate");
+        experimentParams.numPathsInExperiment = (long long)config.lookup("experiment.experimentParams.pathsToGenerate");
         experimentParams.numPathsToSkip = (int)config.lookup("experiment.experimentParams.pathsToSkip");
         experimentParams.experimentName = config.lookup("experiment.experimentParams.name").c_str();
         experimentParams.experimentDirPath = config.lookup("experiment.experimentParams.experimentDir").c_str();
