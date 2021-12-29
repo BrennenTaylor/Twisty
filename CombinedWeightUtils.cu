@@ -8,7 +8,6 @@ namespace twisty
         combinedWeightValue.m_runningTotal = 0.0;
         combinedWeightValue.m_offset = 0.0;
         combinedWeightValue.m_maxWeightLog10 = 0.0;
-        combinedWeightValue.m_maxPossibleFinalWeightLog10 = 0.0;
     }
 
     __host__ __device__ void CombinedWeightValues_C_AddValue(CombinedWeightValues_C& combinedWeightValue, double valueLog10)
@@ -19,8 +18,7 @@ namespace twisty
         if (combinedWeightValue.m_numValues == 0)
         {
             combinedWeightValue.m_maxWeightLog10 = valueLog10;
-            combinedWeightValue.m_maxPossibleFinalWeightLog10 = combinedWeightValue.m_maxWeightLog10 + MaxNumberOfPathsLog10;
-            combinedWeightValue.m_offset = MaxDoubleLog10 - combinedWeightValue.m_maxPossibleFinalWeightLog10;
+            combinedWeightValue.m_offset = MaxDoubleLog10 - (combinedWeightValue.m_maxWeightLog10 + MaxNumberOfPathsLog10);
             combinedWeightValue.m_runningTotal += pow(10.0, (valueLog10 + combinedWeightValue.m_offset));
             combinedWeightValue.m_numValues++;
             return;
@@ -38,8 +36,7 @@ namespace twisty
         // If it is larger, we need to rescale everything around that new value
 
         // New difference
-        double newMaxPossibleFinalWeightLog10 = valueLog10 + MaxNumberOfPathsLog10;
-        double newOffset = MaxDoubleLog10 - newMaxPossibleFinalWeightLog10;
+        double newOffset = MaxDoubleLog10 - (valueLog10 + MaxNumberOfPathsLog10);
         double offsetDelta = newOffset - combinedWeightValue.m_offset;
 
         // Adjust values already stored
@@ -49,7 +46,6 @@ namespace twisty
 
         // Update with new value
         combinedWeightValue.m_maxWeightLog10 = valueLog10;
-        combinedWeightValue.m_maxPossibleFinalWeightLog10 = newMaxPossibleFinalWeightLog10;
         combinedWeightValue.m_offset = newOffset;
 
         combinedWeightValue.m_runningTotal += pow(10.0, (valueLog10 + combinedWeightValue.m_offset));
@@ -72,7 +68,7 @@ namespace twisty
             return secondCombinedWeightValue;
         }
 
-        if (secondCombinedWeightValue.m_maxPossibleFinalWeightLog10 > firstCombinedWeightValue.m_maxPossibleFinalWeightLog10)
+        if (secondCombinedWeightValue.m_maxWeightLog10 > firstCombinedWeightValue.m_maxWeightLog10)
         {
             // printf("\tSwapping Order\n");
             // printf("\tFirst: %lf\n", firstCombinedWeightValue.m_maxPossibleFinalWeightLog10);
@@ -82,13 +78,12 @@ namespace twisty
 
         // We can assume that the first weight value is greater or equal.
         // If equal, we just combine.
-        if (firstCombinedWeightValue.m_maxPossibleFinalWeightLog10 == secondCombinedWeightValue.m_maxPossibleFinalWeightLog10)
+        if (firstCombinedWeightValue.m_maxWeightLog10 == secondCombinedWeightValue.m_maxWeightLog10)
         {
 
             // printf("\tEqual Offset\n");
             // Basic combine
             CombinedWeightValues_C combined;
-            combined.m_maxPossibleFinalWeightLog10 = firstCombinedWeightValue.m_maxPossibleFinalWeightLog10;
             combined.m_maxWeightLog10 = firstCombinedWeightValue.m_maxWeightLog10;
             combined.m_numValues = firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues;
             combined.m_offset = firstCombinedWeightValue.m_offset;
@@ -107,7 +102,6 @@ namespace twisty
         double newSecondRunningTotal = pow(10.0, adjustedSecondLog10RunningTotal);
 
         CombinedWeightValues_C combined;
-        combined.m_maxPossibleFinalWeightLog10 = firstCombinedWeightValue.m_maxPossibleFinalWeightLog10;
         combined.m_maxWeightLog10 = firstCombinedWeightValue.m_maxWeightLog10;
         combined.m_numValues = firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues;
         combined.m_offset = firstCombinedWeightValue.m_offset;

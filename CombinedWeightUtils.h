@@ -20,18 +20,18 @@
 // Currently implemented as #defines as there is no good way that I can find to make these a class specific constant.
 // TODO: Keep looking, there has to be something better
 #define MaxDoubleLog10 300
-#define MaxNumberOfPathsLog10 6.0
+#define MaxNumberOfPathsLog10 6
 #define MaxNumPathsPerCombinedWeight 1000000
 
 namespace twisty
 {
+    // Initializer cant be used for cuda, thus the reset function!
     struct CombinedWeightValues_C
     {
-        uint32_t m_numValues = 0;
-        double m_runningTotal = 0.0;
-        double m_offset = 0.0;
-        double m_maxWeightLog10 = 0.0;
-        double m_maxPossibleFinalWeightLog10 = 0.0;
+        uint32_t m_numValues;
+        double m_maxWeightLog10;
+        double m_runningTotal;
+        double m_offset;
     };
 
     __host__ __device__ void CombinedWeightValues_C_Reset(CombinedWeightValues_C& combinedWeightValue);

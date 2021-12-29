@@ -2,6 +2,7 @@
 
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
+#include "CombinedWeightUtils.h"
 #include "CurvePerturbUtils.h"
 #include "CurveUtils.h"
 #include "MathConsts.h"
@@ -26,8 +27,8 @@
 #include <stdlib.h>
 #include <memory>
 
-const uint32_t PerturbGridSize = 10;
-const uint32_t PerturbBlockSize = 64;
+const uint32_t PerturbGridSize = 64;
+const uint32_t PerturbBlockSize = 32;
 
 namespace twisty
 {
@@ -40,76 +41,27 @@ namespace twisty
             // assert(false);
         }
     }
-
-    // // Assumes pVector3f is an array of 3 floats
-    // static __host__ __device__ void NormalizeVector3f(float* pVector3f)
-    // {
-    //     float normalizer = pVector3f[0] * pVector3f[0] + pVector3f[1] * pVector3f[1] + pVector3f[2] * pVector3f[2];
-    //     normalizer = 1.0f / sqrt(normalizer);
-    //     pVector3f[0] *= normalizer;
-    //     pVector3f[1] *= normalizer;
-    //     pVector3f[2] *= normalizer;
-    // }
-
-    // // This has an out parameter
-    // static __host__ __device__  void RotationMatrixAroundAxis(float angle, float* pAxisVector3f, float* pMatrix3x3)
-    // {
-    //     // Ensure its normalized
-    //     NormalizeVector3f(pAxisVector3f);
-
-    //     pMatrix3x3[0] = cos(angle) + pAxisVector3f[0] * pAxisVector3f[0] * (1.0f - cos(angle));
-    //     pMatrix3x3[1] = pAxisVector3f[0] * pAxisVector3f[1] * (1.0f - cos(angle)) - pAxisVector3f[2] * sin(angle);
-    //     pMatrix3x3[2] = pAxisVector3f[0] * pAxisVector3f[2] * (1.0f - cos(angle)) + pAxisVector3f[1] * sin(angle);
-
-    //     pMatrix3x3[3] = pAxisVector3f[1] * pAxisVector3f[0] * (1.0f - cos(angle)) + pAxisVector3f[2] * sin(angle);
-    //     pMatrix3x3[4] = cos(angle) + pAxisVector3f[1] * pAxisVector3f[1] * (1 - cos(angle));
-    //     pMatrix3x3[5] = pAxisVector3f[1] * pAxisVector3f[2] * (1 - cos(angle)) - pAxisVector3f[0] * sin(angle);
-
-    //     pMatrix3x3[6] = pAxisVector3f[2] * pAxisVector3f[0] * (1 - cos(angle)) - pAxisVector3f[1] * sin(angle);
-    //     pMatrix3x3[7] = pAxisVector3f[2] * pAxisVector3f[1] * (1 - cos(angle)) + pAxisVector3f[0] * sin(angle);
-    //     pMatrix3x3[8] = cos(angle) + pAxisVector3f[2] * pAxisVector3f[2] * (1 - cos(angle));
-    // }
-
-    // static __host__ __device__  float DotVector3fVector3f(float* lhs, float* rhs)
-    // {
-    //     return lhs[0] * rhs[0] + lhs[1] * rhs[1] + lhs[2] * rhs[2];
-    // }
-
-    // static __host__ __device__  void RotateVectorByMatrix(float* pRotationMatrix, float* pVector)
-    // {
-    //     float val[3];
-    //     val[0] = DotVector3fVector3f(pRotationMatrix, pVector);
-    //     val[1] = DotVector3fVector3f(pRotationMatrix + 3, pVector);
-    //     val[2] = DotVector3fVector3f(pRotationMatrix + 6, pVector);
-        
-    //     // Write it back to pVector
-    //     pVector[0] = val[0];
-    //     pVector[1] = val[1];
-    //     pVector[2] = val[2];
-    // }
-
-        __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
-            int64_t numCombinedWeightValuesTotal,
-            int64_t numCombinedWeightValuesPerWarp,
-            int64_t numPathsPerThread,
-            int64_t numPathsToSkipPerThread,
-            int64_t numSegmentsPerCurve,
-            curandState_t *pCurandStates,
-            float *pPerGlobalThreadScratchSpacePositions,
-            float *pPerGlobalThreadScratchSpaceTangents,
-            float *pPerGlobalThreadScratchSpaceCurvatures,
-            CombinedWeightValues_C *pPerThreadCombinedWeightValues,
-            CombinedWeightValues_C *pFinalCombinedValues,
-            const int32_t weightingMethod,
-            const double pathNormalizerLog10,
-            const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-            const double *pWeightLookupTable,
-            const int32_t weightLookupTableSize,
-            const double ds,
-            const double minCurvature,
-            const double maxCurvature,
-            const double curvatureStepSize
-        );
+    __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
+        const int64_t numCombinedWeightValuesTotal,
+        const int64_t numCombinedWeightValuesPerWarp,
+        const int64_t numPathsPerThread,
+        const int64_t numPathsToSkipPerThread,
+        const int64_t numSegmentsPerCurve,
+        curandState_t * const pCurandStates,
+        float * const pPerGlobalThreadScratchSpacePositions,
+        float * const pPerGlobalThreadScratchSpaceTangents,
+        float * const pPerGlobalThreadScratchSpaceCurvatures,
+        CombinedWeightValues_C * const pFinalCombinedValues,
+        const int32_t weightingMethod,
+        const double pathNormalizerLog10,
+        const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+        const double * const pWeightLookupTable,
+        const int32_t weightLookupTableSize,
+        const double ds,
+        const double minCurvature,
+        const double maxCurvature,
+        const double curvatureStepSize
+    );
 
         FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
         : ExperimentRunner(experimentParams, bootstrapper)
@@ -306,8 +258,8 @@ namespace twisty
             cudaStream_t stream = 0;
 
             std::cout << "Dispatching with: " << std::endl;
-            std::cout << "\tGrid Size: " << PerturbBlockSize << std::endl;
-            std::cout << "\tBlock Size: " << PerturbGridSize << std::endl;
+            std::cout << "\tGrid Size: " << PerturbGridSize << std::endl;
+            std::cout << "\tBlock Size: " << PerturbBlockSize << std::endl;
 
 
             std::cout << "Weight Table Ptr: " << lookupEvaluator->AccessLookupTable().data() << std::endl;
@@ -328,7 +280,7 @@ namespace twisty
                     m_pPerGlobalThreadScratchSpacePositions,
                     m_pPerGlobalThreadScratchSpaceTangents,
                     m_pPerGlobalThreadScratchSpaceCurvatures,
-                    m_pPerThreadCombinedWeightValues,
+                    // m_pPerThreadCombinedWeightValues,
                     m_pFinalCombinedValues,
                     (int32_t)m_experimentParams.weightingParameters.weightingMethod,
                     m_experimentParams.weightingParameters.weightingMethod == twisty::WeightingMethod::RadiativeTransfer ? pathNormalizerLog10.convert_to<double>() : 0.0,
@@ -368,11 +320,11 @@ namespace twisty
         // No, we calculating the weighting
         for (auto& combinedWeightValue : combinedWeightValues)
         {
-            std::cout << "Combined Weight Value" << std::endl;
-            std::cout << "Extracted Value: " << ExtractFinalValue(combinedWeightValue);
-            std::cout << "\tNum Values: " << combinedWeightValue.m_numValues << std::endl;
-            std::cout << "\tOffset: " << combinedWeightValue.m_offset << std::endl;
-            std::cout << "\tRunning Total: " << combinedWeightValue.m_runningTotal << std::endl;
+            // std::cout << "Combined Weight Value" << std::endl;
+            // std::cout << "Extracted Value: " << ExtractFinalValue(combinedWeightValue);
+            // std::cout << "\tNum Values: " << combinedWeightValue.m_numValues << std::endl;
+            // std::cout << "\tOffset: " << combinedWeightValue.m_offset << std::endl;
+            // std::cout << "\tRunning Total: " << combinedWeightValue.m_runningTotal << std::endl;
             bigTotalExperimentWeight += ExtractFinalValue(combinedWeightValue);
 
             numWeightsGenerated += combinedWeightValue.m_numValues;
@@ -537,9 +489,9 @@ namespace twisty
             "Cuda malloc Scratch Space Curvatures");
         usedMemoryInBytes += (numGlobalPerturbThreads * m_upInitialCurve->m_curvatures.size() * sizeof(float));
 
-        CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerThreadCombinedWeightValues, sizeof(CombinedWeightValues_C) * numGlobalPerturbThreads),
-            "Cuda malloc combined weight values per thread");
-        usedMemoryInBytes += (sizeof(CombinedWeightValues_C) * numGlobalPerturbThreads);
+        // CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerThreadCombinedWeightValues, sizeof(CombinedWeightValues_C) * numGlobalPerturbThreads),
+        //     "Cuda malloc combined weight values per thread");
+        // usedMemoryInBytes += (sizeof(CombinedWeightValues_C) * numGlobalPerturbThreads);
 
         CudaSafeErrorCheck(cudaMalloc((void**)&m_pFinalCombinedValues, sizeof(CombinedWeightValues_C) * numCombinedWeightValues),
             "Cuda malloc combined weight values per thread");
@@ -626,12 +578,12 @@ namespace twisty
             }
         }
 
-        // TODO: Is this cache even used?
-        std::vector<CombinedWeightValues_C> perThreadCombinedWeightValues(numGlobalPerturbThreads);
-        cudaMemcpy((void*)m_pPerThreadCombinedWeightValues, (void*)perThreadCombinedWeightValues.data(), perThreadCombinedWeightValues.size() * sizeof(CombinedWeightValues_C), cudaMemcpyHostToDevice);
+        // // TODO: Is this cache even used?
+        // std::vector<CombinedWeightValues_C> perThreadCombinedWeightValues(numGlobalPerturbThreads);
+        // cudaMemcpy((void*)m_pPerThreadCombinedWeightValues, (void*)perThreadCombinedWeightValues.data(), perThreadCombinedWeightValues.size() * sizeof(CombinedWeightValues_C), cudaMemcpyHostToDevice);
 
-        std::cout << "Num bytes per combined weight value: " << sizeof(CombinedWeightValues_C) << std::endl;
-        std::cout << "Total num bytes for thread combined weight values: " << sizeof(CombinedWeightValues_C) * perThreadCombinedWeightValues.size() << std::endl;
+        // std::cout << "Num bytes per combined weight value: " << sizeof(CombinedWeightValues_C) << std::endl;
+        // std::cout << "Total num bytes for thread combined weight values: " << sizeof(CombinedWeightValues_C) * perThreadCombinedWeightValues.size() << std::endl;
 
         std::vector<CombinedWeightValues_C> finalCombinedWeights(numCombinedWeightValues);
         cudaMemcpy((void*)m_pFinalCombinedValues, (void*)finalCombinedWeights.data(), finalCombinedWeights.size() * sizeof(CombinedWeightValues_C), cudaMemcpyHostToDevice);
@@ -646,8 +598,8 @@ namespace twisty
         CudaSafeErrorCheck(cudaFree((void*)m_pFinalCombinedValues),
             "Cuda free combined weight values for final answer");
 
-        CudaSafeErrorCheck(cudaFree((void*)m_pPerThreadCombinedWeightValues),
-            "Cuda free combined weight values per thread");
+        // CudaSafeErrorCheck(cudaFree((void*)m_pPerThreadCombinedWeightValues),
+        //     "Cuda free combined weight values per thread");
 
         CudaSafeErrorCheck(cudaFree((void*)m_pPerGlobalThreadScratchSpaceCurvatures),
             "Cuda free Left Scratch Space Curvatures");
@@ -676,21 +628,20 @@ namespace twisty
     }
 
     __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
-        int64_t numCombinedWeightValuesTotal,
-        int64_t numCombinedWeightValuesPerWarp,
-        int64_t numPathsPerThread,
-        int64_t numPathsToSkipPerThread,
-        int64_t numSegmentsPerCurve,
-        curandState_t* pCurandStates,
-        float* pPerGlobalThreadScratchSpacePositions,
-        float* pPerGlobalThreadScratchSpaceTangents,
-        float* pPerGlobalThreadScratchSpaceCurvatures,
-        CombinedWeightValues_C* pPerThreadCombinedWeightValues,
-        CombinedWeightValues_C* pFinalCombinedValues,
+        const int64_t numCombinedWeightValuesTotal,
+        const int64_t numCombinedWeightValuesPerWarp,
+        const int64_t numPathsPerThread,
+        const int64_t numPathsToSkipPerThread,
+        const int64_t numSegmentsPerCurve,
+        curandState_t* const pCurandStates,
+        float* const  pPerGlobalThreadScratchSpacePositions,
+        float* const pPerGlobalThreadScratchSpaceTangents,
+        float* const pPerGlobalThreadScratchSpaceCurvatures,
+        CombinedWeightValues_C* const pFinalCombinedValues,
         const int32_t weightingMethod,
         const double pathNormalizerLog10,
         const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-        const double *pWeightLookupTable,
+        const double* const pWeightLookupTable,
         const int32_t weightLookupTableSize,
         const double ds,
         const double minCurvature,
@@ -698,24 +649,23 @@ namespace twisty
         const double curvatureStepSize
     )
     {
+        __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
+
         // Should be between 0 and max num threads - 1
-        const uint32_t globalThreadIdx = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint32_t warpThreadIdx = threadIdx.x;
+        volatile uint32_t globalThreadIdx = blockIdx.x * blockDim.x + threadIdx.x;
     
-        const int32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-        const int32_t NumTanPerCurve = (numSegmentsPerCurve + 1);
-        const int32_t NumCurvaturesPerCurve = numSegmentsPerCurve;
+        volatile int32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
+        volatile int32_t NumTanPerCurve = (numSegmentsPerCurve + 1);
+        volatile int32_t NumCurvaturesPerCurve = numSegmentsPerCurve;
 
-
-        // As flots
-        const int32_t CurrentThreadPosStartIdx = NumPosPerCurve * 3 * globalThreadIdx;
-        const int32_t CurrentThreadTanStartIdx = NumTanPerCurve * 3 * globalThreadIdx;
-        const int32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * globalThreadIdx;
+        volatile int32_t CurrentThreadPosStartIdx = NumPosPerCurve * 3 * globalThreadIdx;
+        volatile int32_t CurrentThreadTanStartIdx = NumTanPerCurve * 3 * globalThreadIdx;
+        volatile int32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * globalThreadIdx;
 
         // Ok, we want to loop over the outer batches first, the number per warp
         for (int64_t combinedWeightValuesWarpIdx = 0; combinedWeightValuesWarpIdx < numCombinedWeightValuesPerWarp; combinedWeightValuesWarpIdx++)
         {
-            CombinedWeightValues_C_Reset(pPerThreadCombinedWeightValues[globalThreadIdx]);
+            CombinedWeightValues_C_Reset(perThreadWeightValues[threadIdx.x]);
 
             // We want to stop generating in this case
             if (combinedWeightValuesWarpIdx + numCombinedWeightValuesPerWarp * blockIdx.x >= numCombinedWeightValuesTotal)
@@ -727,7 +677,7 @@ namespace twisty
             // We need a loop over the batches
             for (int64_t pathCount = 0; pathCount < numPathsToSkipPerThread + numPathsPerThread; pathCount++)
             {
-                int64_t currentPathIdx = numPathsPerThread * warpThreadIdx + pathCount - numPathsToSkipPerThread;
+                int64_t currentPathIdx = numPathsPerThread * threadIdx.x + pathCount - numPathsToSkipPerThread;
 
                 // We can exit once this point is reached as we have generated all the paths necessary for this thread
                 if (currentPathIdx >= MaxNumPathsPerCombinedWeight)
@@ -830,30 +780,25 @@ namespace twisty
                         else
                         {
                             // Else, contribute to the paths
-                            CombinedWeightValues_C_AddValue(pPerThreadCombinedWeightValues[globalThreadIdx], pathWeightLog10);
+                            CombinedWeightValues_C_AddValue(perThreadWeightValues[threadIdx.x], pathWeightLog10);
                         }
                     }
                 }
             }
 
+            // First thread in warp responsible for combining all the weights into one
             __syncthreads();
 
             if (threadIdx.x == 0)
             {
-                CombinedWeightValues_C combinedResult;
-                CombinedWeightValues_C_Reset(combinedResult);
-
-                for (uint32_t warpThreadIdx = 0; warpThreadIdx < blockDim.x; ++warpThreadIdx)
+                for (uint32_t warpThreadIdx = 1; warpThreadIdx < blockDim.x; ++warpThreadIdx)
                 {
-                    combinedResult = CombinedWeightValues_C_CombineValues(pPerThreadCombinedWeightValues[blockIdx.x * blockDim.x + warpThreadIdx],
-                        combinedResult);
+                    perThreadWeightValues[0] = CombinedWeightValues_C_CombineValues(perThreadWeightValues[0], perThreadWeightValues[warpThreadIdx]);
                 }
 
                 // Finally, we write to the combined final values
-                pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp + combinedWeightValuesWarpIdx] = combinedResult;
+                pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp + combinedWeightValuesWarpIdx] = perThreadWeightValues[0];
             }
-
-            __syncthreads();
         }
     }
 
