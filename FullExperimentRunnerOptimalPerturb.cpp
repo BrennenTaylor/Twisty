@@ -480,7 +480,7 @@ namespace twisty
                 const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
 
                 std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
-                double randRotationAngle = TwistyPi / 2.0; //zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
+                double randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
 
                 //  Rotation
                 {

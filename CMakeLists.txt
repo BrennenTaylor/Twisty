@@ -76,7 +76,7 @@ set_property(TARGET Twisty PROPERTY CUDA_STANDARD 17)
 set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 # -maxrregcount=32
-target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -Xptxas -v -maxrregcount=64>)
+target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -Xptxas -v>)
 # target_sources(Twisty
 #     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
 #     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.h

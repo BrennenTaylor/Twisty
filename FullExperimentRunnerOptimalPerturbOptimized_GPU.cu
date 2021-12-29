@@ -28,7 +28,7 @@
 #include <memory>
 
 const uint32_t PerturbGridSize = 64;
-const uint32_t PerturbBlockSize = 32;
+const uint32_t PerturbBlockSize = 64;
 
 namespace twisty
 {
@@ -562,6 +562,7 @@ namespace twisty
                     (m_upInitialCurve->m_positions.size() - 1) * sizeof(float), cudaMemcpyHostToDevice),
                     "Copy inital curvatures to per thread scratch space");
                 idx += (m_upInitialCurve->m_positions.size() - 1);
+            }
         }
 
         std::vector<CombinedWeightValues_C> finalCombinedWeights(numCombinedWeightValues);
@@ -659,6 +660,11 @@ namespace twisty
             {
                 int64_t currentPathIdx = numPathsPerThread * threadIdx.x + pathCount - numPathsToSkipPerThread;
 
+                // Do our random rolls here
+                float e0 = curand_uniform(&(pCurandStates[globalThreadIdx]));
+                float e1 = curand_uniform(&(pCurandStates[globalThreadIdx]));
+                float e2 = curand_uniform(&(pCurandStates[globalThreadIdx]));
+
                 // We can exit once this point is reached as we have generated all the paths necessary for this thread
                 if (currentPathIdx >= MaxNumPathsPerCombinedWeight)
                 {
@@ -667,8 +673,7 @@ namespace twisty
                     break;
                 }
 
-        //         printf("New combined weight value\n");
-        //         // Ok, now we first want to reset the combined weight stuff
+                // Ok, now we first want to reset the combined weight stuff
                 {
 
                     // This is the perturbation piece.
@@ -679,10 +684,10 @@ namespace twisty
                     {
                         // Should be 2 - 180
                         int64_t maxDiff = min((int)(numSegmentsPerCurve - 2), 25);
-                        int64_t diff = floorf(curand_uniform(&(pCurandStates[globalThreadIdx])) * (maxDiff - 2)) + 2;
+                        int64_t diff = floorf(e0 * (maxDiff - 2)) + 2;
 
                         // -2 from the -1 to offset for the +1, and -1 as required by index
-                        int64_t leftPointIndex = floorf(curand_uniform(&(pCurandStates[globalThreadIdx])) * (numSegmentsPerCurve - diff - 2)) + 1;
+                        int64_t leftPointIndex = floorf(e1 * (numSegmentsPerCurve - diff - 2)) + 1;
 
                         int64_t rightPointIndex = leftPointIndex + diff;
 
@@ -700,20 +705,15 @@ namespace twisty
                         const float rightPoint_y = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + rightPointIndex * 3 + 1];
                         const float rightPoint_z = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx + rightPointIndex * 3 + 2];
 
-                        float N_x = (rightPoint_x - leftPoint_x);
-                        float N_y = (rightPoint_y - leftPoint_y);
-                        float N_z = (rightPoint_z - leftPoint_z);
-                        float N_length = sqrt(N_x * N_x + N_y * N_y + N_z * N_z);
-                        N_x /= N_length;
-                        N_y /= N_length;
-                        N_z /= N_length;
+
+                        float N[3] = { rightPoint_x - leftPoint_x, rightPoint_y - leftPoint_y, rightPoint_z - leftPoint_z };
+                        volatile float N_length = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
+                        N[0] /= N_length;
+                        N[1] /= N_length;
+                        N[2] /= N_length;
 
                         // Overwrite angle
-                        float randRotationAngle = TwistyPi / 2.0; //(curand_uniform(&(pCurandStates[globalThreadIdx])) * 2.0 - 1.0) * TwistyPi;
-                        float N[3] = { N_x, N_y, N_z };
-                        
-                        // Ensure the rotation axis is normalized before we rotate.
-                        NormalizeVector3f(N);
+                        const float randRotationAngle = (e2 * 2.0 - 1.0) * TwistyPi;
 
                         // Rotation
                         {
