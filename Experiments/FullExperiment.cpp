@@ -119,6 +119,10 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(c
     {
         std::cerr << "Parse error at " << ex.getPath() << ":" << ex.what() << std::endl;
     }
+    catch (const libconfig::SettingTypeException& ex)
+    {
+        std::cerr << "Setting Type Exception " << ex.getPath() << ":" << ex.what() << std::endl;
+    }
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
