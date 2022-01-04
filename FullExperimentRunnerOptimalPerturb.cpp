@@ -485,13 +485,13 @@ namespace twisty
                 //  Rotation
                 {
                     float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                    RotationMatrixAroundAxis(randRotationAngle, N.m_data, rotationMatrix);
+                    RotationMatrixAroundAxis(randRotationAngle, N.m_data.data(), rotationMatrix);
 
                     for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex; ++pointIdx)
                     {
                         Farlor::Vector3 shiftedPoint = globalPos[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
                         // Rotate and stuff back in shifted point
-                        RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data);
+                        RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data.data());
                         // Update the point with the rotated version
                         globalPos[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
                     }

@@ -155,7 +155,7 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(co
     //randomAngle = 0.0f;
 
     float rotationMatrix[9] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    twisty::RotationMatrixAroundAxis(randomAngle, (float*)axisOfRotation.m_data, (float*)rotationMatrix);
+    twisty::RotationMatrixAroundAxis(randomAngle, (float*)axisOfRotation.m_data.data(), (float*)rotationMatrix);
 
     if (DetailedPerturb)
     {
@@ -178,7 +178,7 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(co
     {
         Farlor::Vector3 pointToRotate = points[pointIdx];
         Farlor::Vector3 shiftedPoint = pointToRotate - leftPoint;
-        twisty::RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data);
+        twisty::RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data.data());
         Farlor::Vector3 finalPoint = shiftedPoint + leftPoint;
         updatedPolyline.push_back(finalPoint);
     }
