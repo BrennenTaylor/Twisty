@@ -1,9 +1,0 @@
-[submodule "FMath"]
-	path = FMath
-	url = https://github.com/BrennenTaylor/FMath
-[submodule "tinyexr"]
-	path = tinyexr
-	url = https://github.com/syoyo/tinyexr
-[submodule "libconfig"]
-	path = libconfig
-	url = https://github.com/hyperrealm/libconfig
