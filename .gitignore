@@ -2,6 +2,10 @@
 *.cfg
 !CMakeLists.txt
 build/
+build_cpu/
+build_ninja/
+build_ninja_cpu/
+configs/
 doxygen_output/
 Geom_*/
 Geometry_*/
@@ -28,3 +32,4 @@ python_sandbox/
 *.xlsx
 *cppcheck*
 CudaProfiling/
+unitweights/python

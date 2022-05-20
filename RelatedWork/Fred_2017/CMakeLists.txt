@@ -1,5 +1,3 @@
-project(Fred2017)
-
 add_executable(Fred_2017_Benchmark_5_1
     Fred_2017_Benchmark_5_1.cpp
 )

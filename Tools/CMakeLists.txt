@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+if (WIN32)
+message("WIN32 Defined")
+FetchContent_Declare(tinyexr
+    GIT_REPOSITORY "https://github.com/syoyo/tinyexr"
+)
+FetchContent_MakeAvailable(tinyexr)
+target_include_directories(tinyexr INTERFACE ${tinyexr_SOURCE_DIR})
+endif(WIN32)
 
 IF (WIN32)
 add_executable(FFEImageGen

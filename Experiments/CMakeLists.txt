@@ -10,14 +10,36 @@ target_compile_features(FullExperiment
 target_link_libraries(FullExperiment
     PUBLIC Twisty
     PUBLIC glm
-    PUBLIC libconfig++
-    PUBLIC shlwapi
+    PRIVATE nlohmann_json::nlohmann_json
 )
 
-# add_executable(SmallSegmentExperiment
-#     SmallSegmentExperiment.cpp
+add_executable(NoisyCircleExperimentHalf
+    NoisyCircleExperimentHalf.cpp
+)
+
+target_compile_features(NoisyCircleExperimentHalf
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+target_link_libraries(NoisyCircleExperimentHalf
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+# add_executable(NoisyCircleExperiment
+#     NoisyCircleExperiment.cpp
 # )
 
-# target_link_libraries(SmallSegmentExperiment
-#     Twisty
+# target_compile_features(NoisyCircleExperiment
+#     PUBLIC cxx_static_assert
+#     PUBLIC cxx_std_17
+# )
+
+# target_link_libraries(NoisyCircleExperiment
+#     PUBLIC Twisty
+#     PUBLIC glm
+#     PRIVATE nlohmann_json::nlohmann_json
+
 # )

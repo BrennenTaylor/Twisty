@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.20)
 
 project(Twisty CXX)
-set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+include(FetchContent)
 
 # Needed for GPU build
 option(USE_CUDA "Enable Cuda and GPU runner?" TRUE)
@@ -20,14 +20,15 @@ find_package(Boost)
 # Needed for config files
 find_package(RapidJSON CONFIG REQUIRED)
 
-# Needed for math operations
-add_subdirectory(FMath)
-# Needed for config files
-add_subdirectory(libconfig)
+include(FetchContent)
 
-IF (WIN32)
-add_subdirectory(tinyexr)
-ENDIF()
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.10.5/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
+FetchContent_Declare(FMath
+    GIT_REPOSITORY "https://github.com/BrennenTaylor/FMath"
+)
+FetchContent_MakeAvailable(FMath)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -55,8 +56,6 @@ add_library(Twisty
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
 
-    # GeometricPerturbUtils.h
-    # GeometricPerturbUtils.cpp
     FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
     FullExperimentRunnerOptimalPerturbOptimized_GPU.h
 
@@ -71,16 +70,19 @@ add_library(Twisty
 )
 
 if (USE_CUDA)
-set_property(TARGET Twisty PROPERTY CUDA_ARCHITECTURES 61 70 72)
-set_property(TARGET Twisty PROPERTY CUDA_STANDARD 17)
+else()
+set_source_files_properties(CombinedWeightUtils.cu PROPERTIES LANGUAGE CXX)
+set_source_files_properties(CurvePerturbUtils.cu PROPERTIES LANGUAGE CXX)
+endif(USE_CUDA)
+
+if (USE_CUDA)
+set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES 61 70 72)
+set_target_properties(Twisty PROPERTIES CUDA_STANDARD 17)
 set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-# -maxrregcount=32
+
 target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -Xptxas -v -maxrregcount=32>)
-# target_sources(Twisty
-#     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
-#     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/FullExperimentRunnerOptimalPerturbOptimized_GPU.h
-# )
+
 target_compile_definitions(Twisty
     PUBLIC USE_CUDA
 )
@@ -89,12 +91,16 @@ endif (USE_CUDA)
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}
-    PRIVATE ${RAPIDJSON_INCLUDE_DIRS}
+    PUBLIC ${RAPIDJSON_INCLUDE_DIRS}
 )
+if (USE_CUDA)
+target_include_directories(Twisty
+    PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+)
+endif(USE_CUDA)
 
 target_compile_features(Twisty
     PUBLIC cxx_static_assert
-    PUBLIC cxx_std_17
 )
 
 target_compile_options(Twisty
@@ -105,7 +111,6 @@ if (WIN32)
 else()
 target_compile_options(Twisty
     PUBLIC -lstdc++fs
-    PUBLIC -std=c++17
 )
 target_link_options(Twisty
     PUBLIC -pthread
@@ -116,14 +121,13 @@ endif (WIN32)
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
     PUBLIC glm
-    PUBLIC libconfig++
     PUBLIC shlwapi
 )
 
 if (WIN32)
 add_subdirectory(Experiments)
-add_subdirectory(Tools)
-add_subdirectory(Utils)
+# add_subdirectory(Tools)
+# add_subdirectory(Utils)
 add_subdirectory(Viewer)
 add_subdirectory(unitweights)
 add_subdirectory(RelatedWork/Fred_2017/)

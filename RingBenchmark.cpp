@@ -1,5 +1,3 @@
-#include "FullExperimentRunner.h"
-// #include "FullExperimentRunnerOldMethodBridge.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "FullExperimentRunnerOptimalPerturbOptimized.h"
 
@@ -28,8 +26,7 @@ using namespace twisty;
 int main(int argc, char *argv[])
 {
     {
-        if (argc < 2)
-        {
+        if (argc < 2) {
             std::cout << "Call as: " << argv[0] << " configFilename" << std::endl;
             return 1;
         }
@@ -37,19 +34,14 @@ int main(int argc, char *argv[])
         const std::string configFilename(argv[1]);
 
         libconfig::Config experimentConfig;
-        try
-        {
+        try {
             experimentConfig.readFile(configFilename);
-        }
-        catch (const libconfig::FileIOException &fioex)
-        {
+        } catch (const libconfig::FileIOException &fioex) {
             std::cout << "I/O error while reading file." << std::endl;
             return (1);
-        }
-        catch (const libconfig::ParseException &pex)
-        {
-            std::cout << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-                      << " - " << pex.getError() << std::endl;
+        } catch (const libconfig::ParseException &pex) {
+            std::cout << "Parse error at " << pex.getFile() << ":" << pex.getLine() << " - "
+                      << pex.getError() << std::endl;
             return (1);
         }
 
@@ -125,64 +117,72 @@ int main(int argc, char *argv[])
         experimentParams.curvePurturbSeed = perturbSeed;
         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
-        experimentParams.weightingParameters.mu = experimentConfig.lookup("experiment.weighting.mu");
-        experimentParams.weightingParameters.eps = experimentConfig.lookup("experiment.weighting.eps");
-        experimentParams.weightingParameters.numStepsInt = experimentConfig.lookup("experiment.weighting.numStepsInt");
+        experimentParams.weightingParameters.mu
+              = experimentConfig.lookup("experiment.weighting.mu");
+        experimentParams.weightingParameters.eps
+              = experimentConfig.lookup("experiment.weighting.eps");
+        experimentParams.weightingParameters.numStepsInt
+              = experimentConfig.lookup("experiment.weighting.numStepsInt");
         experimentParams.weightingParameters.minBound = 0.0;
-        experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
-        experimentParams.weightingParameters.numCurvatureSteps =  experimentConfig.lookup("experiment.weighting.numCurvatureSteps");;
-        experimentParams.weightingParameters.absorbtion = experimentConfig.lookup("experiment.weighting.absorbtion");
-        experimentParams.weightingParameters.scatter = experimentConfig.lookup("experiment.weighting.scatter");
+        experimentParams.weightingParameters.maxBound
+              = 10.0 / experimentParams.weightingParameters.eps;
+        experimentParams.weightingParameters.numCurvatureSteps
+              = experimentConfig.lookup("experiment.weighting.numCurvatureSteps");
+        ;
+        experimentParams.weightingParameters.absorbtion
+              = experimentConfig.lookup("experiment.weighting.absorbtion");
+        experimentParams.weightingParameters.scatter
+              = experimentConfig.lookup("experiment.weighting.scatter");
 
         std::unique_ptr<ExperimentRunner> upExperimentRunner = nullptr;
         std::cout << "Runner version: " << runnerVersion << std::endl;
 
-// #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-        switch (runnerVersion)
-        {
-        case 0:
-        {
-            std::cout << "Selected Runner Method: FullExperimentRunner" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
-        } break;
-        case 1:
-        {
-            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
-        } break;
-        case 2:
-        {
-            std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized" << std::endl;
-            upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
-        } break;
+        // #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
+        switch (runnerVersion) {
+            case 0: {
+                std::cout << "Selected Runner Method: FullExperimentRunner" << std::endl;
+                upExperimentRunner
+                      = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
+            } break;
+            case 1: {
+                std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb"
+                          << std::endl;
+                upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(
+                      experimentParams, bootstrapper);
+            } break;
+            case 2: {
+                std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized"
+                          << std::endl;
+                upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized>(
+                      experimentParams, bootstrapper, 1, 1);
+            } break;
 
-        //case 3:
-        //{
-        //    std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized_GPU" << std::endl;
-        //    upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized_GPU>(experimentParams, bootstrapper);
-        //} break;
+            //case 3:
+            //{
+            //    std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturbOptimized_GPU" << std::endl;
+            //    upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized_GPU>(experimentParams, bootstrapper);
+            //} break;
 
-        // Debug modes
-        // case 66:
-        // {
-        //     upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper);
-        // } break;
-        default:
-        {
-            std::cout << "Invalid experiment runner method selected" << std::endl;
-            exit(1);
+            // Debug modes
+            // case 66:
+            // {
+            //     upExperimentRunner = std::make_unique<FullExperimentRunnerOldMethodBridge>(experimentParams, bootstrapper);
+            // } break;
+            default: {
+                std::cout << "Invalid experiment runner method selected" << std::endl;
+                exit(1);
+            }
         }
-        }
-// #else
+        // #else
         // upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
-// #endif
+        // #endif
 
-        std::cout << "Spot 1 - Num hardware threads: " << std::thread::hardware_concurrency() << std::endl;
+        std::cout << "Spot 1 - Num hardware threads: " << std::thread::hardware_concurrency()
+                  << std::endl;
 
 
         bool result = upExperimentRunner->Setup();
-        if (!result)
-        {
+        if (!result) {
             upExperimentRunner->Shutdown();
             std::cout << "Failed to setup experiment runner." << std::endl;
             return 1;
@@ -195,7 +195,8 @@ int main(int argc, char *argv[])
 
         std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
         std::cout << "Total experiment weight: " << results.experimentWeight << std::endl;
-        std::cout << "Avg path weight: " << results.experimentWeight / results.totalPathsGenerated << std::endl;
+        std::cout << "Avg path weight: " << results.experimentWeight / results.totalPathsGenerated
+                  << std::endl;
 
         // Retrieve Data we want from experiment
         upExperimentRunner->Shutdown();
