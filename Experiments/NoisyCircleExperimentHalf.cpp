@@ -67,7 +67,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
         experimentParams.curvePurturbSeed = time(0);
     }
 
-
     // Weighting parameter stuff
     int weightFunction
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["weightFunction"];

@@ -17,8 +17,6 @@ endif (USE_CUDA)
 
 # Needed for multiprecision float library
 find_package(Boost)
-# Needed for config files
-find_package(RapidJSON CONFIG REQUIRED)
 
 include(FetchContent)
 
@@ -91,7 +89,6 @@ endif (USE_CUDA)
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}
-    PUBLIC ${RAPIDJSON_INCLUDE_DIRS}
 )
 if (USE_CUDA)
 target_include_directories(Twisty
@@ -122,6 +119,7 @@ target_link_libraries(Twisty
     PUBLIC FMath::FMath
     PUBLIC glm
     PUBLIC shlwapi
+    PUBLIC nlohmann_json::nlohmann_json
 )
 
 if (WIN32)

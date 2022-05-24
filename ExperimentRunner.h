@@ -6,12 +6,7 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
-#pragma warning(push, 0)
-#include <rapidjson/document.h>
-#include <rapidjson/prettywriter.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
-#pragma warning(pop)
+#include <nlohmann/json.hpp>
 
 #include <cstdint>
 #include <iostream>
@@ -111,7 +106,7 @@ class ExperimentRunner {
     std::ofstream m_curvesMetadataFile;
 
    private:
-    rapidjson::Document m_pathBatchJsonIndex;
-    rapidjson::Value m_pathBatchLinks;
+    nlohmann::json m_pathBatchJsonIndex;
+    // rapidjson::Value m_pathBatchLinks;
 };
 }

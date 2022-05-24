@@ -19,10 +19,9 @@
 #include <random>
 #include <vector>
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    if (argc < 2)
-    {
+    if (argc < 2) {
         printf("Call as: %s pathFromLocalToDir", argv[0]);
         return false;
     }
@@ -43,7 +42,7 @@ int main(int argc, char* argv[])
     rawBinaryFullPath.append(BinaryFilename);
     std::cout << "rawBinaryFullPath: " << rawBinaryFullPath << std::endl;
     std::ifstream rawBinaryFile(rawBinaryFullPath.c_str(), std::ios::binary);
-    
+
 
     std::filesystem::path metadataFullPath(pathsDirectoryPath);
     metadataFullPath.append(MetadataFilename);
@@ -59,15 +58,13 @@ int main(int argc, char* argv[])
     std::filesystem::path indexPath = pathsDirectoryPath;
     indexPath.append("index.json");
 
-    if (!std::filesystem::exists(indexPath))
-    {
+    if (!std::filesystem::exists(indexPath)) {
         std::cout << indexPath << " file does not exist" << std::endl;
         return 1;
     }
 
     std::fstream indexFS(indexPath);
-    if (!indexFS.is_open())
-    {
+    if (!indexFS.is_open()) {
         std::cout << "Failed to open: " << indexPath << std::endl;
         return 1;
     }
@@ -91,8 +88,7 @@ int main(int argc, char* argv[])
     std::cout << "Seed curve path: " << seedCurvePath << std::endl;
 
     std::ifstream seedCurveFS(seedCurvePath, std::ios::binary);
-    if (!seedCurveFS.is_open())
-    {
+    if (!seedCurveFS.is_open()) {
         printf("Failed to open %s\n", seedCurvePath.string());
         return false;
     }
@@ -100,11 +96,10 @@ int main(int argc, char* argv[])
     // We need to create an initial curve object
     std::unique_ptr<twisty::Curve> upInitialCurve = twisty::Curve::LoadCurveFromStream(seedCurveFS);
 
-    struct Metadata
-    {
-        uint32_t  threadIdx = 0;
-        uint32_t  pathBatchCount = 0;
-        uint32_t  pathCount = 0;
+    struct Metadata {
+        uint32_t threadIdx = 0;
+        uint32_t pathBatchCount = 0;
+        uint32_t pathCount = 0;
         uint32_t indexIntoFile = 0;
     };
 
@@ -112,10 +107,8 @@ int main(int argc, char* argv[])
 
     uint32_t numPathsReadMetadata = 0;
     std::string line;
-    while (std::getline(metadataFile, line))
-    {
-        if (line.empty())
-        {
+    while (std::getline(metadataFile, line)) {
+        if (line.empty()) {
             break;
         }
 
@@ -127,20 +120,19 @@ int main(int argc, char* argv[])
         lineSS >> entry.pathCount;
 
         entry.indexIntoFile = numPathsReadMetadata;
-        
+
         numPathsReadMetadata += entry.pathCount;
         pathMetadata.push_back(entry);
     }
 
     std::sort(pathMetadata.begin(), pathMetadata.end(),
-        [](const Metadata& left, const Metadata& right) {
-            if (left.threadIdx != right.threadIdx)
-            {
-                return left.threadIdx < right.threadIdx;
-            }
+          [](const Metadata &left, const Metadata &right) {
+              if (left.threadIdx != right.threadIdx) {
+                  return left.threadIdx < right.threadIdx;
+              }
 
-            return left.pathBatchCount < right.pathBatchCount;
-        });
+              return left.pathBatchCount < right.pathBatchCount;
+          });
 
 
     std::cout << "Num paths read: " << numPathsReadMetadata << std::endl;
@@ -152,9 +144,9 @@ int main(int argc, char* argv[])
 
 
     uint64_t numRead = 0;
-    for (auto& entry : pathMetadata)
-    {
-        std::cout << "<" << entry.threadIdx << ", " << entry.pathBatchCount << ", " << entry.pathBatchCount << ", " << entry.indexIntoFile << ">" << std::endl;
+    for (auto &entry : pathMetadata) {
+        std::cout << "<" << entry.threadIdx << ", " << entry.pathBatchCount << ", "
+                  << entry.pathBatchCount << ", " << entry.indexIntoFile << ">" << std::endl;
 
         uint64_t numPosInCurve = (upInitialCurve->m_numSegments + 1);
         uint64_t numPosInEntry = entry.pathCount * numPosInCurve;
@@ -162,8 +154,7 @@ int main(int argc, char* argv[])
 
         numRead += entry.pathCount;
 
-        if (tempStorage.size() < numPosInEntry)
-        {
+        if (tempStorage.size() < numPosInEntry) {
             tempStorage.resize(numPosInEntry);
         }
 
@@ -174,8 +165,8 @@ int main(int argc, char* argv[])
         uint64_t numIdxBytes = (uint64_t)(entry.indexIntoFile) * (uint64_t)(bytesPerCurve);
 
         rawBinaryFile.seekg(numIdxBytes, std::ios::beg);
-        rawBinaryFile.read((char*)tempStorage.data(), numBytesInEntry);
-        fixedBinaryFile.write((char*)tempStorage.data(), numBytesInEntry);
+        rawBinaryFile.read((char *)tempStorage.data(), numBytesInEntry);
+        fixedBinaryFile.write((char *)tempStorage.data(), numBytesInEntry);
     }
 
     std::cout << "Num Read: " << numRead << std::endl;
