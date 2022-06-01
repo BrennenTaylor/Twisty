@@ -53,7 +53,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
     experimentParams.numSegmentsPerCurve
           = experimentConfig["experiment"]["experimentParams"]["numSegments"];
-    experimentParams.arclength = experimentConfig["experiment"]["experimentParams"]["arclength"];
 
     // Seeds
     experimentParams.bootstrapSeed
@@ -139,7 +138,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.weightingParameters.minBound = 0.0;
     experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
 
-
     return experimentParams;
 }
 
@@ -178,7 +176,7 @@ int main(int argc, char *argv[])
           experimentConfig["experiment"]["beamSpreadExperiment"]["startDir"][1],
           experimentConfig["experiment"]["beamSpreadExperiment"]["startDir"][2]);
 
-    const uint32_t numArclengths = 2;
+    const uint32_t numArclengths = 1;
 
     const uint32_t numInitialCurves
           = experimentConfig["experiment"]["beamSpreadExperiment"]["numInitialCurves"];
@@ -193,7 +191,11 @@ int main(int argc, char *argv[])
     }
 
     // Lets test uniform random directions on sampling hemisphere
-    std::mt19937 randomGenerator(1);
+    int targetSeed = experimentConfig["experiment"]["beamSpreadExperiment"]["targetSeed"];
+    if (targetSeed == 0) {
+        targetSeed = time(0);
+    }
+    std::mt19937 randomGenerator(targetSeed);
     std::uniform_real_distribution<float> uniformFloatGen(0.0f, 1.0f);
 
     const float n1 = (uniformFloatGen(randomGenerator) * 2.0f) - 1.0f;
@@ -204,7 +206,10 @@ int main(int argc, char *argv[])
           std::sin(2 * M_PI * e1) * std::sqrt(1 - (n1 * n1)));
     Farlor::Vector3 endPos = startPos + sphereRadius * endDir;
 
-    const float minArclength = (endPos - startPos).Magnitude() * 1.05f;
+    const float minArclength = twisty::Bootstrapper::CalculateMinimumArclength(
+                                     experimentParams.numSegmentsPerCurve, startPos, endPos)
+          * 1.01f;
+    std::cout << "Min arclength: " << minArclength << std::endl;
 
     const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
 
@@ -238,6 +243,8 @@ int main(int argc, char *argv[])
                 experimentGeometry.m_endPos = endPos;
                 experimentGeometry.m_endDir = endDir;
                 experimentGeometry.arclength = targetArclength;
+
+                experimentParams.arclength = experimentGeometry.arclength;
 
                 twisty::Bootstrapper bootstrapper(experimentGeometry);
 

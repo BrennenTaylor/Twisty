@@ -8,6 +8,24 @@
 #include <stdexcept>
 
 namespace twisty {
+
+std::string format_duration(std::chrono::milliseconds ms)
+{
+    using namespace std::chrono;
+    auto secs = duration_cast<seconds>(ms);
+    ms -= duration_cast<milliseconds>(secs);
+    auto mins = duration_cast<minutes>(secs);
+    secs -= duration_cast<seconds>(mins);
+    auto hour = duration_cast<hours>(mins);
+    mins -= duration_cast<minutes>(hour);
+
+    std::stringstream ss;
+    ss << hour.count() << " Hours : " << mins.count() << " Minutes : " << secs.count()
+       << " Seconds : " << ms.count() << " Milliseconds";
+    return ss.str();
+}
+
+
 ExperimentRunner::ExperimentRunner(
       ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
     : m_experimentParams(experimentParams)
@@ -41,6 +59,10 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
         throw std::runtime_error("Failed to generate bootstrap curve");
     }
 
+    if (m_experimentParams.outputBigFloatWeights) {
+        StartWeightConvergenceWrite();
+    }
+
     if (m_experimentParams.outputPathBatches) {
         BeginPathBatchOutput();
 
@@ -70,13 +92,22 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
     std::cout << "Experiment Time Reporting: " << std::endl;
     auto runExperimentTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
           runExperimentTimeEnd - runExperimentTimeStart);
-    std::cout << "\tTotal Experiment Time: " << runExperimentTimeMs.count() << "ms" << std::endl;
 
-    std::cout << "\tRunner Specific Setup (ms): " << runnerSpecificResult.setupMsCount << std::endl;
-    std::cout << "\tRunner Specific Perturb (ms): " << runnerSpecificResult.runExperimentMsCount
+    std::cout << format_duration(runExperimentTimeMs) << std::endl;
+
+    std::cout << "\tRunner Specific Setup (ms): "
+              << format_duration(std::chrono::milliseconds(runnerSpecificResult.setupMs))
               << std::endl;
-    std::cout << "\tRunner Specific Weighting (ms): " << runnerSpecificResult.weightingMsCount
+    std::cout << "\tRunner Specific Perturb (ms): "
+              << format_duration(std::chrono::milliseconds(runnerSpecificResult.runExperimentMs))
               << std::endl;
+    std::cout << "\tRunner Specific Weighting (ms): "
+              << format_duration(std::chrono::milliseconds(runnerSpecificResult.weightingMs))
+              << std::endl;
+
+    if (m_experimentParams.outputBigFloatWeights) {
+        EndWeightConvergenceWrite();
+    }
 
     if (m_experimentParams.outputPathBatches) {
         EndPathBatchOutput();
@@ -84,12 +115,12 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
         m_curvesBinaryFile.close();
         m_curvesMetadataFile.close();
     }
-    runnerSpecificResult.experimentResults->totalExperimentMS = runExperimentTimeMs.count();
-    runnerSpecificResult.experimentResults->setupExperimentMS = runnerSpecificResult.setupMsCount;
-    runnerSpecificResult.experimentResults->perturbExperimentMS
-          = runnerSpecificResult.runExperimentMsCount;
-    runnerSpecificResult.experimentResults->weightingExperimentMS
-          = runnerSpecificResult.weightingMsCount;
+    runnerSpecificResult.experimentResults->totalExperimentMs = runExperimentTimeMs.count();
+    runnerSpecificResult.experimentResults->setupExperimentMs = runnerSpecificResult.setupMs;
+    runnerSpecificResult.experimentResults->perturbExperimentMs
+          = runnerSpecificResult.runExperimentMs;
+    runnerSpecificResult.experimentResults->weightingExperimentMs
+          = runnerSpecificResult.weightingMs;
     return runnerSpecificResult.experimentResults;
 }
 
@@ -175,4 +206,31 @@ void ExperimentRunner::EndPathBatchOutput()
     jsonOfstream << std::setw(4) << m_pathBatchJsonIndex << std::endl;
     jsonOfstream.close();
 }
+
+
+void ExperimentRunner::StartWeightConvergenceWrite()
+{
+    std::filesystem::path convergenceWeightsPath = m_experimentDirPath;
+    convergenceWeightsPath /= m_experimentParams.perExperimentDirSubfolder;
+    convergenceWeightsPath /= "ConvergenceWeights";
+    if (!std::filesystem::exists(convergenceWeightsPath)) {
+        std::filesystem::create_directories(convergenceWeightsPath);
+    }
+    m_weightConvergenceFile.open(convergenceWeightsPath.string() + "ConvergenceWeights.txt");
+    if (!m_weightConvergenceFile.is_open()) {
+        throw std::runtime_error("Failed to open weight convergence file");
+    }
+}
+
+void ExperimentRunner::UpdateConvergenceWeight(
+      const uint32_t numNewPaths, const boost::multiprecision::cpp_dec_float_100 weightContribution)
+{
+    m_numWeightConvergencePaths += numNewPaths;
+    m_weightConvergenceCombinedWeight += weightContribution;
+    m_weightConvergenceFile << m_numWeightConvergencePaths << ", "
+                            << m_weightConvergenceCombinedWeight / m_numWeightConvergencePaths
+                            << ", " << m_weightConvergenceCombinedWeight << std::endl;
+}
+
+void ExperimentRunner::EndWeightConvergenceWrite() { m_weightConvergenceFile.close(); }
 }

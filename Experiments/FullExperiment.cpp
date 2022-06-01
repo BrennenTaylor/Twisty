@@ -272,10 +272,18 @@ int main(int argc, char *argv[])
                 << results.experimentWeights[scatterIdx] << std::endl;
             ofs << "\tAvg path weight " << scatterIdx << ": "
                 << results.experimentWeights[scatterIdx] / results.totalPathsGenerated << std::endl;
-            ofs << "\tTotal experiment time (ms) " << results.totalExperimentMS << std::endl;
-            ofs << "\tSetup time (ms) " << results.setupExperimentMS << std::endl;
-            ofs << "\tPerturb time (ms) " << results.perturbExperimentMS << std::endl;
-            ofs << "\tWeighting time (ms) " << results.weightingExperimentMS << std::endl;
+            ofs << "\tTotal experiment time (ms) "
+                << twisty::format_duration(std::chrono::milliseconds(results.totalExperimentMs))
+                << std::endl;
+            ofs << "\tSetup time (ms) "
+                << twisty::format_duration(std::chrono::milliseconds(results.setupExperimentMs))
+                << std::endl;
+            ofs << "\tPerturb time (ms) "
+                << twisty::format_duration(std::chrono::milliseconds(results.perturbExperimentMs))
+                << std::endl;
+            ofs << "\tWeighting time (ms) "
+                << twisty::format_duration(std::chrono::milliseconds(results.weightingExperimentMs))
+                << std::endl;
         }
         ofs << std::endl;
 

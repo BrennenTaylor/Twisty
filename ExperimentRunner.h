@@ -16,8 +16,14 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <string>
+#include <sstream>
+
 
 namespace twisty {
+std::string format_duration(std::chrono::milliseconds ms);
+
 class ExperimentRunner {
    public:
     struct PathBatch {
@@ -64,10 +70,10 @@ class ExperimentRunner {
         std::vector<boost::multiprecision::cpp_dec_float_100> experimentWeights;
         uint64_t totalPathsGenerated = 0;
         uint64_t numFailedPaths = 0;
-        int64_t totalExperimentMS = 0;
-        int64_t setupExperimentMS = 0;
-        int64_t perturbExperimentMS = 0;
-        int64_t weightingExperimentMS = 0;
+        std::chrono::milliseconds::rep totalExperimentMs = 0;
+        std::chrono::milliseconds::rep setupExperimentMs = 0;
+        std::chrono::milliseconds::rep perturbExperimentMs = 0;
+        std::chrono::milliseconds::rep weightingExperimentMs = 0;
     };
 
    public:
@@ -80,10 +86,10 @@ class ExperimentRunner {
    protected:
     struct RunnerSpecificResults {
         std::optional<ExperimentResults> experimentResults;
-        uint64_t experimentRuntimeTotalMS = 0;
-        uint64_t setupMsCount = 0;
-        uint64_t runExperimentMsCount = 0;
-        uint64_t weightingMsCount = 0;
+        std::chrono::milliseconds::rep experimentRuntimeTotalMs = 0;
+        std::chrono::milliseconds::rep setupMs = 0;
+        std::chrono::milliseconds::rep runExperimentMs = 0;
+        std::chrono::milliseconds::rep weightingMs = 0;
     };
 
     virtual RunnerSpecificResults RunnerSpecificRunExperiment() = 0;
@@ -91,6 +97,11 @@ class ExperimentRunner {
     bool BeginPathBatchOutput();
     void OutputPathBatch(PathBatch &pathBatch);
     void EndPathBatchOutput();
+
+    void StartWeightConvergenceWrite();
+    void UpdateConvergenceWeight(const uint32_t numNewPaths,
+          const boost::multiprecision::cpp_dec_float_100 weightContribution);
+    void EndWeightConvergenceWrite();
 
    protected:
     ExperimentParameters &m_experimentParams;
@@ -103,6 +114,10 @@ class ExperimentRunner {
     std::mutex m_exportPathBatchesMutex;
     std::ofstream m_curvesBinaryFile;
     std::ofstream m_curvesMetadataFile;
+
+    std::ofstream m_weightConvergenceFile;
+    uint32_t m_numWeightConvergencePaths = 0;
+    boost::multiprecision::cpp_dec_float_100 m_weightConvergenceCombinedWeight = 0.0;
 
    private:
     nlohmann::json m_pathBatchJsonIndex;
