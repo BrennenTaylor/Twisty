@@ -30,21 +30,12 @@ const double AmountOfFullRotation = 1.0;
     1 - Maps to Spring
 */
 
-enum class MethodType : int64_t
-{
-    Geometry = 0,
-    Spring,
-    Count
-};
+enum class MethodType : int64_t { Geometry = 0, Spring, Count };
 
 const int64_t Method_Geometry = 0;
 const int64_t Method_Spring = 1;
 
-const int64_t HybridRunCounts[static_cast<int64_t>(MethodType::Count)] =
-{
-    1000,
-    1000
-};
+const int64_t HybridRunCounts[static_cast<int64_t>(MethodType::Count)] = { 1000, 1000 };
 const MethodType StartingHybridMethod = MethodType::Geometry;
 
 //#define EnforceSpringLengthDistance
@@ -123,364 +114,297 @@ std::ofstream curvesMetadataFile;
 //     return rotation;
 // }
 
-namespace twisty
+namespace twisty {
+FullExperimentRunnerOldMethodBridge::FullExperimentRunnerOldMethodBridge(
+      ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
+    : ExperimentRunner(experimentParams, bootstrapper)
 {
-    FullExperimentRunnerOldMethodBridge::FullExperimentRunnerOldMethodBridge(ExperimentRunner::ExperimentParameters& experimentParams,
-        Bootstrapper& bootstrapper)
-        : ExperimentRunner(experimentParams, bootstrapper)
-    {
-    }
+}
 
-    FullExperimentRunnerOldMethodBridge::~FullExperimentRunnerOldMethodBridge()
-    {
-    }
+FullExperimentRunnerOldMethodBridge::~FullExperimentRunnerOldMethodBridge() { }
 
-    bool FullExperimentRunnerOldMethodBridge::Setup()
-    {
-        // Ask the bootstrapper to generate a discrete curve.
-        // If we fail, we want to exit the experiment.
+bool FullExperimentRunnerOldMethodBridge::Setup() { return true; }
 
-        bool successfulGen = false;
-        while (!successfulGen)
-        {
-            m_upInitialCurve = m_bootstrapper.CreateCurve(m_experimentParams.numSegmentsPerCurve);
-            if (!m_upInitialCurve)
-            {
-                printf("Failed to create bootstrap curve.\n");
-                return false;
-            }
-
-            // Lets also get the error of the initial curve, just to know
-            float curveError = CurveUtils::CalculateCurveError(*m_upInitialCurve);
-            std::cout << "Seed curve error: " << curveError << std::endl;
-
-            if (curveError < m_experimentParams.maximumBootstrapCurveError)
-            {
-                successfulGen = true;
-            }
-        }
-
-        std::filesystem::path experimentDirectoryPath = m_experimentParams.experimentDirPath;
-        if (!std::filesystem::exists(experimentDirectoryPath))
-        {
-            std::filesystem::create_directories(experimentDirectoryPath);
-        }
-
-        return true;
-    }
-
-    void FullExperimentRunnerOldMethodBridge::LogWeightThreadFunction(
-        int64_t threadIdx,
-        int64_t dispatchIdx,
-        int64_t numPerturbThreads,
-        int64_t numExperimentPaths,
-        int64_t numPathsPerThread,
-        int64_t numPathsToSkipPerThread,
-        int64_t numSegmentsPerCurve,
-        std::vector<std::mt19937_64>& rngGenerators,
-        std::vector<Farlor::Vector3>& globalPos,
-        std::vector<Farlor::Vector3>& globalTans,
-        std::vector<float>& globalCurvatures,
-        std::vector<double>& cachedSegmentWeights,
-        std::vector<double>& finalThreadWeight,
-        std::vector<double>& finalThreadDifference,
-        float segmentLength,
-        float scattering,
-        float absorbtion,
-        const std::vector<double>& lookupTable,
-        float minCurvature,
-        float maxCurvature,
-        float curvatureStepSize,
-        std::string pathToRawBinary,
-        std::vector<double>& cachedWeights
-    )
-    {
-
+void FullExperimentRunnerOldMethodBridge::LogWeightThreadFunction(int64_t threadIdx,
+      int64_t dispatchIdx,
+      int64_t numPerturbThreads,
+      int64_t numExperimentPaths,
+      int64_t numPathsPerThread,
+      int64_t numPathsToSkipPerThread,
+      int64_t numSegmentsPerCurve,
+      std::vector<std::mt19937_64> &rngGenerators,
+      std::vector<Farlor::Vector3> &globalPos,
+      std::vector<Farlor::Vector3> &globalTans,
+      std::vector<float> &globalCurvatures,
+      std::vector<double> &cachedSegmentWeights,
+      std::vector<double> &finalThreadWeight,
+      std::vector<double> &finalThreadDifference,
+      float segmentLength,
+      float scattering,
+      float absorbtion,
+      const std::vector<double> &lookupTable,
+      float minCurvature,
+      float maxCurvature,
+      float curvatureStepSize,
+      std::string pathToRawBinary,
+      std::vector<double> &cachedWeights)
+{
 #ifdef SerialMultithread
-            while (activeThreadIdx.load() != threadIdx)
-            {
-            };
+    while (activeThreadIdx.load() != threadIdx) { };
 #endif
 
 #ifdef BlockingOutputThread
-            {
-                std::scoped_lock<std::mutex> lock(outputThreadMutex);
-                std::cout << "On thread: " << threadIdx << std::endl;
-            }
+    {
+        std::scoped_lock<std::mutex> lock(outputThreadMutex);
+        std::cout << "On thread: " << threadIdx << std::endl;
+    }
 #endif
 
 #if defined(ExportPathBatches)
 
-            // This should be per thread
-            int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
-            std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
-            {
-                for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx)
-                {
-                    for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                    {
-                        int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
-                        pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
-                    }
-                }
+    // This should be per thread
+    int64_t numPosInCache = (numSegmentsPerCurve + 1) * ExportPathBatchCacheSize;
+    std::vector<Farlor::Vector3> pathBatchCache(numPosInCache);
+    {
+        for (int64_t cacheEntryIdx = 0; cacheEntryIdx < ExportPathBatchCacheSize; ++cacheEntryIdx) {
+            for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx) {
+                int64_t pointEntryIdx = (numSegmentsPerCurve + 1) * cacheEntryIdx + pointIdx;
+                pathBatchCache[pointEntryIdx] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
             }
+        }
+    }
 #endif
 
-            // First, we discard random numbers to match the previous amount
-            //rngGenerators[threadIdx].discard(numPathsPerThread * threadIdx);
-            
-            const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-            const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
-            const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
+    // First, we discard random numbers to match the previous amount
+    //rngGenerators[threadIdx].discard(numPathsPerThread * threadIdx);
 
-            const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
-            const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
-            const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
+    const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
+    const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
+    const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
 
-            double c = scattering + absorbtion;
-            double absorbtionConst = std::exp(-c * segmentLength) / (2.0 * TwistyPi * TwistyPi);
-            double absorbtionConstLog10 = std::log10(absorbtionConst);
+    const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
+    const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
+    const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
 
-            // We start by keeping a running path weight.
-            // Lets make this a double actually...
-            // Though this is a ln compressed version, so it shouuuuld be ok.
+    double c = scattering + absorbtion;
+    double absorbtionConst = std::exp(-c * segmentLength) / (2.0 * TwistyPi * TwistyPi);
+    double absorbtionConstLog10 = std::log10(absorbtionConst);
 
-            double currentMaxWeightLog10 = 0.0;
-            double currentMaxPossibleFinalWeightLog10 = 0.0;
-            double currentDifference = 0.0;
-            double runningTotal = 0.0;
+    // We start by keeping a running path weight.
+    // Lets make this a double actually...
+    // Though this is a ln compressed version, so it shouuuuld be ok.
+
+    double currentMaxWeightLog10 = 0.0;
+    double currentMaxPossibleFinalWeightLog10 = 0.0;
+    double currentDifference = 0.0;
+    double runningTotal = 0.0;
 
 
-            std::filesystem::path indexPath = std::filesystem::current_path();
-            std::filesystem::path rawBinaryFullPath = indexPath.append(pathToRawBinary);
-            std::ifstream rawBinaryFile(rawBinaryFullPath.c_str(), std::ios::binary);
+    std::filesystem::path indexPath = std::filesystem::current_path();
+    std::filesystem::path rawBinaryFullPath = indexPath.append(pathToRawBinary);
+    std::ifstream rawBinaryFile(rawBinaryFullPath.c_str(), std::ios::binary);
 
-            {
+    {
 #ifdef BlockingMultithread
-                std::scoped_lock<std::mutex> lock(blockingMultithreadMutex);
+        std::scoped_lock<std::mutex> lock(blockingMultithreadMutex);
 #endif
-                // Now, we can begin the actual algorithm
-                {
+        // Now, we can begin the actual algorithm
+        {
+            // This is the perturbation piece.
+            // Can we do this in place, most likely
+            // This will modify pCurrentThreadCurve
+            // Remember, the structure of this is:
+            // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
 
-                    // This is the perturbation piece.
-                    // Can we do this in place, most likely
-                    // This will modify pCurrentThreadCurve
-                    // Remember, the structure of this is:
-                    // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
+            // Start at the thread's first path idx
 
-                    // Start at the thread's first path idx
+            int64_t numCurvesInBatch = 0;
+            int64_t outputIdx = 0;
 
-                    int64_t numCurvesInBatch = 0;
-                    int64_t outputIdx = 0;
-
-                    // Path count is in total
-                    double runningSinglePathWeight = 0.0;
-                    for (int64_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread); ++pathCount)
-                    {
-                        // Expect to go negative, thus int
-                        int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
-                        // We can exit once this point is reached as we have generated all the paths necessary for this thread
-                        if (currentPathIdx >= numExperimentPaths)
-                        {
+            // Path count is in total
+            double runningSinglePathWeight = 0.0;
+            for (int64_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread);
+                  ++pathCount) {
+                // Expect to go negative, thus int
+                int64_t currentPathIdx
+                      = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+                // We can exit once this point is reached as we have generated all the paths necessary for this thread
+                if (currentPathIdx >= numExperimentPaths) {
 #ifdef BlockingOutputThread
-                            {
-                                std::scoped_lock<std::mutex> lock(outputThreadMutex);
-                                std::cout << "Returning, all paths complete" << std::endl;
-                            }
-#endif
-
-#if defined(ExportPathBatches)
-                            if (numCurvesInBatch > 0)
-                            {
-                                ExportPathBatchesMutex.lock();
-
-                                curvesMetadataFile << threadIdx << " ";
-                                curvesMetadataFile << outputIdx << " ";
-                                curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                                curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                                numCurvesInBatch = 0;
-                                outputIdx++;
-
-                                ExportPathBatchesMutex.unlock();
-                        }
-#endif
-
-
-                            // We dont want to continue if we have already generated the correct number of paths.
-                            break;
-                        }
-
-                        // Do the perturb now
-                        {
-
-                            const uint64_t bytesPerCurve = sizeof(Farlor::Vector3) * (numSegmentsPerCurve + 1);
-                            uint64_t numIdxBytes = (uint64_t)(currentPathIdx) * (uint64_t)(bytesPerCurve);
-
-                            rawBinaryFile.seekg(numIdxBytes, std::ios::beg);
-                            rawBinaryFile.read((char*)(&(globalPos[CurrentThreadPosStartIdx])), bytesPerCurve);
-
-                            // Read in from file and write to global pos
-
-                            //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
-                            //We can do a different approach later.
-
-                            // Tangents update
-                            for (uint32_t pointIdx = 0; pointIdx < numSegmentsPerCurve; ++pointIdx)
-                            {
-                                Farlor::Vector3 leftPos = globalPos[CurrentThreadPosStartIdx + pointIdx];
-                                Farlor::Vector3 rightPos = globalPos[CurrentThreadPosStartIdx + pointIdx + 1];
-
-                                globalTans[CurrentThreadTanStartIdx + pointIdx] = (rightPos - leftPos).Normalized();
-                            }
-
-                            // Update curvatures
-                            for (uint32_t segIdx = 0; segIdx < numSegmentsPerCurve; ++segIdx)
-                            {
-                                Farlor::Vector3 leftTan = globalTans[CurrentThreadTanStartIdx + segIdx];
-                                Farlor::Vector3 rightTan = globalTans[CurrentThreadTanStartIdx + (segIdx + 1)];
-                                Farlor::Vector3 temp = (rightTan - leftTan) * (1.0f / segmentLength);
-                                float curvature = temp.Magnitude();
-                                globalCurvatures[CurrentThreadCurvatureStartIdx + (segIdx)] = curvature;
-
-                                
-                            }
-
-                            // Calculate weight
-                            runningSinglePathWeight = 0.0;
-                            for (uint32_t segIdx = 0; segIdx < numSegmentsPerCurve; ++segIdx)
-                            {
-                                double curvature = globalCurvatures[CurrentThreadCurvatureStartIdx + segIdx];
-
-                                // Also, cache the weight of that changed segment
-                                float distance = curvature - minCurvature;
-                                float realIdx = distance / curvatureStepSize;
-                                int64_t leftIdx = floor(realIdx);
-                                int64_t rightIdx = leftIdx + 1;
-
-                                double leftLookup = lookupTable[leftIdx];
-                                double rightLookup = lookupTable[rightIdx];
-
-                                float leftDist = distance - (leftIdx * curvatureStepSize);
-
-                                double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
-                                double interpolatedResultLog10 = std::log10(interpolatedResult);
-
-                                double segmentWeightLog10 = interpolatedResultLog10;
-
-                                // Take natural log of this constant
-                                segmentWeightLog10 += absorbtionConstLog10;
-
-                                runningSinglePathWeight += segmentWeightLog10;
-                            }
-
-                        }
-
-                        int64_t globalPathIdx = numPathsPerThread * numPerturbThreads * dispatchIdx + numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
-
-                        if (globalPathIdx >= numExperimentPaths)
-                        {
-                            // Skip
-                        }
-                        else if (pathCount < numPathsToSkipPerThread)
-                        {
-                            // Skip
-                        }
-                        else
-                        {
-                            // Else, contribute to the paths
-                            int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
-                            assert(currentPathIdx >= numPathsPerThread * threadIdx);
-
-                            int64_t pathNumber = pathCount - numPathsToSkipPerThread;
-
-                            if (pathNumber == 0)
-                            {
-                                currentMaxWeightLog10 = runningSinglePathWeight;
-                                currentMaxPossibleFinalWeightLog10 = runningSinglePathWeight + PathBatchOffsetConstant;
-                                currentDifference = MaxDoubleLog10 - currentMaxPossibleFinalWeightLog10;
-                                runningTotal += std::pow(10, runningSinglePathWeight + currentDifference);
-
-                                // The log10 version of the weight
-                                cachedWeights[currentPathIdx] = runningSinglePathWeight;
-                            }
-                            else
-                            {
-                                double newMaxWeightLog10 = runningSinglePathWeight;
-                                // If this checks out, we have the same maximum and thus can just adjust things up
-                                if (currentMaxWeightLog10 > newMaxWeightLog10)
-                                {
-                                    runningTotal += std::pow(10, runningSinglePathWeight + currentDifference);
-
-                                    // The log10 version of the weight
-                                    cachedWeights[currentPathIdx] = runningSinglePathWeight;
-                                }
-                                else
-                                {
-                                    // If we are past, then we have a new maximum and need to adjust
-                                    // New difference
-                                    double newMaxPossibleFinalWeightLog10 = newMaxWeightLog10 + PathBatchOffsetConstant;
-                                    double newDifference = MaxDoubleLog10 - newMaxPossibleFinalWeightLog10;
-
-                                    double differenceDelta = newDifference - currentDifference;
-                                    double log10RunningTotal = std::log10(runningTotal);
-                                    double adjustedLog10RunningTotal = log10RunningTotal + differenceDelta;
-                                    runningTotal = std::pow(10.0, adjustedLog10RunningTotal);
-
-                                    // Update
-                                    currentMaxWeightLog10 = newMaxWeightLog10;
-                                    currentMaxPossibleFinalWeightLog10 = newMaxPossibleFinalWeightLog10;
-                                    currentDifference = newDifference;
-
-                                    runningTotal += std::pow(10, runningSinglePathWeight + currentDifference);
-
-                                    // The log10 version of the weight
-                                    cachedWeights[currentPathIdx] = runningSinglePathWeight;
-                                }
-                            }
-
-                            finalThreadWeight[threadIdx] = runningTotal;
-                            finalThreadDifference[threadIdx] = currentDifference;
-
-#if defined(ExportPathBatches)
-                            // Add the path to the path batch
-                            for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx)
-                            {
-                                Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
-                                pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
-                            }
-                            numCurvesInBatch++;
-#endif
-
-#if defined(ExportPathBatches)
-                            if (numCurvesInBatch == ExportPathBatchCacheSize)
-                            {
-                                ExportPathBatchesMutex.lock();
-
-                                curvesMetadataFile << threadIdx << " ";
-                                curvesMetadataFile << outputIdx << " ";
-                                curvesMetadataFile << numCurvesInBatch << std::endl;
-
-                                curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
-                                numCurvesInBatch = 0;
-                                outputIdx++;
-
-                                ExportPathBatchesMutex.unlock();
-                            }
-#endif
-                        }
-                    }
-
-#if defined(ExportPathBatches)
-                    if (numCurvesInBatch > 0)
                     {
+                        std::scoped_lock<std::mutex> lock(outputThreadMutex);
+                        std::cout << "Returning, all paths complete" << std::endl;
+                    }
+#endif
+
+#if defined(ExportPathBatches)
+                    if (numCurvesInBatch > 0) {
                         ExportPathBatchesMutex.lock();
 
                         curvesMetadataFile << threadIdx << " ";
                         curvesMetadataFile << outputIdx << " ";
                         curvesMetadataFile << numCurvesInBatch << std::endl;
 
-                        curvesBinaryFile.write((char*)pathBatchCache.data(), sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                        curvesBinaryFile.write((char *)pathBatchCache.data(),
+                              sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                        numCurvesInBatch = 0;
+                        outputIdx++;
+
+                        ExportPathBatchesMutex.unlock();
+                    }
+#endif
+
+
+                    // We dont want to continue if we have already generated the correct number of paths.
+                    break;
+                }
+
+                // Do the perturb now
+                {
+                    const uint64_t bytesPerCurve
+                          = sizeof(Farlor::Vector3) * (numSegmentsPerCurve + 1);
+                    uint64_t numIdxBytes = (uint64_t)(currentPathIdx) * (uint64_t)(bytesPerCurve);
+
+                    rawBinaryFile.seekg(numIdxBytes, std::ios::beg);
+                    rawBinaryFile.read(
+                          (char *)(&(globalPos[CurrentThreadPosStartIdx])), bytesPerCurve);
+
+                    // Read in from file and write to global pos
+
+                    //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                    //We can do a different approach later.
+
+                    // Tangents update
+                    for (uint32_t pointIdx = 0; pointIdx < numSegmentsPerCurve; ++pointIdx) {
+                        Farlor::Vector3 leftPos = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                        Farlor::Vector3 rightPos
+                              = globalPos[CurrentThreadPosStartIdx + pointIdx + 1];
+
+                        globalTans[CurrentThreadTanStartIdx + pointIdx]
+                              = (rightPos - leftPos).Normalized();
+                    }
+
+                    // Update curvatures
+                    for (uint32_t segIdx = 0; segIdx < numSegmentsPerCurve; ++segIdx) {
+                        Farlor::Vector3 leftTan = globalTans[CurrentThreadTanStartIdx + segIdx];
+                        Farlor::Vector3 rightTan
+                              = globalTans[CurrentThreadTanStartIdx + (segIdx + 1)];
+                        Farlor::Vector3 temp = (rightTan - leftTan) * (1.0f / segmentLength);
+                        float curvature = temp.Magnitude();
+                        globalCurvatures[CurrentThreadCurvatureStartIdx + (segIdx)] = curvature;
+                    }
+
+                    // Calculate weight
+                    runningSinglePathWeight = 0.0;
+                    for (uint32_t segIdx = 0; segIdx < numSegmentsPerCurve; ++segIdx) {
+                        double curvature
+                              = globalCurvatures[CurrentThreadCurvatureStartIdx + segIdx];
+
+                        // Also, cache the weight of that changed segment
+                        float distance = curvature - minCurvature;
+                        float realIdx = distance / curvatureStepSize;
+                        int64_t leftIdx = floor(realIdx);
+                        int64_t rightIdx = leftIdx + 1;
+
+                        double leftLookup = lookupTable[leftIdx];
+                        double rightLookup = lookupTable[rightIdx];
+
+                        float leftDist = distance - (leftIdx * curvatureStepSize);
+
+                        double interpolatedResult
+                              = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
+                        double interpolatedResultLog10 = std::log10(interpolatedResult);
+
+                        double segmentWeightLog10 = interpolatedResultLog10;
+
+                        // Take natural log of this constant
+                        segmentWeightLog10 += absorbtionConstLog10;
+
+                        runningSinglePathWeight += segmentWeightLog10;
+                    }
+                }
+
+                int64_t globalPathIdx = numPathsPerThread * numPerturbThreads * dispatchIdx
+                      + numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+
+                if (globalPathIdx >= numExperimentPaths) {
+                    // Skip
+                } else if (pathCount < numPathsToSkipPerThread) {
+                    // Skip
+                } else {
+                    // Else, contribute to the paths
+                    int64_t currentPathIdx
+                          = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+                    assert(currentPathIdx >= numPathsPerThread * threadIdx);
+
+                    int64_t pathNumber = pathCount - numPathsToSkipPerThread;
+
+                    if (pathNumber == 0) {
+                        currentMaxWeightLog10 = runningSinglePathWeight;
+                        currentMaxPossibleFinalWeightLog10
+                              = runningSinglePathWeight + PathBatchOffsetConstant;
+                        currentDifference = MaxDoubleLog10 - currentMaxPossibleFinalWeightLog10;
+                        runningTotal += std::pow(10, runningSinglePathWeight + currentDifference);
+
+                        // The log10 version of the weight
+                        cachedWeights[currentPathIdx] = runningSinglePathWeight;
+                    } else {
+                        double newMaxWeightLog10 = runningSinglePathWeight;
+                        // If this checks out, we have the same maximum and thus can just adjust things up
+                        if (currentMaxWeightLog10 > newMaxWeightLog10) {
+                            runningTotal
+                                  += std::pow(10, runningSinglePathWeight + currentDifference);
+
+                            // The log10 version of the weight
+                            cachedWeights[currentPathIdx] = runningSinglePathWeight;
+                        } else {
+                            // If we are past, then we have a new maximum and need to adjust
+                            // New difference
+                            double newMaxPossibleFinalWeightLog10
+                                  = newMaxWeightLog10 + PathBatchOffsetConstant;
+                            double newDifference = MaxDoubleLog10 - newMaxPossibleFinalWeightLog10;
+
+                            double differenceDelta = newDifference - currentDifference;
+                            double log10RunningTotal = std::log10(runningTotal);
+                            double adjustedLog10RunningTotal = log10RunningTotal + differenceDelta;
+                            runningTotal = std::pow(10.0, adjustedLog10RunningTotal);
+
+                            // Update
+                            currentMaxWeightLog10 = newMaxWeightLog10;
+                            currentMaxPossibleFinalWeightLog10 = newMaxPossibleFinalWeightLog10;
+                            currentDifference = newDifference;
+
+                            runningTotal
+                                  += std::pow(10, runningSinglePathWeight + currentDifference);
+
+                            // The log10 version of the weight
+                            cachedWeights[currentPathIdx] = runningSinglePathWeight;
+                        }
+                    }
+
+                    finalThreadWeight[threadIdx] = runningTotal;
+                    finalThreadDifference[threadIdx] = currentDifference;
+
+#if defined(ExportPathBatches)
+                    // Add the path to the path batch
+                    for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx) {
+                        Farlor::Vector3 currentPoint
+                              = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                        pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
+                    }
+                    numCurvesInBatch++;
+#endif
+
+#if defined(ExportPathBatches)
+                    if (numCurvesInBatch == ExportPathBatchCacheSize) {
+                        ExportPathBatchesMutex.lock();
+
+                        curvesMetadataFile << threadIdx << " ";
+                        curvesMetadataFile << outputIdx << " ";
+                        curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                        curvesBinaryFile.write((char *)pathBatchCache.data(),
+                              sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
                         numCurvesInBatch = 0;
                         outputIdx++;
 
@@ -490,509 +414,532 @@ namespace twisty
                 }
             }
 
-            rawBinaryFile.close();
-#ifdef SerialMultithread
-        activeThreadIdx--;
+#if defined(ExportPathBatches)
+            if (numCurvesInBatch > 0) {
+                ExportPathBatchesMutex.lock();
+
+                curvesMetadataFile << threadIdx << " ";
+                curvesMetadataFile << outputIdx << " ";
+                curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                curvesBinaryFile.write((char *)pathBatchCache.data(),
+                      sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                numCurvesInBatch = 0;
+                outputIdx++;
+
+                ExportPathBatchesMutex.unlock();
+            }
 #endif
+        }
     }
 
-    ExperimentRunner::ExperimentResults FullExperimentRunnerOldMethodBridge::RunExperiment()
-    {
-        return RunExperimentLogWeightTable();
-    }
+    rawBinaryFile.close();
+#ifdef SerialMultithread
+    activeThreadIdx--;
+#endif
+}
 
-    ExperimentRunner::ExperimentResults FullExperimentRunnerOldMethodBridge::RunExperimentLogWeightTable()
-    {
-        int64_t numFailures = 0;
-        int64_t totalFailures = 0;
-        int64_t totalSuccess = 0;
+ExperimentRunner::ExperimentResults FullExperimentRunnerOldMethodBridge::RunExperiment()
+{
+    return RunExperimentLogWeightTable();
+}
 
-        std::string pathToRawBinary = "";
-        std::cout << "Input: path to raw binary" << std::endl;
-        std::cin >> pathToRawBinary;
-        std::cout << "Path to Raw Binary: " << pathToRawBinary << std::endl;
+ExperimentRunner::ExperimentResults
+FullExperimentRunnerOldMethodBridge::RunExperimentLogWeightTable()
+{
+    int64_t numFailures = 0;
+    int64_t totalFailures = 0;
+    int64_t totalSuccess = 0;
 
-        auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
+    std::string pathToRawBinary = "";
+    std::cout << "Input: path to raw binary" << std::endl;
+    std::cin >> pathToRawBinary;
+    std::cout << "Path to Raw Binary: " << pathToRawBinary << std::endl;
 
-        /* --------------------- */
-        auto setupTimeStart = std::chrono::high_resolution_clock::now();
+    auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
+
+    /* --------------------- */
+    auto setupTimeStart = std::chrono::high_resolution_clock::now();
 
 #if defined(ExportPathBatches)
-        {
-            BeginPathBatchOutput();
+    {
+        BeginPathBatchOutput();
 
-            std::filesystem::path experimentDirPath = m_experimentParams.experimentDirPath;
-            if (!std::filesystem::exists(experimentDirPath))
-            {
-                std::filesystem::create_directories(experimentDirPath);
-            }
-
-            std::stringstream pathBinaryFilenameSS;
-            pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
-            pathBinaryFilenameSS << "Paths_Binary" << ".pbd";
-
-            std::filesystem::path binaryFilePath = experimentDirPath;
-            binaryFilePath.append(pathBinaryFilenameSS.str());
-            curvesBinaryFile.open(binaryFilePath, std::ios::binary);
-
-            std::stringstream pathMetadataFilenameSS;
-            pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
-            pathMetadataFilenameSS << "Paths_Metadata" << ".pmd";
-
-            std::filesystem::path metadataFilePath = experimentDirPath;
-            metadataFilePath.append(pathMetadataFilenameSS.str());
-            curvesMetadataFile.open(metadataFilePath);
+        std::filesystem::path experimentDirPath = m_experimentParams.experimentDirPath;
+        if (!std::filesystem::exists(experimentDirPath)) {
+            std::filesystem::create_directories(experimentDirPath);
         }
+
+        std::stringstream pathBinaryFilenameSS;
+        pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
+        pathBinaryFilenameSS << "Paths_Binary"
+                             << ".pbd";
+
+        std::filesystem::path binaryFilePath = experimentDirPath;
+        binaryFilePath.append(pathBinaryFilenameSS.str());
+        curvesBinaryFile.open(binaryFilePath, std::ios::binary);
+
+        std::stringstream pathMetadataFilenameSS;
+        pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
+        pathMetadataFilenameSS << "Paths_Metadata"
+                               << ".pmd";
+
+        std::filesystem::path metadataFilePath = experimentDirPath;
+        metadataFilePath.append(pathMetadataFilenameSS.str());
+        curvesMetadataFile.open(metadataFilePath);
+    }
 #endif
 
-        // Say that we will start outputing the path batch output
-        const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
-        twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(m_experimentParams.weightingParameters, ds);
-        
-        // Constants
-        double minCurvature = 0.0;
-        double maxCurvature = 0.0;
-        twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
-        const float curvatureStepSize = (maxCurvature - minCurvature) / m_experimentParams.weightingParameters.numCurvatureSteps;
+    // Say that we will start outputing the path batch output
+    const double ds = m_upInitialCurve->m_arclength / m_experimentParams.numSegmentsPerCurve;
+    twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(
+          m_experimentParams.weightingParameters, ds);
 
-        // This is a horible hack to make sure we always purturb a new curve
-        Curve curveToBend = *m_upInitialCurve;
+    // Constants
+    double minCurvature = 0.0;
+    double maxCurvature = 0.0;
+    twisty::PathWeighting::CalcMinMaxCurvature(minCurvature, maxCurvature, ds);
+    const float curvatureStepSize = (maxCurvature - minCurvature)
+          / m_experimentParams.weightingParameters.numCurvatureSteps;
 
-        auto experimentTimeStart = std::chrono::high_resolution_clock::now();
+    // This is a horible hack to make sure we always purturb a new curve
+    Curve curveToBend = *m_upInitialCurve;
 
-        const int64_t NumPathsPerThread = 1000000;
+    auto experimentTimeStart = std::chrono::high_resolution_clock::now();
 
-        // Create threads and dispatch them
-//#ifdef SINGLE_THREAD_PERTURB_MODE
-        // NOTE: Only works in single thread mode
-        int64_t numPerturbThreads = 1;
-//#else
-//#ifdef HardcodednumPerturbThreads
-//        int64_t numPerturbThreads = 3;
-//#else
-//        int64_t numPerturbThreads = std::thread::hardware_concurrency();
-//#endif
-//#endif
-        std::cout << "We have " << numPerturbThreads << " avalible for purturbation." << std::endl;
+    const int64_t NumPathsPerThread = 1000000;
 
-        // Setup rng stuff
-        std::vector<std::mt19937_64> perThreadRngGenerators(numPerturbThreads);
-        int64_t seed = m_experimentParams.curvePurturbSeed;
-        if (seed == 0)
-        {
-            seed = time(0);
-        }
-        for (int64_t i = 0; i < numPerturbThreads; ++i)
-        {
-            perThreadRngGenerators[i] = std::mt19937_64(seed + i);
-        }
+    // Create threads and dispatch them
+    //#ifdef SINGLE_THREAD_PERTURB_MODE
+    // NOTE: Only works in single thread mode
+    int64_t numPerturbThreads = 1;
+    //#else
+    //#ifdef HardcodednumPerturbThreads
+    //        int64_t numPerturbThreads = 3;
+    //#else
+    //        int64_t numPerturbThreads = std::thread::hardware_concurrency();
+    //#endif
+    //#endif
+    std::cout << "We have " << numPerturbThreads << " avalible for purturbation." << std::endl;
 
-        // Setup data structures
-        std::vector<Farlor::Vector3> initialCurvePositions(m_experimentParams.numSegmentsPerCurve + 1);
-        std::vector<Farlor::Vector3> initialCurveTangents(m_experimentParams.numSegmentsPerCurve + 1);
-        std::vector<float> initialCurveCurvatures(m_experimentParams.numSegmentsPerCurve);
+    // Setup rng stuff
+    std::vector<std::mt19937_64> perThreadRngGenerators(numPerturbThreads);
+    int64_t seed = m_experimentParams.curvePurturbSeed;
+    if (seed == 0) {
+        seed = time(0);
+    }
+    for (int64_t i = 0; i < numPerturbThreads; ++i) {
+        perThreadRngGenerators[i] = std::mt19937_64(seed + i);
+    }
 
-        // Positions
-        // Hard code the first two positions
-        initialCurvePositions[0] = m_upInitialCurve->m_basePos;
-        initialCurvePositions[1] = m_upInitialCurve->m_basePos + m_upInitialCurve->m_baseTangent.Normalized() * m_upInitialCurve->m_segmentLength;
-        for (int64_t segmentIdx = 2; segmentIdx < m_experimentParams.numSegmentsPerCurve; ++segmentIdx)
-        {
-            initialCurvePositions[segmentIdx] = m_upInitialCurve->m_positions[segmentIdx];
-        }
-        // Hard code the final position
-        initialCurvePositions[m_experimentParams.numSegmentsPerCurve] = m_upInitialCurve->m_targetPos;
+    // Setup data structures
+    std::vector<Farlor::Vector3> initialCurvePositions(m_experimentParams.numSegmentsPerCurve + 1);
+    std::vector<Farlor::Vector3> initialCurveTangents(m_experimentParams.numSegmentsPerCurve + 1);
+    std::vector<float> initialCurveCurvatures(m_experimentParams.numSegmentsPerCurve);
+
+    // Positions
+    // Hard code the first two positions
+    initialCurvePositions[0] = m_upInitialCurve->m_basePos;
+    initialCurvePositions[1] = m_upInitialCurve->m_basePos
+          + m_upInitialCurve->m_baseTangent.Normalized() * m_upInitialCurve->m_segmentLength;
+    for (int64_t segmentIdx = 2; segmentIdx < m_experimentParams.numSegmentsPerCurve;
+          ++segmentIdx) {
+        initialCurvePositions[segmentIdx] = m_upInitialCurve->m_positions[segmentIdx];
+    }
+    // Hard code the final position
+    initialCurvePositions[m_experimentParams.numSegmentsPerCurve] = m_upInitialCurve->m_targetPos;
 
 #if defined(DetailedPurturb)
-        {
-            std::cout << "Positions" << std::endl;
-            for (int64_t segmentIdx = 0; segmentIdx < m_experimentParams.numSegmentsPerCurve; ++segmentIdx)
-            {
-                std::cout << "\t" << initialCurvePositions[segmentIdx] << std::endl;
-            }
+    {
+        std::cout << "Positions" << std::endl;
+        for (int64_t segmentIdx = 0; segmentIdx < m_experimentParams.numSegmentsPerCurve;
+              ++segmentIdx) {
+            std::cout << "\t" << initialCurvePositions[segmentIdx] << std::endl;
         }
+    }
 #endif
 
-        // Tangents
-        // Hardcode intial tangent
-        initialCurveTangents[0] = m_upInitialCurve->m_baseTangent;
-        for (int64_t tanIdx = 1; tanIdx < m_experimentParams.numSegmentsPerCurve; ++tanIdx)
-        {
-            Farlor::Vector3 leftPos = initialCurvePositions[tanIdx];
-            Farlor::Vector3 rightPos = initialCurvePositions[tanIdx + 1];
+    // Tangents
+    // Hardcode intial tangent
+    initialCurveTangents[0] = m_upInitialCurve->m_baseTangent;
+    for (int64_t tanIdx = 1; tanIdx < m_experimentParams.numSegmentsPerCurve; ++tanIdx) {
+        Farlor::Vector3 leftPos = initialCurvePositions[tanIdx];
+        Farlor::Vector3 rightPos = initialCurvePositions[tanIdx + 1];
 
-            initialCurveTangents[tanIdx] = (rightPos - leftPos).Normalized();
-        }
-        // Final Tangents
-        initialCurveTangents[m_experimentParams.numSegmentsPerCurve] = m_upInitialCurve->m_targetTangent;
+        initialCurveTangents[tanIdx] = (rightPos - leftPos).Normalized();
+    }
+    // Final Tangents
+    initialCurveTangents[m_experimentParams.numSegmentsPerCurve]
+          = m_upInitialCurve->m_targetTangent;
 
 #if defined(DetailedPurturb)
-        {
-            std::cout << "Tangents" << std::endl;
-            for (int64_t tanIdx = 0; tanIdx < m_experimentParams.numSegmentsPerCurve; ++tanIdx)
-            {
-                std::cout << "\t" << initialCurveTangents[tanIdx] << std::endl;
-            }
+    {
+        std::cout << "Tangents" << std::endl;
+        for (int64_t tanIdx = 0; tanIdx < m_experimentParams.numSegmentsPerCurve; ++tanIdx) {
+            std::cout << "\t" << initialCurveTangents[tanIdx] << std::endl;
         }
+    }
 #endif
 
-        // Curvatures
-        float segLength = m_upInitialCurve->m_arclength / m_upInitialCurve->m_numSegments;
-        for (int64_t curvatureIdx = 0; curvatureIdx < m_experimentParams.numSegmentsPerCurve; ++curvatureIdx)
-        {
-            Farlor::Vector3 tanLeft = initialCurveTangents[curvatureIdx];
-            Farlor::Vector3 tanRight = initialCurveTangents[curvatureIdx + 1];
+    // Curvatures
+    float segLength = m_upInitialCurve->m_arclength / m_upInitialCurve->m_numSegments;
+    for (int64_t curvatureIdx = 0; curvatureIdx < m_experimentParams.numSegmentsPerCurve;
+          ++curvatureIdx) {
+        Farlor::Vector3 tanLeft = initialCurveTangents[curvatureIdx];
+        Farlor::Vector3 tanRight = initialCurveTangents[curvatureIdx + 1];
 
-            Farlor::Vector3 curvatureVec = (tanRight - tanLeft) * (1.0f / segLength);
-            float curvature = curvatureVec.Magnitude();
-            initialCurveCurvatures[curvatureIdx] = curvature;
-        }
+        Farlor::Vector3 curvatureVec = (tanRight - tanLeft) * (1.0f / segLength);
+        float curvature = curvatureVec.Magnitude();
+        initialCurveCurvatures[curvatureIdx] = curvature;
+    }
 
 #if defined(DetailedPurturb)
-        {
-            std::cout << "Curvatures" << std::endl;
-            for (int64_t segmentIdx = 0; segmentIdx < m_experimentParams.numSegmentsPerCurve; ++segmentIdx)
-            {
-                std::cout << "\t" << initialCurveCurvatures[segmentIdx] << std::endl;
-            }
+    {
+        std::cout << "Curvatures" << std::endl;
+        for (int64_t segmentIdx = 0; segmentIdx < m_experimentParams.numSegmentsPerCurve;
+              ++segmentIdx) {
+            std::cout << "\t" << initialCurveCurvatures[segmentIdx] << std::endl;
         }
+    }
 #endif
 
-        const int64_t NumPosPerCurve = (m_upInitialCurve->m_numSegments + 1);
-        const int64_t NumTanPerCurve = (m_upInitialCurve->m_numSegments + 1);
-        const int64_t NumCurvaturePerCurve = (m_upInitialCurve->m_numSegments);
+    const int64_t NumPosPerCurve = (m_upInitialCurve->m_numSegments + 1);
+    const int64_t NumTanPerCurve = (m_upInitialCurve->m_numSegments + 1);
+    const int64_t NumCurvaturePerCurve = (m_upInitialCurve->m_numSegments);
 
-        std::vector<Farlor::Vector3> perThreadCurvePositions(NumPosPerCurve * numPerturbThreads);
-        std::vector<Farlor::Vector3> perThreadCurveTangents(NumTanPerCurve * numPerturbThreads);
-        std::vector<float> perThreadCurveCurvatures(NumCurvaturePerCurve * numPerturbThreads);
+    std::vector<Farlor::Vector3> perThreadCurvePositions(NumPosPerCurve * numPerturbThreads);
+    std::vector<Farlor::Vector3> perThreadCurveTangents(NumTanPerCurve * numPerturbThreads);
+    std::vector<float> perThreadCurveCurvatures(NumCurvaturePerCurve * numPerturbThreads);
 
-        for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx)
-        {
-            // Copy Pos
-            for (int64_t posIdx = 0; posIdx < NumPosPerCurve; posIdx++)
-            {
-                perThreadCurvePositions[NumPosPerCurve * threadIdx + posIdx] = initialCurvePositions[posIdx];
-            }
-
-            // Copy Tan
-            for (int64_t tanIdx = 0; tanIdx < NumTanPerCurve; tanIdx++)
-            {
-                perThreadCurveTangents[NumTanPerCurve * threadIdx + tanIdx] = initialCurveTangents[tanIdx];
-            }
-
-            // Copy Curvatures
-            for (int64_t curvatureIdx = 0; curvatureIdx < NumCurvaturePerCurve; curvatureIdx++)
-            {
-                perThreadCurveCurvatures[NumCurvaturePerCurve * threadIdx + curvatureIdx] = initialCurveCurvatures[curvatureIdx];
-            }
+    for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx) {
+        // Copy Pos
+        for (int64_t posIdx = 0; posIdx < NumPosPerCurve; posIdx++) {
+            perThreadCurvePositions[NumPosPerCurve * threadIdx + posIdx]
+                  = initialCurvePositions[posIdx];
         }
 
-        std::vector<double> cachedSegmentWeights(m_experimentParams.numSegmentsPerCurve * numPerturbThreads);
-        std::vector<double> compressedWeightBuffer(m_experimentParams.numPathsPerBatch);
+        // Copy Tan
+        for (int64_t tanIdx = 0; tanIdx < NumTanPerCurve; tanIdx++) {
+            perThreadCurveTangents[NumTanPerCurve * threadIdx + tanIdx]
+                  = initialCurveTangents[tanIdx];
+        }
 
-        auto setupTimeEnd = std::chrono::high_resolution_clock::now();
-        /* --------------------- */
+        // Copy Curvatures
+        for (int64_t curvatureIdx = 0; curvatureIdx < NumCurvaturePerCurve; curvatureIdx++) {
+            perThreadCurveCurvatures[NumCurvaturePerCurve * threadIdx + curvatureIdx]
+                  = initialCurveCurvatures[curvatureIdx];
+        }
+    }
+
+    std::vector<double> cachedSegmentWeights(
+          m_experimentParams.numSegmentsPerCurve * numPerturbThreads);
+    std::vector<double> compressedWeightBuffer(m_experimentParams.numPathsPerBatch);
+
+    auto setupTimeEnd = std::chrono::high_resolution_clock::now();
+    /* --------------------- */
 
 
-        /* --------------------- */
+    /* --------------------- */
 
 #ifdef SerialMultithread
-        activeThreadIdx.store(numPerturbThreads - 1);
+    activeThreadIdx.store(numPerturbThreads - 1);
 #endif
 
 
-        //const int64_t numDispatches = (m_experimentParams.numPathsInExperiment + m_experimentParams.numPathsPerBatch - 1) / m_experimentParams.numPathsPerBatch;
-        std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
-        std::cout << "numPathsPerBatch: " << m_experimentParams.numPathsPerBatch << std::endl;
-        std::cout << "Num perturbThreads: " << numPerturbThreads << std::endl;
-        //std::cout << "Num dispatches required: " << numDispatches << std::endl;
+    //const int64_t numDispatches = (m_experimentParams.numPathsInExperiment + m_experimentParams.numPathsPerBatch - 1) / m_experimentParams.numPathsPerBatch;
+    std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
+    std::cout << "numPathsPerBatch: " << m_experimentParams.numPathsPerBatch << std::endl;
+    std::cout << "Num perturbThreads: " << numPerturbThreads << std::endl;
+    //std::cout << "Num dispatches required: " << numDispatches << std::endl;
 
-        // We need to calculate the absorbtion/scattering piece
-        boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
+    // We need to calculate the absorbtion/scattering piece
+    boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
 
-        long long perturbTimeCount = 0;
-        long long weightCalcTimeCount = 0;
+    long long perturbTimeCount = 0;
+    long long weightCalcTimeCount = 0;
 
-        // We need a number of dispatches
-        boost::multiprecision::cpp_dec_float_100 minimumPathWeight = 0.0;
-        boost::multiprecision::cpp_dec_float_100 maximumPathWeight = 0.0;
+    // We need a number of dispatches
+    boost::multiprecision::cpp_dec_float_100 minimumPathWeight = 0.0;
+    boost::multiprecision::cpp_dec_float_100 maximumPathWeight = 0.0;
 
-        const int64_t maxPathsPerDispatch = numPerturbThreads * NumPathsPerThread;
-        const int64_t numDispatches = (m_experimentParams.numPathsInExperiment + maxPathsPerDispatch - 1) / maxPathsPerDispatch;
+    const int64_t maxPathsPerDispatch = numPerturbThreads * NumPathsPerThread;
+    const int64_t numDispatches
+          = (m_experimentParams.numPathsInExperiment + maxPathsPerDispatch - 1)
+          / maxPathsPerDispatch;
 
-        int64_t numPathsLeft = m_experimentParams.numPathsInExperiment;
-        int64_t numPathsGenerated = 0;
+    int64_t numPathsLeft = m_experimentParams.numPathsInExperiment;
+    int64_t numPathsGenerated = 0;
 
-        std::vector<double> cachedWeights(maxPathsPerDispatch);
+    std::vector<double> cachedWeights(maxPathsPerDispatch);
 
-        for (int64_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx)
+    for (int64_t dispatchIdx = 0; dispatchIdx < numDispatches; ++dispatchIdx) {
+        // We want to reinitialize starting paths here...
         {
+            for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx) {
+                // Copy Pos
+                for (int64_t posIdx = 0; posIdx < NumPosPerCurve; posIdx++) {
+                    perThreadCurvePositions[NumPosPerCurve * threadIdx + posIdx]
+                          = initialCurvePositions[posIdx];
+                }
 
-            // We want to reinitialize starting paths here...
-            {
-                for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx)
-                {
-                    // Copy Pos
-                    for (int64_t posIdx = 0; posIdx < NumPosPerCurve; posIdx++)
-                    {
-                        perThreadCurvePositions[NumPosPerCurve * threadIdx + posIdx] = initialCurvePositions[posIdx];
-                    }
+                // Copy Tan
+                for (int64_t tanIdx = 0; tanIdx < NumTanPerCurve; tanIdx++) {
+                    perThreadCurveTangents[NumTanPerCurve * threadIdx + tanIdx]
+                          = initialCurveTangents[tanIdx];
+                }
 
-                    // Copy Tan
-                    for (int64_t tanIdx = 0; tanIdx < NumTanPerCurve; tanIdx++)
-                    {
-                        perThreadCurveTangents[NumTanPerCurve * threadIdx + tanIdx] = initialCurveTangents[tanIdx];
-                    }
-
-                    // Copy Curvatures
-                    for (int64_t curvatureIdx = 0; curvatureIdx < NumCurvaturePerCurve; curvatureIdx++)
-                    {
-                        perThreadCurveCurvatures[NumCurvaturePerCurve * threadIdx + curvatureIdx] = initialCurveCurvatures[curvatureIdx];
-                    }
+                // Copy Curvatures
+                for (int64_t curvatureIdx = 0; curvatureIdx < NumCurvaturePerCurve;
+                      curvatureIdx++) {
+                    perThreadCurveCurvatures[NumCurvaturePerCurve * threadIdx + curvatureIdx]
+                          = initialCurveCurvatures[curvatureIdx];
                 }
             }
+        }
 
-            numPathsGenerated += NumPathsPerThread * numPerturbThreads;
+        numPathsGenerated += NumPathsPerThread * numPerturbThreads;
 
-            auto perturbTimeStart = std::chrono::high_resolution_clock::now();
+        auto perturbTimeStart = std::chrono::high_resolution_clock::now();
 
-            //std::cout << "Paths in dispatch " << dispatchIdx << ": " << maxPathsPerDispatch << std::endl;
+        //std::cout << "Paths in dispatch " << dispatchIdx << ": " << maxPathsPerDispatch << std::endl;
 
 
-            std::vector<double> finalThreadWeights(numPerturbThreads);
-            std::vector<double> finalThreadDifferences(numPerturbThreads);
-            {
-                std::vector<std::thread> threads(numPerturbThreads);
+        std::vector<double> finalThreadWeights(numPerturbThreads);
+        std::vector<double> finalThreadDifferences(numPerturbThreads);
+        {
+            std::vector<std::thread> threads(numPerturbThreads);
 
-                for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx)
-                {
-                    std::thread newThread(&FullExperimentRunnerOldMethodBridge::LogWeightThreadFunction, this,
-                        threadIdx,
-                        dispatchIdx,
-                        numPerturbThreads,
-                        m_experimentParams.numPathsInExperiment,
-                        NumPathsPerThread,
-                        m_experimentParams.numPathsToSkip,
-                        m_experimentParams.numSegmentsPerCurve,
-                        std::ref(perThreadRngGenerators),
-                        std::ref(perThreadCurvePositions),
-                        std::ref(perThreadCurveTangents),
-                        std::ref(perThreadCurveCurvatures),
-                        std::ref(cachedSegmentWeights),
-                        std::ref(finalThreadWeights),
-                        std::ref(finalThreadDifferences),
-                        m_upInitialCurve->m_segmentLength,
-                        m_experimentParams.weightingParameters.scatter,
-                        m_experimentParams.weightingParameters.absorbtion,
-                        std::ref(lookupEvaluator.AccessLookupTable()),
-                        minCurvature,
-                        maxCurvature,
-                        curvatureStepSize,
-                        pathToRawBinary,
-                        std::ref(cachedWeights)
-                    );
+            for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx) {
+                std::thread newThread(&FullExperimentRunnerOldMethodBridge::LogWeightThreadFunction,
+                      this, threadIdx, dispatchIdx, numPerturbThreads,
+                      m_experimentParams.numPathsInExperiment, NumPathsPerThread,
+                      m_experimentParams.numPathsToSkip, m_experimentParams.numSegmentsPerCurve,
+                      std::ref(perThreadRngGenerators), std::ref(perThreadCurvePositions),
+                      std::ref(perThreadCurveTangents), std::ref(perThreadCurveCurvatures),
+                      std::ref(cachedSegmentWeights), std::ref(finalThreadWeights),
+                      std::ref(finalThreadDifferences), m_upInitialCurve->m_segmentLength,
+                      m_experimentParams.weightingParameters.scatter,
+                      m_experimentParams.weightingParameters.absorbtion,
+                      std::ref(lookupEvaluator.AccessLookupTable()), minCurvature, maxCurvature,
+                      curvatureStepSize, pathToRawBinary, std::ref(cachedWeights));
 
-                    threads[threadIdx] = std::move(newThread);
-                }
-
-                for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx)
-                {
-                    if (threads[threadIdx].joinable())
-                    {
-                        threads[threadIdx].join();
-                    }
-                }
+                threads[threadIdx] = std::move(newThread);
             }
 
-            auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
-            perturbTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(perturbTimeEnd - perturbTimeStart).count();
+            for (int64_t threadIdx = 0; threadIdx < numPerturbThreads; ++threadIdx) {
+                if (threads[threadIdx].joinable()) {
+                    threads[threadIdx].join();
+                }
+            }
+        }
 
-            // -------------------
-             auto weightingTimeStart = std::chrono::high_resolution_clock::now();
+        auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
+        perturbTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(
+              perturbTimeEnd - perturbTimeStart)
+                                  .count();
 
-            boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
+        // -------------------
+        auto weightingTimeStart = std::chrono::high_resolution_clock::now();
+
+        boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
+        {
+            //std::cout << "\n\nBatch recombination section: " << std::endl;
+
+            //for (int64_t i = 0; i < numPerturbThreads; ++i)
+            //{
+            //    std::cout << "Weight: " << finalThreadWeights[i] << " - Difference: " << finalThreadDifferences[i] << std::endl;
+            //}
+
+
+            // We do the recombination of batches here
+            // This is what we shift by for batch recombination stuff
+            const double MaxBatchConstant = std::log10(numPerturbThreads);
+
+            double maxBatchUnshiftedTotalLog10
+                  = std::log10(finalThreadWeights[0]) - finalThreadDifferences[0];
+            double actingDifference
+                  = MaxDoubleLog10 - (maxBatchUnshiftedTotalLog10 + MaxBatchConstant);
+            double runningBatchTotal
+                  = std::pow(10.0, (maxBatchUnshiftedTotalLog10 + actingDifference));
             {
-                //std::cout << "\n\nBatch recombination section: " << std::endl;
+                boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal
+                      = runningBatchTotal;
+            }
 
-                //for (int64_t i = 0; i < numPerturbThreads; ++i)
+            for (int64_t batchIdx = 1; batchIdx < numPerturbThreads; ++batchIdx) {
+                double currentShiftedBatchWeightLog10 = std::log10(finalThreadWeights[batchIdx]);
+                double currentUnshiftedBatchWeightLog10
+                      = currentShiftedBatchWeightLog10 - finalThreadDifferences[batchIdx];
+                // If this checks out, we have the same maximum and thus can just adjust things up
+                // TODO: Make this equal
+                if (maxBatchUnshiftedTotalLog10 >= currentUnshiftedBatchWeightLog10) {
+                    runningBatchTotal
+                          += std::pow(10, (currentUnshiftedBatchWeightLog10 + actingDifference));
+                    {
+                        boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal
+                              = runningBatchTotal;
+                    }
+
+                    continue;
+                }
+
+
+                // If we are past, then we have a new maximum and need to adjust
+                // New difference
+
+                double adjustedLog10RunningTotal = std::log10(runningBatchTotal) - actingDifference;
+                actingDifference
+                      = MaxDoubleLog10 - (currentUnshiftedBatchWeightLog10 + MaxBatchConstant);
+                runningBatchTotal = std::pow(10.0, (adjustedLog10RunningTotal + actingDifference));
+
+                // Update
+                maxBatchUnshiftedTotalLog10 = currentUnshiftedBatchWeightLog10;
+
+                runningBatchTotal += std::pow(10, (maxBatchUnshiftedTotalLog10 + actingDifference));
+
                 //{
-                //    std::cout << "Weight: " << finalThreadWeights[i] << " - Difference: " << finalThreadDifferences[i] << std::endl;
+                //    // Convert combined batch total into big float and decompress
+                //    boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal = runningBatchTotal;
+                //    boost::multiprecision::cpp_dec_float_100 temp = boost::multiprecision::pow(10.0, (boost::multiprecision::log10(bigFloatRunningBatchTotal) - actingDifference));
+
+                //    // Full path normalization term
+                //    // Hardcoded value from Jerry analysis.
+                //    boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
+                //    boost::multiprecision::cpp_dec_float_100 segmentNormalizer = 1.0;
+                //    for (int64_t segIdx = 0; segIdx < (m_experimentParams.numSegmentsPerCurve - 1); ++segIdx)
+                //    {
+                //        segmentNormalizer = segmentNormalizer * singleSegmentNormalizer;
+                //    }
+
+                //    boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
+                //    pathNormalizer = pathNormalizer * boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(static_cast<float>(m_experimentParams.numSegmentsPerCurve) / m_upInitialCurve->m_arclength), 3.0);
+                //    pathNormalizer = pathNormalizer * segmentNormalizer;
+                //    pathNormalizer = pathNormalizer * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
+
+                //    temp *= pathNormalizer;
+                //    std::cout << "Weight: " << temp << std::endl;
                 //}
+            }
 
+            // Convert combined batch total into big float and decompress
+            boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal = runningBatchTotal;
+            totalDispatchWeight = boost::multiprecision::pow(10.0,
+                  (boost::multiprecision::log10(bigFloatRunningBatchTotal) - actingDifference));
 
-                // We do the recombination of batches here
-                // This is what we shift by for batch recombination stuff
-                const double MaxBatchConstant = std::log10(numPerturbThreads);
+            // Full path normalization term
+            // Hardcoded value from Jerry analysis.
+            boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi
+                  * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
+            boost::multiprecision::cpp_dec_float_100 segmentNormalizer = 1.0;
+            for (int64_t segIdx = 0; segIdx < (m_experimentParams.numSegmentsPerCurve - 1);
+                  ++segIdx) {
+                segmentNormalizer = segmentNormalizer * singleSegmentNormalizer;
+            }
 
-                double maxBatchUnshiftedTotalLog10 = std::log10(finalThreadWeights[0]) - finalThreadDifferences[0];
-                double actingDifference = MaxDoubleLog10 - (maxBatchUnshiftedTotalLog10 + MaxBatchConstant);
-                double runningBatchTotal = std::pow(10.0, (maxBatchUnshiftedTotalLog10 + actingDifference));
-                {
-                    boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal = runningBatchTotal;
-                }
+            boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
+            pathNormalizer = pathNormalizer
+                  * boost::multiprecision::pow(
+                        boost::multiprecision::cpp_dec_float_100(
+                              static_cast<float>(m_experimentParams.numSegmentsPerCurve)
+                              / m_upInitialCurve->m_arclength),
+                        3.0);
+            pathNormalizer = pathNormalizer * segmentNormalizer;
+            pathNormalizer = pathNormalizer
+                  * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
 
-                for (int64_t batchIdx = 1; batchIdx < numPerturbThreads; ++batchIdx)
-                {
-                    double currentShiftedBatchWeightLog10 = std::log10(finalThreadWeights[batchIdx]);
-                    double currentUnshiftedBatchWeightLog10 = currentShiftedBatchWeightLog10 - finalThreadDifferences[batchIdx];
-                    // If this checks out, we have the same maximum and thus can just adjust things up
-                    // TODO: Make this equal
-                    if (maxBatchUnshiftedTotalLog10 >= currentUnshiftedBatchWeightLog10)
-                    {
-                        runningBatchTotal += std::pow(10, (currentUnshiftedBatchWeightLog10 + actingDifference));
-                        {
-                            boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal = runningBatchTotal;
-                        }
-
-                        continue;
-                    }
-
-
-                    // If we are past, then we have a new maximum and need to adjust
-                    // New difference
-
-                    double adjustedLog10RunningTotal = std::log10(runningBatchTotal) - actingDifference;
-                    actingDifference = MaxDoubleLog10 - (currentUnshiftedBatchWeightLog10 + MaxBatchConstant);
-                    runningBatchTotal = std::pow(10.0, (adjustedLog10RunningTotal + actingDifference));
-
-                    // Update
-                    maxBatchUnshiftedTotalLog10 = currentUnshiftedBatchWeightLog10;
-
-                    runningBatchTotal += std::pow(10, (maxBatchUnshiftedTotalLog10 + actingDifference));
-
-                    //{
-                    //    // Convert combined batch total into big float and decompress
-                    //    boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal = runningBatchTotal;
-                    //    boost::multiprecision::cpp_dec_float_100 temp = boost::multiprecision::pow(10.0, (boost::multiprecision::log10(bigFloatRunningBatchTotal) - actingDifference));
-
-                    //    // Full path normalization term
-                    //    // Hardcoded value from Jerry analysis.
-                    //    boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
-                    //    boost::multiprecision::cpp_dec_float_100 segmentNormalizer = 1.0;
-                    //    for (int64_t segIdx = 0; segIdx < (m_experimentParams.numSegmentsPerCurve - 1); ++segIdx)
-                    //    {
-                    //        segmentNormalizer = segmentNormalizer * singleSegmentNormalizer;
-                    //    }
-
-                    //    boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
-                    //    pathNormalizer = pathNormalizer * boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(static_cast<float>(m_experimentParams.numSegmentsPerCurve) / m_upInitialCurve->m_arclength), 3.0);
-                    //    pathNormalizer = pathNormalizer * segmentNormalizer;
-                    //    pathNormalizer = pathNormalizer * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
-
-                    //    temp *= pathNormalizer;
-                    //    std::cout << "Weight: " << temp << std::endl;
-                    //}
-                }
-                
-                // Convert combined batch total into big float and decompress
-                boost::multiprecision::cpp_dec_float_100 bigFloatRunningBatchTotal = runningBatchTotal;
-                totalDispatchWeight = boost::multiprecision::pow(10.0, (boost::multiprecision::log10(bigFloatRunningBatchTotal) - actingDifference));
-
-                // Full path normalization term
-                // Hardcoded value from Jerry analysis.
-                boost::multiprecision::cpp_dec_float_100 singleSegmentNormalizer = 2.0 * TwistyPi * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(0.625));
-                boost::multiprecision::cpp_dec_float_100 segmentNormalizer = 1.0;
-                for (int64_t segIdx = 0; segIdx < (m_experimentParams.numSegmentsPerCurve - 1); ++segIdx)
-                {
-                    segmentNormalizer = segmentNormalizer * singleSegmentNormalizer;
-                }
-
-                boost::multiprecision::cpp_dec_float_100 pathNormalizer = 1.0;
-                pathNormalizer = pathNormalizer * boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(static_cast<float>(m_experimentParams.numSegmentsPerCurve) / m_upInitialCurve->m_arclength), 3.0);
-                pathNormalizer = pathNormalizer * segmentNormalizer;
-                pathNormalizer = pathNormalizer * boost::multiprecision::exp(boost::multiprecision::cpp_dec_float_100(-0.325));
-                
-                totalDispatchWeight *= pathNormalizer;
+            totalDispatchWeight *= pathNormalizer;
 
 
 #if defined(DetailedPurturb)
-                {
-                    std::cout << "Thread weights: " << std::endl;
-                    for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx)
-                    {
-                        std::cout << threadWeights[threadIdx] << std::endl;
-                    }
+            {
+                std::cout << "Thread weights: " << std::endl;
+                for (int64_t threadIdx = 0; threadIdx < numWeightingThreads; ++threadIdx) {
+                    std::cout << threadWeights[threadIdx] << std::endl;
                 }
-#endif
             }
+#endif
+        }
 
-            bigTotalExperimentWeight += totalDispatchWeight;
-            std::cout << "Weight: " << bigTotalExperimentWeight << std::endl;
+        bigTotalExperimentWeight += totalDispatchWeight;
+        std::cout << "Weight: " << bigTotalExperimentWeight << std::endl;
 
-            auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
-            weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(weightingTimeEnd - weightingTimeStart).count();
-            /* --------------------- */
+        auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
+        weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(
+              weightingTimeEnd - weightingTimeStart)
+                                     .count();
+        /* --------------------- */
 
 #ifdef OutputBigFloatPathWeights
 
-            uint32_t numWeights = std::min(numPathsLeft, numPathsGenerated);
-            std::cout << "Writing weights: " << numWeights << std::endl;
+        uint32_t numWeights = std::min(numPathsLeft, numPathsGenerated);
+        std::cout << "Writing weights: " << numWeights << std::endl;
 
-            std::filesystem::path experimentDirectoryPath = m_experimentParams.experimentDirPath;
-            if (!std::filesystem::exists(experimentDirectoryPath))
-            {
-                std::filesystem::create_directories(experimentDirectoryPath);
-            }
+        std::filesystem::path experimentDirectoryPath = m_experimentParams.experimentDirPath;
+        if (!std::filesystem::exists(experimentDirectoryPath)) {
+            std::filesystem::create_directories(experimentDirectoryPath);
+        }
 
-            std::string log10WeightOutputFile = "PathWeightsLog10.txt";
-            experimentDirectoryPath.append(log10WeightOutputFile);
+        std::string log10WeightOutputFile = "PathWeightsLog10.txt";
+        experimentDirectoryPath.append(log10WeightOutputFile);
 
-            std::ofstream weightOFS;
-            if (dispatchIdx == 0)
-            {
-                weightOFS.open(experimentDirectoryPath.c_str());
-                weightOFS << m_experimentParams.numPathsInExperiment << std::endl;
-            }
-            else
-            {
-                weightOFS.open(experimentDirectoryPath.c_str(), std::ios::app);
-            }
-            
-            for (int64_t i = 0; i < numWeights; ++i)
-            {
-                weightOFS << cachedWeights[i] << std::endl;
-            }
+        std::ofstream weightOFS;
+        if (dispatchIdx == 0) {
+            weightOFS.open(experimentDirectoryPath.c_str());
+            weightOFS << m_experimentParams.numPathsInExperiment << std::endl;
+        } else {
+            weightOFS.open(experimentDirectoryPath.c_str(), std::ios::app);
+        }
+
+        for (int64_t i = 0; i < numWeights; ++i) {
+            weightOFS << cachedWeights[i] << std::endl;
+        }
 #endif
 
-            numPathsLeft -= numPathsGenerated;
-        }
+        numPathsLeft -= numPathsGenerated;
+    }
 
-        auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
+    auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
 
-        std::cout << "Experiment Time Reporting: " << std::endl;
-        auto runExperimentTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(runExperimentTimeEnd - runExperimentTimeStart);
-        std::cout << "\tTotal Experiment Time: " << runExperimentTimeMs.count() << "ms" << std::endl;
+    std::cout << "Experiment Time Reporting: " << std::endl;
+    auto runExperimentTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+          runExperimentTimeEnd - runExperimentTimeStart);
+    std::cout << "\tTotal Experiment Time: " << runExperimentTimeMs.count() << "ms" << std::endl;
 
-        {
-            auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
-            std::cout << "\tsetup Time: " << timeMs.count() << "ms - " << ((float)timeMs.count() / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
+    {
+        auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+              setupTimeEnd - setupTimeStart);
+        std::cout << "\tsetup Time: " << timeMs.count() << "ms - "
+                  << ((float)timeMs.count() / (float)runExperimentTimeMs.count()) * 100.0f << "%"
+                  << std::endl;
+    }
 
-        {
-            std::cout << "\tperturb Time: " << perturbTimeCount << "ms - " << ((float)perturbTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
+    {
+        std::cout << "\tperturb Time: " << perturbTimeCount << "ms - "
+                  << ((float)perturbTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%"
+                  << std::endl;
+    }
 
-        {
-            std::cout << "\tweighting Time: " << weightCalcTimeCount << "ms - " << ((float)weightCalcTimeCount / (float)runExperimentTimeMs.count()) * 100.0f << "%" << std::endl;
-        }
+    {
+        std::cout << "\tweighting Time: " << weightCalcTimeCount << "ms - "
+                  << ((float)weightCalcTimeCount / (float)runExperimentTimeMs.count()) * 100.0f
+                  << "%" << std::endl;
+    }
 
 #if defined(ExportPathBatches)
-        {
+    {
         EndPathBatchOutput();
 
         curvesBinaryFile.close();
         curvesMetadataFile.close();
-        }
+    }
 #endif
 
-        ExperimentResults results;
-        results.experimentWeight = bigTotalExperimentWeight;
-        results.totalPathsGenerated = numPathsGenerated;
-        results.numFailedPaths = 0;
-        return results;
-    }
+    ExperimentResults results;
+    results.experimentWeight = bigTotalExperimentWeight;
+    results.totalPathsGenerated = numPathsGenerated;
+    results.numFailedPaths = 0;
+    return results;
+}
 
-    void FullExperimentRunnerOldMethodBridge::Shutdown()
-    {
-    }
+void FullExperimentRunnerOldMethodBridge::Shutdown() { }
 }

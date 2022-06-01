@@ -40,8 +40,7 @@ std::filesystem::path GetExperimentDirectory(const std::string experimentDirecto
 
 int main(int argc, char *argv[])
 {
-    if (argc < 3)
-    {
+    if (argc < 3) {
         fmt::print("Call as: {} NumSegments CurveCacheSize\n", argv[0]);
         return 1;
     }
@@ -55,18 +54,18 @@ int main(int argc, char *argv[])
     PathPerturbViewerWidget PathPerturbViewerWidget;
     mainWindow.setCentralWidget(&PathPerturbViewerWidget);
 
-    RunningCurveViewer* pRunningCurveViewer = PathPerturbViewerWidget.GetRunningCurveViewerWidget();
+    RunningCurveViewer *pRunningCurveViewer = PathPerturbViewerWidget.GetRunningCurveViewerWidget();
 
     const uint32_t numSegments = atoi(argv[1]);
     const uint32_t curveCacheSize = atoi(argv[2]);
-    
+
     const twisty::Range defaultBounds = { -1.0f, 1.0f };
-    const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
+    const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
     const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
     twisty::RayGeometry rayEmitter(emitterStart, emitterDir);
 
-    const Farlor::Vector3 recieverPos{ 10.0f, 0.0f, 0.0f };
-    const Farlor::Vector3 recieverDir{ 1.0, 0.0f, 0.0f };
+    const Farlor::Vector3 recieverPos { 10.0f, 0.0f, 0.0f };
+    const Farlor::Vector3 recieverDir { 1.0, 0.0f, 0.0f };
 
     twisty::RayGeometry rayReciever(recieverPos, recieverDir);
 
@@ -84,7 +83,6 @@ int main(int argc, char *argv[])
     experimentParams.exportGeneratedCurves = true;
     experimentParams.experimentName = "PurturbViewer";
     experimentParams.numSegmentsPerCurve = numSegments;
-    experimentParams.maximumBootstrapCurveError = 0.5f;
     experimentParams.curvePurturbSeed = 0;
 
     std::unique_ptr<twisty::Curve> upInitialCurve = bootstrapper.CreateCurve(numSegments);

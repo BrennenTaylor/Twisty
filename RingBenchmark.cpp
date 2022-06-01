@@ -112,7 +112,6 @@ int main(int argc, char *argv[])
         experimentParams.experimentName = experimentName;
         experimentParams.experimentDirPath = experimentDirPath;
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
-        experimentParams.maximumBootstrapCurveError = 0.5f;
         experimentParams.bootstrapSeed = bootstrapperSeed;
         experimentParams.curvePurturbSeed = perturbSeed;
         experimentParams.rotateInitialSeedCurveRadians = 0.0f;

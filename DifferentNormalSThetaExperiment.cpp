@@ -17,9 +17,12 @@ using namespace twisty;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 13)
-    {
-        std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentDir numSegments targetArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed perturbSeed" << std::endl;
+    if (argc < 13) {
+        std::cout << "Call as: " << argv[0]
+                  << " numPathsToGenerate numPathsToSkip experimentName experimentDir numSegments "
+                     "targetArclength minDegree maxDegree numDegreeSteps useGpu bootstrapperSeed "
+                     "perturbSeed"
+                  << std::endl;
         return 1;
     }
 
@@ -45,21 +48,21 @@ int main(int argc, char *argv[])
     std::cout << "\tPerturb Seed: " << perturbSeed << std::endl;
 
     // Currently this is a hardcoded position and direction
-    const Farlor::Vector3 emitterStart{0.0f, 0.0f, 0.0f};
+    const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
     const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
     RayGeometry rayEmitter(emitterStart, emitterDir);
 
-    const Farlor::Vector3 recieverPos{10.0f, 0.0f, 0.0f};
+    const Farlor::Vector3 recieverPos { 10.0f, 0.0f, 0.0f };
 
     // The reciever direction will change based on the parameters passed in
     // We are running a bunch of differnet ones
     const float degreeStepSize = (maxDegree - minDegree) / (numDegreeSteps - 1);
-    for (uint32_t degreeIdx = 0; degreeIdx < numDegreeSteps; degreeIdx++)
-    {
+    for (uint32_t degreeIdx = 0; degreeIdx < numDegreeSteps; degreeIdx++) {
         const float currentAngleDegree = minDegree + degreeStepSize * degreeIdx;
         const float currentAngleRads = currentAngleDegree * toRadians;
 
-        const Farlor::Vector3 recieverDir{std::cos(currentAngleRads), std::sin(currentAngleRads), 0.0f};
+        const Farlor::Vector3 recieverDir { std::cos(currentAngleRads), std::sin(currentAngleRads),
+            0.0f };
 
         RayGeometry rayReciever(recieverPos, recieverDir);
 
@@ -79,7 +82,6 @@ int main(int argc, char *argv[])
         experimentParams.experimentName = experimentName;
         experimentParams.experimentDirPath = experimentDirSS.str();
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
-        experimentParams.maximumBootstrapCurveError = 0.5f;
         experimentParams.bootstrapSeed = bootstrapperSeed;
         experimentParams.curvePurturbSeed = perturbSeed;
         experimentParams.rotateInitialSeedCurveRadians = 0.0f;
@@ -88,7 +90,8 @@ int main(int argc, char *argv[])
         experimentParams.weightingParameters.eps = 0.1;
         experimentParams.weightingParameters.numStepsInt = 2000;
         experimentParams.weightingParameters.minBound = 0.0;
-        experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
+        experimentParams.weightingParameters.maxBound
+              = 10.0 / experimentParams.weightingParameters.eps;
         experimentParams.weightingParameters.numCurvatureSteps = 10000;
         // Lets give some absorbtion as well
         // Absorbtion 1/20 off the time
@@ -102,8 +105,7 @@ int main(int argc, char *argv[])
         upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
 
         bool result = upExperimentRunner->Setup();
-        if (!result)
-        {
+        if (!result) {
             upExperimentRunner->Shutdown();
             std::cout << "Failed to setup experiment runner." << std::endl;
             return 1;
@@ -117,7 +119,8 @@ int main(int argc, char *argv[])
 
         std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
         std::cout << "Total experiment weight: " << results.experimentWeight << std::endl;
-        std::cout << "Avg path weight: " << results.experimentWeight / results.totalPathsGenerated << std::endl;
+        std::cout << "Avg path weight: " << results.experimentWeight / results.totalPathsGenerated
+                  << std::endl;
 
         // Retrieve Data we want from experiment
         upExperimentRunner->Shutdown();

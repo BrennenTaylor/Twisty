@@ -21,7 +21,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     twisty::ExperimentRunner::ExperimentParameters experimentParams;
 
     // Hardcoded values
-    experimentParams.maximumBootstrapCurveError = 0.5f;
     experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
     // Values loaded from the config file

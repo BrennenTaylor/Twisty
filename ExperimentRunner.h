@@ -43,7 +43,6 @@ class ExperimentRunner {
         std::string experimentDirPath = "./Default_Experiment/";
         std::string perExperimentDirSubfolder = "";
         std::string pathBatchPrepend = "";
-        float maximumBootstrapCurveError = 0.1f;
         uint32_t bootstrapSeed = 0;
         uint32_t curvePurturbSeed = 0;
         twisty::WeightingParameters weightingParameters;
@@ -107,6 +106,5 @@ class ExperimentRunner {
 
    private:
     nlohmann::json m_pathBatchJsonIndex;
-    // rapidjson::Value m_pathBatchLinks;
 };
 }

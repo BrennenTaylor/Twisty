@@ -22,9 +22,12 @@ using namespace twisty;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 12)
-    {
-        std::cout << "Call as: " << argv[0] << " numPathsToGenerate numPathsToSkip experimentName experimentPath numSegments targetArclength runnerVersion numInitialCurves numRunsPerInitialCurve bootstrapperSeed perturbSeed" << std::endl;
+    if (argc < 12) {
+        std::cout << "Call as: " << argv[0]
+                  << " numPathsToGenerate numPathsToSkip experimentName experimentPath numSegments "
+                     "targetArclength runnerVersion numInitialCurves numRunsPerInitialCurve "
+                     "bootstrapperSeed perturbSeed"
+                  << std::endl;
         return 1;
     }
 
@@ -45,42 +48,38 @@ int main(int argc, char *argv[])
     std::cout << "\tExperiment name: " << experimentName << std::endl;
     std::cout << "\tBootstrapper Seed: " << bootstrapperSeed << std::endl;
     std::cout << "\tPerturb Seed: " << perturbSeed << std::endl;
-    
-    
+
+
     std::vector<boost::multiprecision::cpp_dec_float_100> initialCurveWeights(numInitialCurves);
 
 
     boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
 
     std::mt19937 initialCurveGen(bootstrapperSeed);
-    for (uint32_t initialCurveIdx = 0; initialCurveIdx < numInitialCurves; ++initialCurveIdx)
-    {
-
+    for (uint32_t initialCurveIdx = 0; initialCurveIdx < numInitialCurves; ++initialCurveIdx) {
         int initialCurveSeed = initialCurveGen();
-        while (initialCurveSeed == 0)
-        {
+        while (initialCurveSeed == 0) {
             initialCurveSeed = initialCurveGen();
         }
 
         boost::multiprecision::cpp_dec_float_100 maxResult = 0.0;
 
         std::mt19937 perCurveGen(perturbSeed);
-        for (uint32_t perInitialCurveIdx = 0; perInitialCurveIdx < numRunsPerInitialCurve; ++perInitialCurveIdx)
-        {
+        for (uint32_t perInitialCurveIdx = 0; perInitialCurveIdx < numRunsPerInitialCurve;
+              ++perInitialCurveIdx) {
             int perCurveSeed = perCurveGen();
-            while (perCurveSeed == 0)
-            {
+            while (perCurveSeed == 0) {
                 perCurveSeed = perCurveGen();
             }
 
 
             // Bootstrap method
-            const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
+            const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
             const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
             RayGeometry rayEmitter(emitterStart, emitterDir);
 
-            const Farlor::Vector3 recieverPos{ 10.0f, 0.0f, 0.0f };
-            const Farlor::Vector3 recieverDir{ 1.0, 0.0f, 0.0f };
+            const Farlor::Vector3 recieverPos { 10.0f, 0.0f, 0.0f };
+            const Farlor::Vector3 recieverDir { 1.0, 0.0f, 0.0f };
 
             RayGeometry rayReciever(recieverPos, recieverDir);
 
@@ -96,7 +95,6 @@ int main(int argc, char *argv[])
             experimentParams.experimentName = experimentName;
             experimentParams.experimentDirPath = experimentDirPath;
             experimentParams.numSegmentsPerCurve = numExperimentSegments;
-            experimentParams.maximumBootstrapCurveError = 0.5f;
             experimentParams.bootstrapSeed = initialCurveSeed;
             experimentParams.curvePurturbSeed = perCurveSeed;
             experimentParams.rotateInitialSeedCurveRadians = 0.0f;
@@ -105,7 +103,8 @@ int main(int argc, char *argv[])
             experimentParams.weightingParameters.eps = 0.1;
             experimentParams.weightingParameters.numStepsInt = 2000;
             experimentParams.weightingParameters.minBound = 0.0;
-            experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
+            experimentParams.weightingParameters.maxBound
+                  = 10.0 / experimentParams.weightingParameters.eps;
             experimentParams.weightingParameters.numCurvatureSteps = 10000;
             // Lets give some absorbtion as well
             // Absorbtion 1/20 off the time
@@ -119,58 +118,62 @@ int main(int argc, char *argv[])
             std::cout << "Runner version: " << runnerVersion << std::endl;
             std::cout << "Seeds: " << initialCurveSeed << ", " << perCurveSeed << std::endl;
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32)
-            switch (runnerVersion)
-            {
-            case 0:
-            {
-                std::cout << "\tSelected Runner Method: FullExperimentRunner" << std::endl;
-                upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
-            } break;
-            case 1:
-            {
-                std::cout << "\tSelected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
-                upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(experimentParams, bootstrapper);
-            } break;
-            case 2:
-            {
-                std::cout << "\tSelected Runner Method: FullExperimentRunnerOptimalPerturbOptimized" << std::endl;
-                upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized>(experimentParams, bootstrapper, 1, 1);
-            } break;
-            default:
-            {
-                std::cout << "Invalid experiment runner method selected" << std::endl;
-                exit(1);
-            }
+            switch (runnerVersion) {
+                case 0: {
+                    std::cout << "\tSelected Runner Method: FullExperimentRunner" << std::endl;
+                    upExperimentRunner
+                          = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
+                } break;
+                case 1: {
+                    std::cout << "\tSelected Runner Method: FullExperimentRunnerOptimalPerturb"
+                              << std::endl;
+                    upExperimentRunner = std::make_unique<FullExperimentRunnerOptimalPerturb>(
+                          experimentParams, bootstrapper);
+                } break;
+                case 2: {
+                    std::cout
+                          << "\tSelected Runner Method: FullExperimentRunnerOptimalPerturbOptimized"
+                          << std::endl;
+                    upExperimentRunner
+                          = std::make_unique<FullExperimentRunnerOptimalPerturbOptimized>(
+                                experimentParams, bootstrapper, 1, 1);
+                } break;
+                default: {
+                    std::cout << "Invalid experiment runner method selected" << std::endl;
+                    exit(1);
+                }
             }
 #else
-            upExperimentRunner = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
+            upExperimentRunner
+                  = std::make_unique<FullExperimentRunner>(experimentParams, bootstrapper);
 #endif
 
             bool result = upExperimentRunner->Setup();
-            if (!result)
-            {
+            if (!result) {
                 upExperimentRunner->Shutdown();
                 std::cout << "Failed to setup experiment runner." << std::endl;
                 return 1;
             }
 
             auto start = std::chrono::high_resolution_clock::now();
-            twisty::ExperimentRunner::ExperimentResults results = upExperimentRunner->RunExperiment();
+            twisty::ExperimentRunner::ExperimentResults results
+                  = upExperimentRunner->RunExperiment();
             auto end = std::chrono::high_resolution_clock::now();
-            auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            auto timeMs
+                  = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
             auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
 
             std::cout << "\tPaths Generated: " << results.totalPathsGenerated << std::endl;
             std::cout << "\tTotal experiment weight: " << results.experimentWeight << std::endl;
-            std::cout << "\tAvg path weight: " << results.experimentWeight / results.totalPathsGenerated << std::endl;
+            std::cout << "\tAvg path weight: "
+                      << results.experimentWeight / results.totalPathsGenerated << std::endl;
 
             // Retrieve Data we want from experiment
             upExperimentRunner->Shutdown();
             upExperimentRunner.reset(nullptr);
 
 
-            if (results.experimentWeight > maxResult)
-            {
+            if (results.experimentWeight > maxResult) {
                 maxResult = results.experimentWeight;
             }
         }
@@ -180,10 +183,9 @@ int main(int argc, char *argv[])
     }
 
     std::cout << "IC Average Result: " << averagedResult << std::endl;
-    
+
     boost::multiprecision::cpp_dec_float_100 icVar = 0.0;
-    for (auto& value : initialCurveWeights)
-    {
+    for (auto &value : initialCurveWeights) {
         icVar += boost::multiprecision::pow((value - averagedResult), 2.0);
     }
     icVar /= (initialCurveWeights.size() - 1);

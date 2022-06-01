@@ -5,6 +5,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 
 namespace twisty {
 ExperimentRunner::ExperimentRunner(
@@ -36,8 +37,8 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
     m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(
           m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
     if (!m_upInitialCurve) {
-        printf("Both bootstrap versions failed, now we have to error out.\n");
-        return {};
+        printf("Curve bootstrapping failed.\n");
+        throw std::runtime_error("Failed to generate bootstrap curve");
     }
 
     if (m_experimentParams.outputPathBatches) {
