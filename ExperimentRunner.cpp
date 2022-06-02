@@ -3,9 +3,11 @@
 #include "Curve.h"
 #include "nlohmann/json.hpp"
 
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+#include <chrono>
 
 namespace twisty {
 
@@ -25,6 +27,23 @@ std::string format_duration(std::chrono::milliseconds ms)
     return ss.str();
 }
 
+std::string GetCurrentTimeForFileName()
+{
+    auto time = std::time(nullptr);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&time), "%F_%T");  // ISO 8601 without timezone information.
+    auto s = ss.str();
+    std::replace(s.begin(), s.end(), ':', '-');
+    return s;
+}
+
+void ProcessRandomSeed(uint32_t &seed)
+{
+    if (seed == 0) {
+        seed = static_cast<uint32_t>(time(0));
+    }
+    return;
+}
 
 ExperimentRunner::ExperimentRunner(
       ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
@@ -34,7 +53,10 @@ ExperimentRunner::ExperimentRunner(
     , m_exportPathBatchesMutex()
     , m_pathBatchJsonIndex()
 {
-    m_experimentDirPath = m_experimentParams.experimentDirPath;
+    m_experimentDirPath = std::filesystem::path(m_experimentParams.experimentDirPath);
+    if (!experimentParams.perExperimentDirSubfolder.empty()) {
+        m_experimentDirPath /= experimentParams.perExperimentDirSubfolder;
+    }
     if (!std::filesystem::exists(m_experimentDirPath)) {
         std::filesystem::create_directories(m_experimentDirPath);
     }
@@ -211,8 +233,7 @@ void ExperimentRunner::EndPathBatchOutput()
 void ExperimentRunner::StartWeightConvergenceWrite()
 {
     std::filesystem::path convergenceWeightsPath = m_experimentDirPath;
-    convergenceWeightsPath /= m_experimentParams.perExperimentDirSubfolder;
-    convergenceWeightsPath /= "ConvergenceWeights";
+    convergenceWeightsPath /= "ConvergenceWeights/";
     if (!std::filesystem::exists(convergenceWeightsPath)) {
         std::filesystem::create_directories(convergenceWeightsPath);
     }

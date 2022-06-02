@@ -38,7 +38,7 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.experimentDirPath
           = experimentConfig["experiment"]["experimentParams"]["experimentDir"];
     experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-
+    experimentParams.experimentDirPath += +"/" + twisty::GetCurrentTimeForFileName() + "/";
 
     experimentParams.maxPerturbThreads
           = experimentConfig["experiment"]["experimentParams"]["maxPerturbThreads"];
@@ -60,12 +60,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.curvePurturbSeed
           = experimentConfig["experiment"]["experimentParams"]["random"]["perturbSeed"];
 
-    if (experimentParams.bootstrapSeed == 0) {
-        experimentParams.bootstrapSeed = time(0);
-    }
-    if (experimentParams.curvePurturbSeed == 0) {
-        experimentParams.curvePurturbSeed = time(0);
-    }
+    twisty::ProcessRandomSeed(experimentParams.bootstrapSeed);
+    twisty::ProcessRandomSeed(experimentParams.curvePurturbSeed);
 
     // Weighting parameter stuff
     int weightFunction
@@ -191,10 +187,9 @@ int main(int argc, char *argv[])
     }
 
     // Lets test uniform random directions on sampling hemisphere
-    int targetSeed = experimentConfig["experiment"]["beamSpreadExperiment"]["targetSeed"];
-    if (targetSeed == 0) {
-        targetSeed = time(0);
-    }
+    uint32_t targetSeed = experimentConfig["experiment"]["beamSpreadExperiment"]["targetSeed"];
+    twisty::ProcessRandomSeed(targetSeed);
+
     std::mt19937 randomGenerator(targetSeed);
     std::uniform_real_distribution<float> uniformFloatGen(0.0f, 1.0f);
 
@@ -222,20 +217,20 @@ int main(int argc, char *argv[])
 
         std::mt19937 initialCurveGen(experimentParams.bootstrapSeed);
         for (uint32_t initialCurveIdx = 0; initialCurveIdx < numInitialCurves; ++initialCurveIdx) {
-            int initialCurveSeed = initialCurveGen();
-            while (initialCurveSeed == 0) {
+            uint32_t initialCurveSeed = 0;
+            do {
                 initialCurveSeed = initialCurveGen();
-            }
+            } while (initialCurveSeed == 0);
 
             boost::multiprecision::cpp_dec_float_100 maxResult = 0.0;
 
             std::mt19937 perCurveGen(experimentParams.curvePurturbSeed);
             for (uint32_t perInitialCurveIdx = 0; perInitialCurveIdx < numPerInitialCurve;
                   ++perInitialCurveIdx) {
-                int perCurveSeed = perCurveGen();
-                while (perCurveSeed == 0) {
+                uint32_t perCurveSeed = 0;
+                do {
                     perCurveSeed = perCurveGen();
-                }
+                } while (perCurveSeed == 0);
 
                 twisty::PerturbUtils::BoundaryConditions experimentGeometry;
                 experimentGeometry.m_startPos = startPos;

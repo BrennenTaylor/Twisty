@@ -57,7 +57,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
               m_experimentParams.weightingParameters, m_upInitialCurve->m_segmentLength);
     }
 
-    lookupEvaluator->ExportValues(m_experimentParams.experimentDirPath);
+    lookupEvaluator->ExportValues(m_experimentDirPath.string());
 
     twisty::PerturbUtils::BoundaryConditions boundaryConditions
           = m_upInitialCurve->GetBoundaryConditions();

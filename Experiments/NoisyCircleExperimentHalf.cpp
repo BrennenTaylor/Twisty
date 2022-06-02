@@ -36,7 +36,7 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.experimentDirPath
           = experimentConfig["experiment"]["experimentParams"]["experimentDir"];
     experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-
+    experimentParams.experimentDirPath += "/" + twisty::GetCurrentTimeForFileName() + "/";
 
     experimentParams.maxPerturbThreads
           = experimentConfig["experiment"]["experimentParams"]["maxPerturbThreads"];
@@ -51,7 +51,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
     experimentParams.numSegmentsPerCurve
           = experimentConfig["experiment"]["experimentParams"]["numSegments"];
-    experimentParams.arclength = experimentConfig["experiment"]["experimentParams"]["arclength"];
 
     // Seeds
     experimentParams.bootstrapSeed
@@ -190,12 +189,6 @@ int main(int argc, char *argv[])
     assert(startX < framePixelCount);
     assert(startY < framePixelCount);
 
-    std::filesystem::path outputDirectoryPath = std::filesystem::current_path();
-    outputDirectoryPath.append(experimentParams.experimentName);
-    if (!std::filesystem::exists(outputDirectoryPath)) {
-        std::filesystem::create_directory(outputDirectoryPath);
-    }
-
 #ifdef ExportGeometryInfo
     std::filesystem::path geometryExportPath = outputDirectoryPath;
     geometryExportPath.append("GeometryData.ffg");
@@ -211,12 +204,12 @@ int main(int argc, char *argv[])
     std::mt19937 normalGenerator(normalGenSeed);
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
     // We have a rotated and non-rotated version to test for initial seed curve impact
-    std::vector<boost::multiprecision::cpp_dec_float_100> nonRotatedPixels(
+    std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(
           framePixelCount * framePixelCount);
     for (uint32_t r = 0; r < framePixelCount; r++) {
         for (uint32_t c = 0; c < framePixelCount; c++) {
             const uint32_t frameIdx = r * framePixelCount + c;
-            nonRotatedPixels[frameIdx] = 0.0;
+            framePixels[frameIdx] = 0.0;
         }
     }
 
@@ -255,27 +248,20 @@ int main(int argc, char *argv[])
                   + Farlor::Vector3(0.0f, (frameLength / framePixelCount) / 2.0f,
                         (frameLength / framePixelCount) / 2.0f);
 
-
-            //for (uint32_t directionIdx = 0; directionIdx < numDirections; ++directionIdx)
             {
-                //float u = uniformFloat(normalGenerator);
-                //float v = uniformFloat(normalGenerator);
-                //const Farlor::Vector3 recieverDir = UniformlySampleHemisphereFacingNegativeX(u, v);
                 const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
 
-                const float minArclength = (recieverPos - emitterStart).Magnitude() * 1.05f;
-                const float maxArclength = (recieverPos - emitterStart).Magnitude() * 1.5f;
+
+                const float minArclength
+                      = twisty::Bootstrapper::CalculateMinimumArclength(
+                              experimentParams.numSegmentsPerCurve, emitterStart, recieverPos)
+                      * 1.1f;
+                const float maxArclength = minArclength * 1.5f;
                 const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
 
                 for (uint32_t arclengthIdx = 0; arclengthIdx < numArclengths; ++arclengthIdx) {
-                    std::stringstream innerBlockSS;
-                    std::cout << "Pixel Idx X: " << pixelIdxX << std::endl;
-                    std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
-                    innerBlockSS << "<" << pixelIdxX << ", " << pixelIdxY
-                                 << /*", " << directionIdx << ", " << arclengthIdx <<*/ ">";
-                    std::cout << innerBlockSS.str() << std::endl;
-
                     double targetArclength = minArclength + arclengthStepSize * arclengthIdx;
+                    experimentParams.arclength = targetArclength;
 
                     boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
 
@@ -306,6 +292,13 @@ int main(int argc, char *argv[])
                             experimentGeometry.arclength = targetArclength;
 
                             twisty::Bootstrapper bootstrapper(experimentGeometry);
+
+                            std::stringstream perExperimentSS;
+                            perExperimentSS << "x_" << pixelIdxX << "_y_" << pixelIdxY << "_a_"
+                                            << arclengthIdx << "_ic_" << initialCurveIdx << "_ci_"
+                                            << perInitialCurveIdx;
+                            experimentParams.perExperimentDirSubfolder = perExperimentSS.str();
+
 
                             std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
 #if defined(USE_CUDA)
@@ -353,37 +346,42 @@ int main(int argc, char *argv[])
                     }
 
                     const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxX;
-                    nonRotatedPixels[frameIdx] += averagedResult * (1.0 / (numArclengths));
+                    framePixels[frameIdx] += averagedResult * (1.0 / (numArclengths));
                 }
             }
 
             const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxX;
-            std::cout << "Non-Rotated Pixel Weight: " << nonRotatedPixels[frameIdx] << std::endl;
+            std::cout << "Non-Rotated Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
+    }
+
+    std::filesystem::path outputDirectoryPath = experimentParams.experimentDirPath;
+    if (!std::filesystem::exists(outputDirectoryPath)) {
+        std::filesystem::create_directory(outputDirectoryPath);
     }
 
     // Export noisy circle pixel data
     {
-        std::filesystem::path noisyCirclePath = outputDirectoryPath;
-        noisyCirclePath.append("noisyCircleNonRotated.dat");
-
-        std::ofstream noisyCircleOutfile(noisyCirclePath.string());
-        if (!noisyCircleOutfile.is_open()) {
-            std::cout << "Failed to create non-rotated noisyCircle outfile" << std::endl;
+        const std::filesystem::path rawDataFilepath
+              = outputDirectoryPath / "noisyCircleNonRotated.dat";
+        std::ofstream rawDataOutfile(rawDataFilepath.string());
+        if (!rawDataOutfile.is_open()) {
+            std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath.string()
+                      << std::endl;
             exit(1);
         }
 
         // X
-        noisyCircleOutfile << framePixelCount << " " << framePixelCount << std::endl;
+        rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
 
         // Write out the pixel data
         for (uint32_t pixelIdxX = 0; pixelIdxX < framePixelCount; ++pixelIdxX) {
             for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
                 // Output pixel
                 const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxX;
-                noisyCircleOutfile << nonRotatedPixels[frameIdx] << " ";
+                rawDataOutfile << framePixels[frameIdx] << " ";
             }
-            noisyCircleOutfile << std::endl;
+            rawDataOutfile << std::endl;
         }
     }
 

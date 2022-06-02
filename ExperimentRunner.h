@@ -24,6 +24,10 @@
 namespace twisty {
 std::string format_duration(std::chrono::milliseconds ms);
 
+std::string GetCurrentTimeForFileName();
+
+void ProcessRandomSeed(uint32_t &seed);
+
 class ExperimentRunner {
    public:
     struct PathBatch {
