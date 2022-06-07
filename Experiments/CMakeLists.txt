@@ -43,18 +43,17 @@ target_link_libraries(BeamSpreadExperiment
     PRIVATE nlohmann_json::nlohmann_json
 )
 
-# add_executable(NoisyCircleExperiment
-#     NoisyCircleExperiment.cpp
-# )
+add_executable(NoisyCircleExperiment
+    NoisyCircleExperiment.cpp
+)
 
-# target_compile_features(NoisyCircleExperiment
-#     PUBLIC cxx_static_assert
-#     PUBLIC cxx_std_17
-# )
+target_compile_features(NoisyCircleExperiment
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
 
-# target_link_libraries(NoisyCircleExperiment
-#     PUBLIC Twisty
-#     PUBLIC glm
-#     PRIVATE nlohmann_json::nlohmann_json
-
-# )
+target_link_libraries(NoisyCircleExperiment
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)

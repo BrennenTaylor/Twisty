@@ -136,7 +136,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.weightingParameters.minBound = 0.0;
     experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
 
-
     return experimentParams;
 }
 
@@ -189,21 +188,9 @@ int main(int argc, char *argv[])
     assert(startX < framePixelCount);
     assert(startY < framePixelCount);
 
-#ifdef ExportGeometryInfo
-    std::filesystem::path geometryExportPath = outputDirectoryPath;
-    geometryExportPath.append("GeometryData.ffg");
-
-    std::ofstream geometryExportStream(geometryExportPath.string());
-    if (!geometryExportStream.is_open()) {
-        std::cout << "Failed to geometry export outfile" << std::endl;
-        exit(1);
-    }
-#endif
-
     // Lets test uniform random directions on sampling hemisphere
     std::mt19937 normalGenerator(normalGenSeed);
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
-    // We have a rotated and non-rotated version to test for initial seed curve impact
     std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(
           framePixelCount * framePixelCount);
     for (uint32_t r = 0; r < framePixelCount; r++) {
