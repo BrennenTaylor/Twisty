@@ -14,7 +14,7 @@ namespace PathWeighting {
     // Parameterized simple gaussian function
     double SimpleGaussianPhase(double p, double mu)
     {
-        double val = -mu * p * p;
+        double val = -mu * p * p * 0.5;
         val *= 0.5;
         return std::exp(val);
     }
@@ -31,16 +31,12 @@ namespace PathWeighting {
           double ds, double minCurvature, double maxCurvature)
         : m_minCurvature(minCurvature)
         , m_maxCurvature(maxCurvature)
-        , m_curvatureStepSize(0.0)
+        , m_curvatureStepSize((maxCurvature - minCurvature) / weightingParams.numCurvatureSteps)
         , m_lookupTable(
                 weightingParams.numCurvatureSteps + 1)  // We include 0, thus need that last spot
         , m_ds(ds)
         , m_weightingParams(weightingParams)
     {
-        m_curvatureStepSize
-              = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
-        // lookup table [0] should be min curvature
-        // lookup table [numCurvatureSteps] should be max curvature value
     }
 
     BaseWeightLookupTable::~BaseWeightLookupTable() { }
@@ -52,23 +48,29 @@ namespace PathWeighting {
             curvature = m_minCurvature;
         }
 
+        if (curvature <= m_minCurvature) {
+            return m_lookupTable[0];
+        }
+
         if (curvature > m_maxCurvature) {
             std::cout << "Clamping to max curvature" << std::endl;
             curvature = m_maxCurvature;
         }
 
-        double distance = curvature - m_minCurvature;
-        double realIdx = distance / m_curvatureStepSize;
-        uint32_t leftIdx = floor(realIdx);
-        uint32_t rightIdx = leftIdx + 1;
+        if (curvature >= m_maxCurvature) {
+            return m_lookupTable[m_weightingParams.numCurvatureSteps];
+        }
+
+        double distanceFromMin = curvature - m_minCurvature;
+        double realIdx = distanceFromMin / m_curvatureStepSize;
+        int32_t leftIdx = floor(realIdx);
+        int32_t rightIdx = leftIdx + 1;
 
         double leftLookup = m_lookupTable[leftIdx];
         double rightLookup = m_lookupTable[rightIdx];
 
-        double leftDist = distance - (leftIdx * m_curvatureStepSize);
-
-        double interpolatedResult = leftLookup * (1.0f - leftDist) + (rightLookup * leftDist);
-
+        double interpDist = distanceFromMin - (leftIdx * m_curvatureStepSize);
+        double interpolatedResult = leftLookup * (1.0f - interpDist) + (rightLookup * interpDist);
         return interpolatedResult;
     }
 

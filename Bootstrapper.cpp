@@ -1,5 +1,6 @@
 #include "Bootstrapper.h"
 
+#include "FMath/Vector3.h"
 #include "PerturbUtils.h"
 
 #include <assert.h>
@@ -100,7 +101,7 @@ std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(
 
     bool evenNumberOfSegments = (numSegments % 2) == 0;
 
-    // In the odd case, we place two segments initially
+    // In the all cases, we place two segments initially
     const Farlor::Vector3 x_sp1
           = m_experimentGeometry.m_startPos + ds * m_experimentGeometry.m_startDir;
     const Farlor::Vector3 x_em1
@@ -112,7 +113,7 @@ std::unique_ptr<Curve> Bootstrapper::CreateCurveGeometricSafe(
     const Farlor::Vector3 lineUnitDir = (x_em1 - x_s).Normalized();
 
     Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
-    if (lineUnitDir == otherCrossVec) {
+    if (abs(lineUnitDir.Dot(otherCrossVec)) >= 0.99) {
         otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
     }
 

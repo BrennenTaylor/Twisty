@@ -34,14 +34,13 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.numPathsInExperiment
           = experimentConfig["experiment"]["experimentParams"]["pathsToGenerate"];
 
-
     experimentParams.numPathsToSkip
           = experimentConfig["experiment"]["experimentParams"]["pathsToSkip"];
     experimentParams.experimentName = experimentConfig["experiment"]["experimentParams"]["name"];
     experimentParams.experimentDirPath
           = experimentConfig["experiment"]["experimentParams"]["experimentDir"];
     experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-
+    experimentParams.experimentDirPath += "/" + twisty::GetCurrentTimeForFileName() + "/";
 
     experimentParams.maxPerturbThreads
           = experimentConfig["experiment"]["experimentParams"]["maxPerturbThreads"];
@@ -56,7 +55,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
     experimentParams.numSegmentsPerCurve
           = experimentConfig["experiment"]["experimentParams"]["numSegments"];
-    experimentParams.arclength = experimentConfig["experiment"]["experimentParams"]["arclength"];
 
     // Seeds
     experimentParams.bootstrapSeed
@@ -64,13 +62,12 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.curvePurturbSeed
           = experimentConfig["experiment"]["experimentParams"]["random"]["perturbSeed"];
 
-    if (experimentParams.bootstrapSeed == 0) {
-        experimentParams.bootstrapSeed = time(0);
-    }
-    if (experimentParams.curvePurturbSeed == 0) {
-        experimentParams.curvePurturbSeed = time(0);
-    }
-
+    //     if (experimentParams.bootstrapSeed == 0) {
+    //         experimentParams.bootstrapSeed = time(0);
+    //     }
+    //     if (experimentParams.curvePurturbSeed == 0) {
+    //         experimentParams.curvePurturbSeed = time(0);
+    //     }
 
     // Weighting parameter stuff
     int weightFunction
@@ -143,9 +140,9 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.weightingParameters.minBound = 0.0;
     experimentParams.weightingParameters.maxBound = 10.0 / experimentParams.weightingParameters.eps;
 
-
     return experimentParams;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -181,31 +178,35 @@ int main(int argc, char *argv[])
 
         twisty::PerturbUtils::BoundaryConditions experimentGeometry;
         {
-            float x = experimentConfig["experiment"]["geometry"]["startPos"]["x"];
-            float y = experimentConfig["experiment"]["geometry"]["startPos"]["y"];
-            float z = experimentConfig["experiment"]["geometry"]["startPos"]["z"];
+            float x = experimentConfig["experiment"]["basicExperiment"]["startPos"][0];
+            float y = experimentConfig["experiment"]["basicExperiment"]["startPos"][1];
+            float z = experimentConfig["experiment"]["basicExperiment"]["startPos"][2];
             experimentGeometry.m_startPos = Farlor::Vector3(x, y, z);
         }
         {
-            float x = experimentConfig["experiment"]["geometry"]["startDir"]["x"];
-            float y = experimentConfig["experiment"]["geometry"]["startDir"]["y"];
-            float z = experimentConfig["experiment"]["geometry"]["startDir"]["z"];
+            float x = experimentConfig["experiment"]["basicExperiment"]["startDir"][0];
+            float y = experimentConfig["experiment"]["basicExperiment"]["startDir"][1];
+            float z = experimentConfig["experiment"]["basicExperiment"]["startDir"][2];
             experimentGeometry.m_startDir = Farlor::Vector3(x, y, z).Normalized();
         }
 
         {
-            float x = experimentConfig["experiment"]["geometry"]["endPos"]["x"];
-            float y = experimentConfig["experiment"]["geometry"]["endPos"]["y"];
-            float z = experimentConfig["experiment"]["geometry"]["endPos"]["z"];
+            float x = experimentConfig["experiment"]["basicExperiment"]["endPos"][0];
+            float y = experimentConfig["experiment"]["basicExperiment"]["endPos"][1];
+            float z = experimentConfig["experiment"]["basicExperiment"]["endPos"][2];
             experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
         }
         {
-            float x = experimentConfig["experiment"]["geometry"]["endDir"]["x"];
-            float y = experimentConfig["experiment"]["geometry"]["endDir"]["y"];
-            float z = experimentConfig["experiment"]["geometry"]["endDir"]["z"];
+            float x = experimentConfig["experiment"]["basicExperiment"]["endDir"][0];
+            float y = experimentConfig["experiment"]["basicExperiment"]["endDir"][1];
+            float z = experimentConfig["experiment"]["basicExperiment"]["endDir"][2];
             experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
         }
-        experimentGeometry.arclength = experimentParams.arclength;
+        experimentGeometry.arclength = experimentParams.arclength
+              = twisty::Bootstrapper::CalculateMinimumArclength(
+                    experimentParams.numSegmentsPerCurve, experimentGeometry.m_startPos,
+                    experimentGeometry.m_endPos);
+        std::cout << "Minimum arclength: " << experimentGeometry.arclength << std::endl;
 
         // We run the experiment as well
         std::string outputDataFilename
