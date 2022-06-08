@@ -715,7 +715,6 @@ void FullExperimentRunnerOptimalPerturb::GeometryCombined(int64_t threadIdx,
                 }
             }
 
-
             double rightRotationAngle = 0.0;
             {
                 const Farlor::Vector3 Xes1

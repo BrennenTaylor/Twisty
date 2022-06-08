@@ -334,7 +334,14 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
         // std::cout << "\tNum Values: " << combinedWeightValue.m_numValues << std::endl;
         // std::cout << "\tOffset: " << combinedWeightValue.m_offset << std::endl;
         // std::cout << "\tRunning Total: " << combinedWeightValue.m_runningTotal << std::endl;
-        bigTotalExperimentWeight += ExtractFinalValue(combinedWeightValue);
+
+        const boost::multiprecision::cpp_dec_float_100 extractedDispatchWeight
+              = ExtractFinalValue(combinedWeightValue);
+        bigTotalExperimentWeight += extractedDispatchWeight;
+
+        if (m_experimentParams.outputBigFloatWeights) {
+            UpdateConvergenceWeight(combinedWeightValue.m_numValues, extractedDispatchWeight);
+        }
 
         numWeightsGenerated += combinedWeightValue.m_numValues;
     }
