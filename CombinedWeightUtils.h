@@ -28,10 +28,10 @@ namespace twisty
     // Initializer cant be used for cuda, thus the reset function!
     struct CombinedWeightValues_C
     {
-        uint32_t m_numValues;
-        double m_maxWeightLog10;
-        double m_runningTotal;
-        double m_offset;
+        double m_maxWeightLog10 = 0.0;
+        double m_runningTotal = 0.0;
+        double m_offset = 0.0;
+        uint32_t m_numValues = 0;
     };
 
     __host__ __device__ void CombinedWeightValues_C_Reset(CombinedWeightValues_C& combinedWeightValue);

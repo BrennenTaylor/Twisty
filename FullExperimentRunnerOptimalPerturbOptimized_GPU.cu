@@ -148,7 +148,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     auto setupCudaPerturbStart = std::chrono::high_resolution_clock::now();
     {
         result = SetupCudaPerturb(numGlobalPerturbThreads, numCombinedWeightValuesTotal,
-              lookupEvaluator->AccessLookupTable());
+              m_experimentParams.numSegmentsPerCurve, lookupEvaluator->AccessLookupTable());
         if (!result) {
             printf("Failed to setup Cuda Perturb\n");
             return {};
@@ -422,7 +422,7 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaDevice()
 void FullExperimentRunnerOptimalPerturbOptimized_GPU::CleanupCudaDevice() { }
 
 bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCuRandStates(
-      uint32_t numGlobalPerturbThreads, uint32_t seed)
+      int32_t numGlobalPerturbThreads, uint32_t seed)
 {
     std::cout << "Setup Cuda Perturb: " << std::endl;
     uint64_t usedMemoryInBytes = 0;
@@ -488,49 +488,40 @@ void FullExperimentRunnerOptimalPerturbOptimized_GPU::CleanupCudaRandStates()
 
 // Pass in total number of threads that can be used, as well as the number of batches of 10^6 paths which will be generated
 bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
-      uint32_t numGlobalPerturbThreads, uint32_t numCombinedWeightValues,
+      int32_t numGlobalPerturbThreads, int32_t numCombinedWeightValues, int32_t numSegments,
       const std::vector<double> &weightTable)
 {
     std::cout << "Setup Cuda Perturb: " << std::endl;
     uint64_t usedMemoryInBytes = 0;
 
     // Every global thread needs its own curve scratch space
-    CudaSafeErrorCheck(
-          cudaMalloc((void **)&m_pPerGlobalThreadScratchSpacePositions,
-                numGlobalPerturbThreads * m_upInitialCurve->m_positions.size() * sizeof(float) * 3),
+    const uint64_t positionBytes = numGlobalPerturbThreads * (numSegments + 1) * sizeof(float) * 3;
+    CudaSafeErrorCheck(cudaMalloc((void **)&m_pPerGlobalThreadScratchSpacePositions, positionBytes),
           "Cuda malloc Scratch Space Positions");
-    usedMemoryInBytes
-          += (numGlobalPerturbThreads * m_upInitialCurve->m_positions.size() * sizeof(float) * 3);
+    usedMemoryInBytes += positionBytes;
 
     // Every global thread needs its own curve scratch space left and right and working
-    CudaSafeErrorCheck(
-          cudaMalloc((void **)&m_pPerGlobalThreadScratchSpaceTangents,
-                numGlobalPerturbThreads * m_upInitialCurve->m_tangents.size() * sizeof(float) * 3),
+    const uint64_t tangentBytes = numGlobalPerturbThreads * numSegments * sizeof(float) * 3;
+    CudaSafeErrorCheck(cudaMalloc((void **)&m_pPerGlobalThreadScratchSpaceTangents, tangentBytes),
           "Cuda malloc Scratch Space Tangents");
-    usedMemoryInBytes
-          += (numGlobalPerturbThreads * m_upInitialCurve->m_tangents.size() * sizeof(float) * 3);
+    usedMemoryInBytes += tangentBytes;
 
     // Every global thread needs its own curve scratch space left and right and working
+    const uint64_t curvatureBytes = numGlobalPerturbThreads * (numSegments - 1) * sizeof(float);
     CudaSafeErrorCheck(
-          cudaMalloc((void **)&m_pPerGlobalThreadScratchSpaceCurvatures,
-                numGlobalPerturbThreads * m_upInitialCurve->m_curvatures.size() * sizeof(float)),
+          cudaMalloc((void **)&m_pPerGlobalThreadScratchSpaceCurvatures, curvatureBytes),
           "Cuda malloc Scratch Space Curvatures");
-    usedMemoryInBytes
-          += (numGlobalPerturbThreads * m_upInitialCurve->m_curvatures.size() * sizeof(float));
+    usedMemoryInBytes += curvatureBytes;
 
-    // CudaSafeErrorCheck(cudaMalloc((void**)&m_pPerThreadCombinedWeightValues, sizeof(CombinedWeightValues_C) * numGlobalPerturbThreads),
-    //     "Cuda malloc combined weight values per thread");
-    // usedMemoryInBytes += (sizeof(CombinedWeightValues_C) * numGlobalPerturbThreads);
-
-    CudaSafeErrorCheck(cudaMalloc((void **)&m_pFinalCombinedValues,
-                             sizeof(CombinedWeightValues_C) * numCombinedWeightValues),
+    const uint64_t combinedValueBytes = sizeof(CombinedWeightValues_C) * numCombinedWeightValues;
+    CudaSafeErrorCheck(cudaMalloc((void **)&m_pFinalCombinedValues, combinedValueBytes),
           "Cuda malloc combined weight values per thread");
-    usedMemoryInBytes += (sizeof(CombinedWeightValues_C) * numCombinedWeightValues);
+    usedMemoryInBytes += combinedValueBytes;
 
-    CudaSafeErrorCheck(
-          cudaMalloc((void **)&m_pDeviceWeightLookupTable, sizeof(double) * weightTable.size()),
+    const uint64_t weightTableBytes = sizeof(double) * weightTable.size();
+    CudaSafeErrorCheck(cudaMalloc((void **)&m_pDeviceWeightLookupTable, weightTableBytes),
           "Cuda malloc combined weight values per thread");
-    usedMemoryInBytes += (sizeof(double) * weightTable.size());
+    usedMemoryInBytes += weightTableBytes;
 
     std::cout << "\tUsed Device Memory Before: " << m_usedDeviceMemoryInBytes << std::endl;
     std::cout << "\tNewly allocated memory: " << usedMemoryInBytes << std::endl;
@@ -549,14 +540,12 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
     float *pInitialCurvePositions = nullptr;
     float *pInitialCurveTangents = nullptr;
     float *pInitialCurveCurvatures = nullptr;
-    cudaMallocHost(
-          &pInitialCurvePositions, m_upInitialCurve->m_positions.size() * sizeof(float) * 3);
-    cudaMallocHost(
-          &pInitialCurveTangents, m_upInitialCurve->m_positions.size() * sizeof(float) * 3);
-    cudaMallocHost(&pInitialCurveCurvatures, m_upInitialCurve->m_positions.size() * sizeof(float));
+    cudaMallocHost(&pInitialCurvePositions, (numSegments + 1) * sizeof(float) * 3);
+    cudaMallocHost(&pInitialCurveTangents, numSegments * sizeof(float) * 3);
+    cudaMallocHost(&pInitialCurveCurvatures, (numSegments - 1) * sizeof(float));
 
     memcpy(pInitialCurvePositions, (float *)m_upInitialCurve->m_positions.data(),
-          m_upInitialCurve->m_positions.size() * sizeof(float) * 3);
+          (numSegments + 1) * sizeof(float) * 3);
 
     // Update and curvature
     twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(pInitialCurvePositions,
@@ -574,10 +563,10 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
         for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx) {
             CudaSafeErrorCheck(cudaMemcpy((void *)&(m_pPerGlobalThreadScratchSpacePositions[idx]),
                                      (void *)pInitialCurvePositions,
-                                     m_upInitialCurve->m_positions.size() * sizeof(float) * 3,
+                                     (numSegments + 1) * sizeof(float) * 3,
                                      cudaMemcpyHostToDevice),
                   "Copy inital positions to per thread scratch space");
-            idx += m_upInitialCurve->m_positions.size() * 3;
+            idx += (numSegments + 1) * 3;
         }
     }
 
@@ -586,10 +575,10 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
         for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx) {
             CudaSafeErrorCheck(cudaMemcpy((void *)&(m_pPerGlobalThreadScratchSpaceTangents[idx]),
                                      (void *)pInitialCurveTangents,
-                                     m_upInitialCurve->m_positions.size() * sizeof(float) * 3,
+                                     numSegments * sizeof(float) * 3,
                                      cudaMemcpyHostToDevice),
                   "Copy inital tangents to per thread scratch space");
-            idx += m_upInitialCurve->m_positions.size() * 3;
+            idx += numSegments * 3;
         }
     }
 
@@ -598,10 +587,10 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
         for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx) {
             CudaSafeErrorCheck(cudaMemcpy((void *)&(m_pPerGlobalThreadScratchSpaceCurvatures[idx]),
                                      (void *)pInitialCurveCurvatures,
-                                     (m_upInitialCurve->m_positions.size() - 1) * sizeof(float),
+                                     (numSegments - 1) * sizeof(float),
                                      cudaMemcpyHostToDevice),
                   "Copy inital curvatures to per thread scratch space");
-            idx += (m_upInitialCurve->m_positions.size() - 1);
+            idx += (numSegments - 1);
         }
     }
 
@@ -676,8 +665,8 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
     volatile uint32_t globalThreadIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
     volatile int32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-    volatile int32_t NumTanPerCurve = (numSegmentsPerCurve + 1);
-    volatile int32_t NumCurvaturesPerCurve = numSegmentsPerCurve;
+    volatile int32_t NumTanPerCurve = numSegmentsPerCurve;
+    volatile int32_t NumCurvaturesPerCurve = (numSegmentsPerCurve - 1);
 
     volatile int32_t CurrentThreadPosStartIdx = NumPosPerCurve * 3 * globalThreadIdx;
     volatile int32_t CurrentThreadTanStartIdx = NumTanPerCurve * 3 * globalThreadIdx;
@@ -730,9 +719,6 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
                     int64_t leftPointIndex = floorf(e1 * (numSegmentsPerCurve - diff - 2)) + 1;
 
                     int64_t rightPointIndex = leftPointIndex + diff;
-
-                    assert((rightPointIndex - leftPointIndex) >= diff);
-                    assert(leftPointIndex < rightPointIndex);
 
                     // We need two frames for each segment to get the new curvature and torsion.
                     // we need the frame left of the segment, as well as the frame right of the segment.
@@ -824,8 +810,9 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
                           = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
                                 &(pPerGlobalThreadScratchSpaceCurvatures
                                             [CurrentThreadCurvatureStartIdx]),
-                                numSegmentsPerCurve, pWeightLookupTable, weightLookupTableSize, ds,
-                                minCurvature, maxCurvature, curvatureStepSize);
+                                (numSegmentsPerCurve - 1), pWeightLookupTable,
+                                weightLookupTableSize, ds, minCurvature, maxCurvature,
+                                curvatureStepSize);
                     pathWeightLog10 += pathNormalizerLog10;
 
                     if (pathCount < numPathsToSkipPerThread) {

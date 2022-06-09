@@ -130,33 +130,31 @@ namespace PerturbUtils {
     __host__ __device__ void UpdateTangentsFromPosCudaSafe(float *pPositions, float *pTangents,
           const uint32_t numSegments, const BoundaryConditions_CudaSafe &csBoundaryConditions)
     {
-        const float ds = csBoundaryConditions.arclength / numSegments;
+        const float invDS = numSegments / csBoundaryConditions.arclength;
 
+        // TODO: Unnecessary operations, remove?
         // Set initial and final positions
-        pPositions[0 * 3 + 0] = csBoundaryConditions.m_startPos[0];
-        pPositions[0 * 3 + 1] = csBoundaryConditions.m_startPos[1];
-        pPositions[0 * 3 + 2] = csBoundaryConditions.m_startPos[2];
+        //pPositions[0 * 3 + 0] = csBoundaryConditions.m_startPos[0];
+        //pPositions[0 * 3 + 1] = csBoundaryConditions.m_startPos[1];
+        //pPositions[0 * 3 + 2] = csBoundaryConditions.m_startPos[2];
 
-        pPositions[1 * 3 + 0] = pPositions[0 * 3 + 0] + ds * csBoundaryConditions.m_startDir[0];
-        pPositions[1 * 3 + 1] = pPositions[0 * 3 + 1] + ds * csBoundaryConditions.m_startDir[1];
-        pPositions[1 * 3 + 2] = pPositions[0 * 3 + 2] + ds * csBoundaryConditions.m_startDir[2];
+        //pPositions[1 * 3 + 0] = pPositions[0 * 3 + 0] + ds * csBoundaryConditions.m_startDir[0];
+        //pPositions[1 * 3 + 1] = pPositions[0 * 3 + 1] + ds * csBoundaryConditions.m_startDir[1];
+        //pPositions[1 * 3 + 2] = pPositions[0 * 3 + 2] + ds * csBoundaryConditions.m_startDir[2];
 
-        pPositions[numSegments * 3 + 0] = csBoundaryConditions.m_endPos[0];
-        pPositions[numSegments * 3 + 1] = csBoundaryConditions.m_endPos[1];
-        pPositions[numSegments * 3 + 2] = csBoundaryConditions.m_endPos[2];
+        //pPositions[numSegments * 3 + 0] = csBoundaryConditions.m_endPos[0];
+        //pPositions[numSegments * 3 + 1] = csBoundaryConditions.m_endPos[1];
+        //pPositions[numSegments * 3 + 2] = csBoundaryConditions.m_endPos[2];
 
+        // TODO: Is Forward Difference good enough?
         for (uint32_t i = 0; i < numSegments; ++i) {
-            float diff_x = pPositions[(i + 1) * 3 + 0] - pPositions[(i) * 3 + 0];
-            float diff_y = pPositions[(i + 1) * 3 + 1] - pPositions[(i) * 3 + 1];
-            float diff_z = pPositions[(i + 1) * 3 + 2] - pPositions[(i) * 3 + 2];
-            float diff_length = sqrt(diff_x * diff_x + diff_y * diff_y + diff_z * diff_z);
-            pTangents[i * 3 + 0] = diff_x / diff_length;
-            pTangents[i * 3 + 1] = diff_y / diff_length;
-            pTangents[i * 3 + 2] = diff_z / diff_length;
+            float diff_x = pPositions[((i + 1) * 3) + 0] - pPositions[(i * 3) + 0];
+            float diff_y = pPositions[((i + 1) * 3) + 1] - pPositions[(i * 3) + 1];
+            float diff_z = pPositions[((i + 1) * 3) + 2] - pPositions[(i * 3) + 2];
+            pTangents[i * 3 + 0] = diff_x * invDS;
+            pTangents[i * 3 + 1] = diff_y * invDS;
+            pTangents[i * 3 + 2] = diff_z * invDS;
         }
-        pTangents[numSegments * 3 + 0] = csBoundaryConditions.m_endDir[0];
-        pTangents[numSegments * 3 + 1] = csBoundaryConditions.m_endDir[1];
-        pTangents[numSegments * 3 + 2] = csBoundaryConditions.m_endDir[2];
     }
 
     // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
@@ -164,20 +162,12 @@ namespace PerturbUtils {
           float *pCurvatures, const uint32_t numSegments,
           const BoundaryConditions_CudaSafe &boundaryConditions, int32_t weightingMethod)
     {
-        const float ds = boundaryConditions.arclength / numSegments;
-        if (boundaryConditions.arclength < 0) {
-            printf("Arclength must be positive, non-zero\n");
-            return;
-        }
-        if (numSegments > 200) {
-            printf("Number of segments must be positive, non-zero\n");
-            return;
-        }
+        const float invDs = numSegments / boundaryConditions.arclength;
 
         switch (weightingMethod) {
             case (int32_t)twisty::WeightingMethod::RadiativeTransfer: {
                 // Update segments
-                for (uint32_t i = 0; i < numSegments; ++i) {
+                for (uint32_t i = 0; i < (numSegments - 1); ++i) {
                     const float tanLeft_x = pTangents[i * 3 + 0];
                     const float tanLeft_y = pTangents[i * 3 + 1];
                     const float tanLeft_z = pTangents[i * 3 + 2];
@@ -187,9 +177,9 @@ namespace PerturbUtils {
                     const float tanRight_z = pTangents[(i + 1) * 3 + 2];
 
                     {
-                        const float scaledDiff_x = (tanRight_x - tanLeft_x) * (1.0f / ds);
-                        const float scaledDiff_y = (tanRight_y - tanLeft_y) * (1.0f / ds);
-                        const float scaledDiff_z = (tanRight_z - tanLeft_z) * (1.0f / ds);
+                        const float scaledDiff_x = (tanRight_x - tanLeft_x) * invDs;
+                        const float scaledDiff_y = (tanRight_y - tanLeft_y) * invDs;
+                        const float scaledDiff_z = (tanRight_z - tanLeft_z) * invDs;
 
                         pCurvatures[i] = sqrt(scaledDiff_x * scaledDiff_x
                               + scaledDiff_y * scaledDiff_y + scaledDiff_z * scaledDiff_z);
@@ -198,7 +188,7 @@ namespace PerturbUtils {
             } break;
             case (int32_t)twisty::WeightingMethod::SimplifiedModel: {
                 // Update segments
-                for (uint32_t i = 0; i < numSegments; ++i) {
+                for (uint32_t i = 0; i < (numSegments - 1); ++i) {
                     float tanLeft_x = pTangents[i * 3 + 0];
                     float tanLeft_y = pTangents[i * 3 + 1];
                     float tanLeft_z = pTangents[i * 3 + 2];
@@ -226,7 +216,6 @@ namespace PerturbUtils {
                 }
             } break;
             default: {
-                // assert(false);
             } break;
         };
     }

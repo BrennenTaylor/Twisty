@@ -20,8 +20,6 @@
 #include <stdlib.h>
 #include <memory>
 
-const static int64_t ExportPathBatchCacheSize = 100000;
-
 namespace twisty {
 FullExperimentRunnerOptimalPerturb::FullExperimentRunnerOptimalPerturb(
       ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
@@ -59,8 +57,9 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
 
     lookupEvaluator->ExportValues(m_experimentDirPath.string());
 
-    twisty::PerturbUtils::BoundaryConditions boundaryConditions
+    const twisty::PerturbUtils::BoundaryConditions boundaryConditions
           = m_upInitialCurve->GetBoundaryConditions();
+    assert(boundaryConditions.arclength > 0);
 
     // Constants
     int64_t numSystemThreads = std::thread::hardware_concurrency();
@@ -95,8 +94,8 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
 
     // Setup data structures
     std::vector<Farlor::Vector3> initialCurvePositions = m_upInitialCurve->m_positions;
-    std::vector<Farlor::Vector3> initialCurveTangents(initialCurvePositions.size());
-    std::vector<float> initialCurveCurvatures(initialCurvePositions.size() - 1);
+    std::vector<Farlor::Vector3> initialCurveTangents(initialCurvePositions.size() - 1);
+    std::vector<float> initialCurveCurvatures(initialCurvePositions.size() - 2);
 
     // Update tangents
     twisty::PerturbUtils::UpdateTangentsFromPos(initialCurvePositions.data(),
@@ -142,9 +141,6 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     std::vector<Farlor::Vector3> perThreadTangentScratchRight;
     std::vector<float> perThreadCurvatureScratchRight;
 
-    std::vector<double> cachedSegmentWeights;
-    std::vector<double> compressedWeightBuffer;
-
     // Only in this case do we allocate room
     if (m_experimentParams.perturbMethod != ExperimentRunner::PerturbMethod::GeometricRandom) {
         perThreadPositionScratchLeft = perThreadCurvePositions;
@@ -154,9 +150,6 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
         perThreadPositionScratchRight = perThreadCurvePositions;
         perThreadTangentScratchRight = perThreadCurveTangents;
         perThreadCurvatureScratchRight = perThreadCurveCurvatures;
-
-        cachedSegmentWeights.resize(m_experimentParams.numSegmentsPerCurve * numPurturbThreads);
-        compressedWeightBuffer.resize(ExportPathBatchCacheSize);
     }
 
     // Cached weights: num segments X num perturb threads
@@ -237,10 +230,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
           = (m_experimentParams.numPathsInExperiment + MaxNumPathsPerCombinedWeight - 1)
           / MaxNumPathsPerCombinedWeight;
 
-    // const int64_t numDispatches = (m_experimentParams.numPathsInExperiment + ExportPathBatchCacheSize - 1) / ExportPathBatchCacheSize;
     std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
-    // std::cout << "numPathsPerBatch: " << ExportPathBatchCacheSize << std::endl;
-    // std::cout << "Num dispatches required: " << numDispatches << std::endl;
     std::cout << "Num combined weight values needed: " << numCombinedWeightValues << std::endl;
 
     // We need to calculate the absorbtion/scattering piece
@@ -269,19 +259,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
             std::vector<std::thread> threads(numPurturbThreads);
             for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
                 switch (m_experimentParams.perturbMethod) {
-                    case ExperimentRunner::PerturbMethod::GeometricMinCurvature: {
-                        std::cout << "Error: GeometricMinCurvature Not implemented" << std::endl;
-                        exit(1);
-                    } break;
-
-                    case ExperimentRunner::PerturbMethod::GeometricCombined: {
-                        std::cout << "Error: GeometricMinCurvature Not Supported currently"
-                                  << std::endl;
-                        exit(1);
-                    } break;
-
-                    case ExperimentRunner::PerturbMethod::GeometricRandom:
-                    default: {
+                    case ExperimentRunner::PerturbMethod::GeometricRandom: {
                         std::thread newThread(&FullExperimentRunnerOptimalPerturb::GeometryRandom,
                               this, threadIdx, m_experimentParams.numPathsInExperiment,
                               numPathsPerThread, m_experimentParams.numPathsToSkip,
@@ -300,6 +278,13 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                                     ? pathNormalizerLog10.convert_to<double>()
                                     : 0.0);
                         threads[threadIdx] = std::move(newThread);
+                    } break;
+
+                    case ExperimentRunner::PerturbMethod::GeometricMinCurvature:
+                    case ExperimentRunner::PerturbMethod::GeometricCombined:
+                    default: {
+                        std::cout << "Error: Invalid Perturb Method" << std::endl;
+                        exit(1);
                     } break;
                 };
             }
@@ -413,8 +398,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
       const double normalizerLog10)
 {
     const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-    const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
-    const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
+    const int64_t NumTanPerCurve = numSegmentsPerCurve;
+    const int64_t NumCurvaturesPerCurve = (numSegmentsPerCurve - 1);
 
     const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
     const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
@@ -447,11 +432,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
             std::uniform_int_distribution<int> leftPointIndexUniformDist(
                   1, numSegmentsPerCurve - diff - 1);  // uniform, unbiased
             int64_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
-
             int64_t rightPointIndex = leftPointIndex + diff;
-
-            assert((rightPointIndex - leftPointIndex) >= diff);
-            assert(leftPointIndex < rightPointIndex);
 
             // We need two frames for each segment to get the new curvature and torsion.
             // we need the frame left of the segment, as well as the frame right of the segment.
@@ -473,11 +454,11 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                 for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
                       ++pointIdx) {
                     Farlor::Vector3 shiftedPoint
-                          = globalPos[CurrentThreadPosStartIdx + pointIdx] - leftPoint;
+                          = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
                     // Rotate and stuff back in shifted point
                     RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data.data());
                     // Update the point with the rotated version
-                    globalPos[CurrentThreadPosStartIdx + pointIdx] = shiftedPoint + leftPoint;
+                    globalPos[CurrentThreadPosStartIdx + pointIdx] = (shiftedPoint + leftPoint);
                 }
 
                 //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
@@ -496,12 +477,10 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
 
 
             // Normalized version
-            // double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(&(globalCurvatures[CurrentThreadCurvatureStartIdx]),
-            //         numSegmentsPerCurve, *weightingIntegralPtr);
             double scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
                         &(globalCurvatures[CurrentThreadCurvatureStartIdx]),
-                        numSegmentsPerCurve,
+                        NumCurvaturesPerCurve,
                         pWeightLookupTable,
                         weightLookupTableSize,
                         ds,
@@ -550,7 +529,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryCombined(int64_t threadIdx,
       std::vector<Farlor::Vector3> &scratchTangentSpaceRight,
       std::vector<float> &scratchCurvatureSpaceRight,
       std::vector<double> &globalPathWeights,
-      std::vector<double> &cachedSegmentWeights,
+      // std::vector<double> &cachedSegmentWeights,
       float segmentLength,
       twisty::PathWeighting::BaseWeightLookupTable *weightingIntegralPtr,
       const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
@@ -574,8 +553,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryCombined(int64_t threadIdx,
     // }
 
     const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-    const int64_t NumTanPerCurve = (numSegmentsPerCurve + 1);
-    const int64_t NumCurvaturesPerCurve = numSegmentsPerCurve;
+    const int64_t NumTanPerCurve = numSegmentsPerCurve;
+    const int64_t NumCurvaturesPerCurve = (numSegmentsPerCurve - 1);
 
     const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
     const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
