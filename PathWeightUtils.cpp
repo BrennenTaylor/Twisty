@@ -14,15 +14,17 @@ namespace PathWeighting {
     // Parameterized simple gaussian function
     double SimpleGaussianPhase(double p, double mu)
     {
-        double val = -mu * p * p * 0.5;
-        val *= 0.5;
+        const double val = (-mu * p * p) * 0.5;
         return std::exp(val);
     }
 
     // Parameterized gaussian function
+    // Switched to version found in "A leading order approximation of the path integral for radiative transfer"
     double GaussianPhase(double evalLocation, double mu)
     {
-        double Np = std::sqrt(TwistyPi * mu * 0.5) / (1.0 - std::exp(-2.0 / mu));
+        // 8.0 is 2.0^3
+        const double Np
+              = std::sqrt(8.0 * TwistyPi * TwistyPi * TwistyPi * mu) / (1.0 - std::exp(-2.0 / mu));
         return Np * SimpleGaussianPhase(evalLocation, mu);
     }
 
@@ -172,8 +174,11 @@ namespace PathWeighting {
     double WeightLookupTableIntegral::Integrate(
           double curvature, const WeightingParameters &weightingParams, double ds) const
     {
-        double kds = curvature * ds;
-        double bds = weightingParams.scatter * ds;
+        const double kds = curvature * ds;
+        const double bds = weightingParams.scatter * ds;
+
+        const double cds = (weightingParams.absorbtion + weightingParams.scatter) * ds;
+        const double transmissionFalloff = std::exp(-cds) / (2.0 * TwistyPi * TwistyPi);
 
         auto Integrand = [this, weightingParams](double p, double kds, double bds) -> double {
             double phaseFunction = GaussianPhase(p, weightingParams.mu);
@@ -204,23 +209,20 @@ namespace PathWeighting {
         // at kds. As a result, normalizeation is used. This is due to an overflow.
         // However, as we already are using a big float library, do we even need to
         // deal with this?
+
+        const double stepSize = (weightingParams.maxBound - weightingParams.minBound)
+              / (weightingParams.numStepsInt);
+
         double firstVal = 0.0f;
         double normalizerWithZeroCurvature = 0.0f;
         {
-            double stepSize = (weightingParams.maxBound - weightingParams.minBound)
-                  / (weightingParams.numStepsInt - 1);
             for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i) {
-                double p = i * stepSize;
+                const double p = weightingParams.minBound + (i * stepSize);
                 firstVal += Integrand(p, kds, bds) * stepSize;
                 normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
             }
         }
-
-        // We put the exponential falloff due to C here.
-        double c = weightingParams.absorbtion + weightingParams.scatter;
-        double constant = std::exp(-c * ds) / (2.0 * TwistyPi * TwistyPi);
-        // TODO: For now, lets try not including this
-        return constant * firstVal / normalizerWithZeroCurvature;
+        return transmissionFalloff * firstVal / normalizerWithZeroCurvature;
     }
 
     // Lookup table integrand
@@ -335,70 +337,6 @@ namespace PathWeighting {
             } break;
         }
     }
-
-    // // We have to calculate the "curvature" a different way for the simple weight
-    // case.
-    // // The actual value used is the dot product between two neighboring tangents
-    // double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3*
-    // pTangentsStart, uint32_t numSegments, const BaseWeightLookupTable&
-    // weightIntegral)
-    // {
-    //     if (!pTangentsStart || (numSegments == 0))
-    //     {
-    //         return 0.0;
-    //     }
-
-    //     uint32_t numScatterEvents = numSegments - 1;
-
-    //     double ds = weightIntegral.GetDs();
-    //     const auto& weightingParams = weightIntegral.GetWeightingParams();
-    //     MinMaxCurvature minMax =
-    //     twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds); const
-    //     double curvatureStepSize = (minMax.maxCurvature - minMax.minCurvature) /
-    //     weightingParams.numCurvatureSteps; auto& lookupTable =
-    //     weightIntegral.AccessLookupTable();
-
-    //     // Calculate value
-    //     double runningPathWeightLog10 = 0.0;
-    //     for (int64_t segIdx = 0; segIdx < numScatterEvents; ++segIdx)
-    //     {
-    //         // Extract curvature
-    //         Farlor::Vector3 leftTangent = pTangentsStart[segIdx].Normalized();
-    //         Farlor::Vector3 rightTangent = pTangentsStart[segIdx +
-    //         1].Normalized();
-
-    //         float curvature = leftTangent.Dot(rightTangent);
-    //         curvature = std::min(curvature, 1.0f);
-    //         curvature = std::max(curvature, -1.0f);
-
-    //         double distance = curvature - minMax.minCurvature;
-    //         double realIdx = distance / curvatureStepSize;
-    //         int64_t leftIdx = floor(realIdx);
-    //         int64_t rightIdx = leftIdx + 1;
-    //         if (leftIdx == lookupTable.size() - 1)
-    //         {
-    //             rightIdx--; // Bump it left 1, it doesnt really matter anymore
-    //             anyways.
-    //         }
-
-    //         double leftLookup = lookupTable[leftIdx];
-
-    //         double rightLookup = lookupTable[rightIdx];
-
-    //         double leftDist = distance - (leftIdx * curvatureStepSize);
-
-    //         double interpolatedResult = leftLookup * (1.0f - leftDist) +
-    //         (rightLookup * leftDist);
-    //         // Take the log10 of the interpolated results
-    //         double interpolatedResultLog10 = std::log10(interpolatedResult);
-    //         // Lets do weights as doubles for now
-    //         double segmentWeightLog10 = interpolatedResultLog10;
-
-    //         // Update the running path weight. We also want to cache the segment
-    //         weights runningPathWeightLog10 += segmentWeightLog10;
-    //     }
-    //     return runningPathWeightLog10;
-    // }
 
     namespace NormalizerStuff {
         // Why is this?
