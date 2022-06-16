@@ -47,8 +47,7 @@ class FullExperimentRunnerOptimalPerturb : public ExperimentRunner {
           const double minCurvature,
           const double maxCurvature,
           const double curvatureStepSize,
-          const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
-          const double normalizerLog10);
+          const twisty::PerturbUtils::BoundaryConditions &boundaryConditions);
 
     void GeometryCombined(int64_t threadIdx,
           int64_t numExperimentPaths,
@@ -69,16 +68,13 @@ class FullExperimentRunnerOptimalPerturb : public ExperimentRunner {
           // std::vector<double>& cachedSegmentWeights,
           float segmentLength,
           twisty::PathWeighting::BaseWeightLookupTable *weightingIntegralPtr,
-          const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
-          const PathWeighting::NormalizerStuff::BaseNormalizer &pathNormalizer);
+          const twisty::PerturbUtils::BoundaryConditions &boundaryConditions);
 
     void WeightCombineThreadKernel(const int64_t threadIdx, int64_t numWeights,
           int64_t numWeightsPerThread, float arclength, int64_t numSegmentsPerCurve,
           const twisty::WeightingMethod weightingMethod,
           const std::vector<double> &compressedWeights,
           std::vector<boost::multiprecision::cpp_dec_float_100> &bigFloatWeightsLog10,
-          std::vector<boost::multiprecision::cpp_dec_float_100> &threadScatterWeights,
-          boost::multiprecision::cpp_dec_float_100 pathNormalizer,
-          boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10);
+          std::vector<boost::multiprecision::cpp_dec_float_100> &threadScatterWeights);
 };
 }

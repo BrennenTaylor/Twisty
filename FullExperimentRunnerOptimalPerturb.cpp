@@ -207,14 +207,10 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0;
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::RadiativeTransfer) {
-        pathNormalizer = PathWeighting::NormalizerStuff::Norm(
-              fn, m_upInitialCurve->m_numSegments, Z.Magnitude(), boundaryConditions.arclength);
+        pathNormalizer = PathWeighting::NormalizerStuff::Norm(fn, m_upInitialCurve->m_numSegments,
+              Z.Magnitude(), m_upInitialCurve->m_segmentLength);
     }
-    const boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10
-          = boost::multiprecision::log10(pathNormalizer);
-
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
-    std::cout << "PathNormalizerLog10: " << pathNormalizerLog10 << std::endl;
 
     auto setupTimeEnd = std::chrono::high_resolution_clock::now();
 
@@ -272,11 +268,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                               lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
                               lookupEvaluator->GetMinCurvature(),
                               lookupEvaluator->GetMaxCurvature(),
-                              lookupEvaluator->GetCurvatureStepSize(), boundaryConditions,
-                              m_experimentParams.weightingParameters.weightingMethod
-                                          == twisty::WeightingMethod::RadiativeTransfer
-                                    ? pathNormalizerLog10.convert_to<double>()
-                                    : 0.0);
+                              lookupEvaluator->GetCurvatureStepSize(), boundaryConditions);
                         threads[threadIdx] = std::move(newThread);
                     } break;
 
@@ -311,9 +303,12 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
             totalDispatchWeight += extractedDispatchWeight;
 
             if (m_experimentParams.outputBigFloatWeights) {
-                UpdateConvergenceWeight(combinedWeightValue.m_numValues, extractedDispatchWeight);
+                UpdateConvergenceWeight(
+                      combinedWeightValue.m_numValues, extractedDispatchWeight * pathNormalizer);
             }
         }
+
+        totalDispatchWeight *= pathNormalizer;
 
         std::cout << "Dispatch Weight: " << totalDispatchWeight << std::endl;
         std::cout << "\tAverage Path Weight: "
@@ -350,9 +345,7 @@ void FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel(const int64_t
       int64_t numWeights, int64_t numWeightsPerThread, float arclength, int64_t numSegmentsPerCurve,
       const twisty::WeightingMethod weightingMethod, const std::vector<double> &compressedWeights,
       std::vector<boost::multiprecision::cpp_dec_float_100> &bigFloatWeightsLog10,
-      std::vector<boost::multiprecision::cpp_dec_float_100> &threadScatterWeights,
-      boost::multiprecision::cpp_dec_float_100 pathNormalizer,
-      boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10)
+      std::vector<boost::multiprecision::cpp_dec_float_100> &threadScatterWeights)
 {
     for (int64_t i = 0; i < numWeightsPerThread; i++) {
         int64_t idx = threadIdx * numWeightsPerThread + i;
@@ -365,11 +358,6 @@ void FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel(const int64_t
         boost::multiprecision::cpp_dec_float_100 bigFloatPathWeightLog10 = compressedWeights[idx];
         boost::multiprecision::cpp_dec_float_100 bigfloatPathWeight
               = boost::multiprecision::pow(10.0, bigFloatPathWeightLog10);
-        // if (weightingMethod == WeightingMethod::RadiativeTransfer)
-        // {
-        //     bigFloatPathWeightLog10 += pathNormalizerLog10;
-        //     bigfloatPathWeight *= pathNormalizer;
-        // }
 
         // Pulled from Jerry analysis
         bigFloatWeightsLog10[idx] = bigFloatPathWeightLog10;
@@ -394,8 +382,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
       const double minCurvature,
       const double maxCurvature,
       const double curvatureStepSize,
-      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
-      const double normalizerLog10)
+      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions)
 {
     const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
     const int64_t NumTanPerCurve = numSegmentsPerCurve;
@@ -487,7 +474,6 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                         minCurvature,
                         maxCurvature,
                         curvatureStepSize);
-            scatteringWeightLog10 += normalizerLog10;
 
             if (pathCount < numPathsToSkipPerThread) {
                 // Skip
@@ -532,8 +518,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryCombined(int64_t threadIdx,
       // std::vector<double> &cachedSegmentWeights,
       float segmentLength,
       twisty::PathWeighting::BaseWeightLookupTable *weightingIntegralPtr,
-      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
-      const PathWeighting::NormalizerStuff::BaseNormalizer &pathNormalizer)
+      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions)
 {
     // if (m_experimentParams.exportGeneratedCurves)
     // {

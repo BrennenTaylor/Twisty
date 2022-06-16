@@ -140,13 +140,8 @@ namespace PathWeighting {
     };
     MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, double ds);
 
-    // double SimpleWeightCurveViaTangentDotProductLog10(Farlor::Vector3* pTangents,
-    // uint32_t numSegments, const BaseWeightLookupTable& weightIntegral);
-
     namespace NormalizerStuff {
         typedef boost::multiprecision::cpp_dec_float_100 NormalizerDoubleType;
-
-        NormalizerDoubleType f2_formula(const double z);
 
         class BaseNormalizer {
            public:
@@ -159,31 +154,16 @@ namespace PathWeighting {
 
         class FN : public BaseNormalizer {
            public:
-            FN(int samples, int numIntegrationSamples, int orders, const double &rmn,
-                  const double &rmx)
-                : nb_samples(samples)
-                , nb_orders(orders)
-                , rmin(rmn)
-                , rmax(rmx)
-            {
-                init(numIntegrationSamples);
-            }
-
-            FN(std::ifstream &inFile)
-                : nb_samples(0)
-                , nb_orders(0)
-                , rmin(0)
-                , rmax(0)
-            {
-                init_fromFile(inFile);
-            }
+            FN(int samples, int numIntegrationSamples, int orders, const double &zMin,
+                  const double &zMax);
+            FN(std::ifstream &inFile);
 
             ~FN() { }
 
             virtual NormalizerDoubleType eval(int order, double r) const override;
 
-            double minimum() const { return rmin; }
-            double maximum() const { return rmax; }
+            double minimum() const { return zMin; }
+            double maximum() const { return zMax; }
             int samples() const { return nb_samples; }
             int orders() const { return nb_orders; }
 
@@ -192,8 +172,8 @@ namespace PathWeighting {
            private:
             int nb_samples;
             int nb_orders;
-            double rmin;
-            double rmax;
+            double zMin;
+            double zMax;
 
             std::map<int, std::vector<NormalizerDoubleType>> fNsets;
             void init(int numIntegrationSamples);
