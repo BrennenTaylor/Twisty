@@ -198,17 +198,17 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     PathWeighting::NormalizerStuff::BaseNormalizer &fn = (*upFN);
 
     // Why the 1/(delta s) = (M+2)/s?
-    Farlor::Vector3 Z = (boundaryConditions.m_endPos - boundaryConditions.m_startPos)
-                * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
-          - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
-    std::cout << "Z: " << Z << std::endl;
-    std::cout << "|Z|: " << Z.Magnitude() << std::endl;
+    //     Farlor::Vector3 Z = (boundaryConditions.m_endPos - boundaryConditions.m_startPos)
+    //                 * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
+    //           - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
+    //     std::cout << "Z: " << Z << std::endl;
+    //     std::cout << "|Z|: " << Z.Magnitude() << std::endl;
 
     PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0;
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::RadiativeTransfer) {
-        pathNormalizer = PathWeighting::NormalizerStuff::Norm(
-              fn, m_upInitialCurve->m_numSegments, Z.Magnitude(), boundaryConditions.arclength);
+        pathNormalizer = PathWeighting::NormalizerStuff::Norm(fn, m_upInitialCurve->m_numSegments,
+              m_upInitialCurve->m_segmentLength, boundaryConditions);
     }
     const boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10
           = boost::multiprecision::log10(pathNormalizer);

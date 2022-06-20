@@ -181,27 +181,8 @@ namespace PathWeighting {
             void init_fromFile(std::ifstream &inFile);
         };
 
-        Farlor::Vector3 makeVector(double a, double b, double c);
-
-        NormalizerDoubleType psd_one(const BaseNormalizer &fn, int M, const double s,
-              const Farlor::Vector3 &X, const Farlor::Vector3 &N, const Farlor::Vector3 &Np,
-              const Farlor::Vector3 &beta);
-
-        NormalizerDoubleType Norm(const BaseNormalizer &fn, int M, double z, double s);
-
-        NormalizerDoubleType psd_n(const BaseNormalizer &fn, int M, const double s,
-              const Farlor::Vector3 &X, const Farlor::Vector3 &N, const Farlor::Vector3 &Np,
-              const std::vector<Farlor::Vector3> &beta);
-
-        NormalizerDoubleType likelihood(const BaseNormalizer &fn, int numSegments,
-              const double arclength, const Farlor::Vector3 &endPosition,
-              const Farlor::Vector3 &startPosition, const Farlor::Vector3 &N,
-              const Farlor::Vector3 &Np, const std::vector<Farlor::Vector3> &beta0,
-              const std::vector<Farlor::Vector3> &betastar);
-
-        NormalizerDoubleType CalculateLikelihood(const BaseNormalizer &fn, int numSegments,
-              const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
-              std::vector<Farlor::Vector3> &oldTangents, std::vector<Farlor::Vector3> &newTangents);
+        NormalizerDoubleType Norm(const BaseNormalizer &fn, int numberOfSegments, double ds,
+              twisty::PerturbUtils::BoundaryConditions boundaryConditions);
 
         std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(
               uint32_t numSegments);

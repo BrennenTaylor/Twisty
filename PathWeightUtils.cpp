@@ -1,5 +1,7 @@
 #include "PathWeightUtils.h"
 
+#include "ExperimentRunner.h"
+#include "FMath/Vector3.h"
 #include "MathConsts.h"
 
 #include "CurvePerturbUtils.h"
@@ -400,238 +402,150 @@ namespace PathWeighting {
             }
         }
 
-        // The smallest order of F we can numerically evaluate
-        NormalizerDoubleType F4(const double z)
-        {
-            double result = (z < 2.0) ? 1.0 : 0.0;
-            result /= z;
-            return result;
-        }
-
-
         void FN::init(int numIntegrationSamples)
         {
-            std::cout << "# order=" << 4 << std::endl;
-            std::vector<NormalizerDoubleType> f4(nb_samples);
+            //             std::cout << "# order=" << 4 << std::endl;
+            //             std::vector<NormalizerDoubleType> f4(nb_samples);
 
-            // Assume we have a range of possible r values, we want to go ahead and
-            // calculate and store them
-            const double dr = (zMax - zMin) / (nb_samples - 1);
-            // For each r-value sample, calculate the base order pair (M = 4, r)
-            for (int i = 0; i < nb_samples; i++) {
-                double r = zMin + i * dr;
-                f4[i] = F4(r);
-            }
-            fNsets[4] = f4;
+            //             // Assume we have a range of possible r values, we want to go ahead and
+            //             // calculate and store them
+            //             const double dr = (zMax - zMin) / (nb_samples - 1);
+            //             // For each r-value sample, calculate the base order pair (M = 4, r)
+            //             for (int i = 0; i < nb_samples; i++) {
+            //                 double r = zMin + i * dr;
+            //                 f4[i] = F4(r);
+            //             }
+            //             fNsets[4] = f4;
 
-            // Now we continue on and calculate the next orders up until maxorder
-            // This is currently 200 in our case
-            for (int o = 3; o <= nb_orders; o++) {
-                if ((o % 1) == 0) {
-                    std::cout << "# order=" << o << std::endl;
-                }
+            //             // Now we continue on and calculate the next orders up until maxorder
+            //             // This is currently 200 in our case
+            //             for (int o = 3; o <= nb_orders; o++) {
+            //                 if ((o % 1) == 0) {
+            //                     std::cout << "# order=" << o << std::endl;
+            //                 }
 
-                std::vector<NormalizerDoubleType> f(nb_samples);
-#pragma omp parallel for
-                for (int i = 0; i < nb_samples; i++) {
-                    double r = zMin + i * dr;
-                    double lower = std::fabs(r - 1.0);
-                    double upper = r + 1.0;
+            //                 std::vector<NormalizerDoubleType> f(nb_samples);
+            // #pragma omp parallel for
+            //                 for (int i = 0; i < nb_samples; i++) {
+            //                     double r = zMin + i * dr;
+            //                     double lower = std::fabs(r - 1.0);
+            //                     double upper = r + 1.0;
 
-                    // we use the same number of samples as our integral number of samples
-                    double ddr = (upper - lower) / (numIntegrationSamples - 1);
-                    NormalizerDoubleType accum = 0.0;
-                    for (int i = 0; i < numIntegrationSamples; i++) {
-                        // Evaluation point is: rp
-                        // Current order is: o
-                        // Order below is: o - 1
-                        double rp = lower + i * ddr;
-                        // Add in bar representing ddr * r *f_{M-1}(r)
-                        accum += ddr * rp * eval(o - 1, rp);
-                    }
-                    f[i] = accum;
-                }
-                fNsets[o] = f;
-            }
+            //                     // we use the same number of samples as our integral number of samples
+            //                     double ddr = (upper - lower) / (numIntegrationSamples - 1);
+            //                     NormalizerDoubleType accum = 0.0;
+            //                     for (int i = 0; i < numIntegrationSamples; i++) {
+            //                         // Evaluation point is: rp
+            //                         // Current order is: o
+            //                         // Order below is: o - 1
+            //                         double rp = lower + i * ddr;
+            //                         // Add in bar representing ddr * r *f_{M-1}(r)
+            //                         accum += ddr * rp * eval(o - 1, rp);
+            //                     }
+            //                     f[i] = accum;
+            //                 }
+            //                 fNsets[o] = f;
+            //             }
         }
 
         // Evaluate f of a given order at an z magnitude
         NormalizerDoubleType FN::eval(int order, double z) const
         {
-            // Get the stored dataset for the specific order
-            const std::vector<NormalizerDoubleType> &data = fNsets.at(order);
-            const long double dz = (zMax - zMin) / (nb_samples - 1);
-            // Next, find the bucket tp the left
-            int leftIdx = (int)(z - zMin) / dz;
-            // Bind weights to the known table
-            leftIdx = std::min(leftIdx, nb_samples - 1);
-            leftIdx = std::max(leftIdx, 0);
+            // // Get the stored dataset for the specific order
+            // const std::vector<NormalizerDoubleType> &data = fNsets.at(order);
+            // const long double dz = (zMax - zMin) / (nb_samples - 1);
+            // // Next, find the bucket tp the left
+            // int leftIdx = (int)(z - zMin) / dz;
+            // // Bind weights to the known table
+            // leftIdx = std::min(leftIdx, nb_samples - 1);
+            // leftIdx = std::max(leftIdx, 0);
 
-            // Calculate right side value and bind to table as well
-            int rightIdx = leftIdx + 1;
-            rightIdx = std::min(rightIdx, nb_samples - 1);
-            rightIdx = std::max(rightIdx, 0);
+            // // Calculate right side value and bind to table as well
+            // int rightIdx = leftIdx + 1;
+            // rightIdx = std::min(rightIdx, nb_samples - 1);
+            // rightIdx = std::max(rightIdx, 0);
 
-            double distance = z - zMin;
-            double leftDist = distance - (leftIdx * dz);
+            // double distance = z - zMin;
+            // double leftDist = distance - (leftIdx * dz);
 
-            // Finally, our datapoint is a bilinear interpolation
-            return data[leftIdx] * (1.0f - leftDist) + data[rightIdx] * leftDist;
+            // // Finally, our datapoint is a bilinear interpolation
+            // return data[leftIdx] * (1.0f - leftDist) + data[rightIdx] * leftDist;
+            return 0.0;
         }
 
-        // Calculate the overall normalization
-        NormalizerDoubleType Norm(const BaseNormalizer &fn, int M, double z, double ds)
+        // The smallest order of F we can numerically evaluate
+        NormalizerDoubleType K4(const double z, const double ds)
         {
-            // For M <= 3, the normalization is undefined or has a delta function
-            assert(M > 3);
-            std::cout << "M: " << M << std::endl;
-            std::cout << "ds: " << ds << std::endl;
+            double result = (z < 2.0) ? 1.0 : 0.0;
+            result /= z;
+            result *= 2.0 * TwistyPi;
+            const double invDs = (1.0 / ds);
+            result *= (invDs * invDs * invDs);
+            return result;
+        }
 
-            NormalizerDoubleType fneval = fn.eval(M, z);
-            NormalizerDoubleType piPower
-                  = boost::multiprecision::pow(boost::multiprecision::cpp_dec_float_100(2.0)
-                              * boost::multiprecision::cpp_dec_float_100(TwistyPi),
-                        M - 3);
-            NormalizerDoubleType invDsCubed
-                  = boost::multiprecision::pow(NormalizerDoubleType(1.0 / ds), 3);
+        NormalizerDoubleType F5(
+              const Farlor::Vector3 &betaVec, const Farlor::Vector3 &zVec, const double ds)
+        {
+            const Farlor::Vector3 rVec = zVec + betaVec;
+            const double rMag = rVec.Magnitude();
+            return K4(rMag, ds);
+        }
 
-            std::cout << "fneval: " << fneval << std::endl;
-            std::cout << "piPower: " << piPower << std::endl;
-            std::cout << "invDsCubed: " << invDsCubed << std::endl;
+        NormalizerDoubleType K5(const Farlor::Vector3 &zVec, const double ds)
+        {
+            NormalizerDoubleType result = 0.0;
+            const uint32_t numPhiSteps = 1000;
+            const uint32_t numThetaSteps = 1000;
 
-            NormalizerDoubleType result = fneval * piPower * invDsCubed;
-            std::cout << "result: " << result << std::endl;
+            const double phiMin = -TwistyPi;
+            const double phiMax = -TwistyPi;
+            const double deltaPhi = (phiMax - phiMin) / numThetaSteps;
+
+            const double thetaMin = 0.0;
+            const double thetaMax = 2.0 * TwistyPi;
+            const double deltaTheta = (thetaMax - thetaMin) / numThetaSteps;
+
+            for (uint32_t phiIdx = 0; phiIdx < numPhiSteps; phiIdx++) {
+                for (uint32_t thetaIdx = 0; thetaIdx < numThetaSteps; thetaIdx++) {
+                    const double phi = phiMin + phiIdx * deltaPhi;
+                    const double theta = thetaMin + thetaIdx * deltaTheta;
+                    const Farlor::Vector3 betaEval(std::sin(phi) * std::cos(theta),
+                          std::sin(phi) * std::sin(theta), std::cos(phi));
+                    result += F5(betaEval, zVec, ds) * (deltaTheta * deltaPhi);
+                }
+            }
 
             return result;
         }
 
-        // NormalizerDoubleType psd_one(const BaseNormalizer &fn, int M, const double s,
-        //       const Farlor::Vector3 &X, const Farlor::Vector3 &N, const Farlor::Vector3 &Np,
-        //       const Farlor::Vector3 &beta)
-        // {
-        //     Farlor::Vector3 Z = X * (M + 1) * (1.0 / s) - N - Np;
-        //     double z = Z.Magnitude();
-        //     double zb = (Z - beta).Magnitude();
-        //     NormalizerDoubleType fmb = fn.eval(M - 1, zb);
-        //     NormalizerDoubleType fm = fn.eval(M, z);
-        //     NormalizerDoubleType zero(0.0);
-        //     if (fm == zero) {
-        //         return zero;
-        //     }
-        //     NormalizerDoubleType result = fmb / fm;
-        //     result *= (z / zb);
-        //     result /= (2.0 * 3.14159265);
-        //     result *= std::pow((double)(M) / (double)(M + 1), 3);
-        //     return result;
-        // }
+        // Calculate the overall normalization
+        NormalizerDoubleType Norm(const BaseNormalizer &fn, int numberOfSegments, double ds,
+              twisty::PerturbUtils::BoundaryConditions boundaryConditions)
+        {
+            // For M <= 3, the normalization is undefined or has a delta function
+            assert(numberOfSegments > 3);
+            std::cout << "Number of Segments: " << numberOfSegments << std::endl;
+            std::cout << "ds: " << ds << std::endl;
 
-        // NormalizerDoubleType psd_n(const BaseNormalizer &fn, int M, const double s,
-        //       const Farlor::Vector3 &X, const Farlor::Vector3 &N, const Farlor::Vector3 &Np,
-        //       const std::vector<Farlor::Vector3> &beta)
-        // {
-        //     Farlor::Vector3 Zm = X * (M + 1) * (1 / s) - N - Np;
-        //     double zm = Zm.Magnitude();
-        //     // Subtract off all the betas
-        //     for (size_t n = 0; n < beta.size(); n++) {
-        //         Zm -= beta[n];
-        //     }
-        //     double rmn = Zm.Magnitude();
+            const Farlor::Vector3 zVec
+                  = (boundaryConditions.m_endPos - boundaryConditions.m_startPos) * (1.0f / ds)
+                  - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
+            const float z = zVec.Magnitude();
 
-        //     NormalizerDoubleType result
-        //           = (fn.eval(M - (int)beta.size(), rmn) * zm) / (fn.eval(M, zm) * rmn);
-        //     result /= boost::multiprecision::pow(
-        //           boost::multiprecision::cpp_dec_float_100(2.0 * 3.14159265), beta.size());
-        //     result *= std::pow((double)(M - beta.size() + 1) / (double)(M + 1), 3);
-        //     return result;
-        // }
+            // Special case
+            if (numberOfSegments == 4) {
+                return K4(z, ds);
+            }
 
-        // NormalizerDoubleType likelihood(const BaseNormalizer &fn, int M, const double arclength,
-        //       const Farlor::Vector3 &endPosition, const Farlor::Vector3 &startPosition,
-        //       const Farlor::Vector3 &N, const Farlor::Vector3 &Np,
-        //       const std::vector<Farlor::Vector3> &oldBetas,
-        //       const std::vector<Farlor::Vector3> &newBetas)
-        // {
-        //     Farlor::Vector3 Z0 = (endPosition - startPosition) * (M + 1) * (1.0 / arclength);
-        //     // std::cout << "Z0: " << Z0 << std::endl;
+            if (numberOfSegments == 5) {
+                return K5(zVec, ds);
+            }
 
-        //     Farlor::Vector3 Zstar = Z0;
-        //     for (size_t n = 0; n < oldBetas.size(); n++) {
-        //         Z0 -= oldBetas[n];
-        //         Zstar -= newBetas[n];
-        //     }
-
-        //     // std::cout << "Zstar: " << Zstar << std::endl;
-
-        //     double z0 = Z0.Magnitude();
-        //     double zstar = Zstar.Magnitude();
-
-        //     // std::cout << "z0: " << z0 << std::endl;
-        //     // std::cout << "zstar: " << zstar << std::endl;
-
-        //     NormalizerDoubleType topFN = fn.eval(M - (int)newBetas.size(), zstar);
-        //     NormalizerDoubleType bottomFN = fn.eval(M - (int)oldBetas.size(), z0);
-        //     double zRational = z0 / zstar;
-
-        //     // std::cout << "topFN: " << topFN << std::endl;
-        //     // std::cout << "bottomFN: " << bottomFN << std::endl;
-        //     // std::cout << "zRational: " << zRational << std::endl;
-
-        //     NormalizerDoubleType zero(0.0);
-        //     if ((bottomFN == zero) || (zstar == zero)) {
-        //         return 0.0;
-        //     }
-        //     NormalizerDoubleType result = (topFN / bottomFN) * zRational;
-        //     return result;
-        // }
-
-        // NormalizerDoubleType CalculateLikelihood(const BaseNormalizer &fn, int numSegments,
-        //       const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
-        //       std::vector<Farlor::Vector3> &oldBetas, std::vector<Farlor::Vector3> &newBetas)
-        // {
-        //     // We store 1 tangent per segement plus an addition one for end.
-        //     // The first and last are boundary, so we want the middle M-1
-        //     assert(oldBetas.size() == newBetas.size());
-
-        //     return likelihood(fn, numSegments - 1, boundaryConditions.arclength,
-        //           boundaryConditions.m_endPos, boundaryConditions.m_startPos,
-        //           boundaryConditions.m_endDir, boundaryConditions.m_startDir, oldBetas, newBetas);
-        // }
-
-        // std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(
-        //       uint32_t numSegments)
-        // {
-        //     const std::string fnFilename = "SavedFN.fnd";
-        //     const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilename;
-
-        //     if (std::filesystem::exists(fnFilePath)) {
-        //         std::cout << "Using cached fd file at: " << fnFilePath << std::endl;
-        //         std::ifstream inFile(fnFilePath);
-        //         std::unique_ptr<PathWeighting::NormalizerStuff::FN> upFN
-        //               = std::make_unique<PathWeighting::NormalizerStuff::FN>(inFile);
-        //         inFile.close();
-        //         return upFN;
-        //     }
-
-        //     // This is the max M value
-        //     const int maxorder = numSegments;
-
-        //     // Generate the fn data table
-        //     const int numZSamples = 5000;
-        //     const int numIntegrationSamples = 5000;
-
-        //     // Arbitrarily set min and max |r_vec| values.
-        //     // Why this specific max bound, I do not know
-        //     const double zMin = 0.0;
-        //     const double zMax = 200.0;
-        //     std::unique_ptr<PathWeighting::NormalizerStuff::FN> upFN
-        //           = std::make_unique<PathWeighting::NormalizerStuff::FN>(
-        //                 numZSamples, numIntegrationSamples, maxorder, zMin, zMax);
-
-        //     std::ofstream outFile(fnFilePath);
-        //     upFN->WriteToFile(outFile);
-        //     outFile.close();
-        //     return upFN;
-        // }
-    }  // namespace NormalizerStuff
-}  // namespace PathWeighting
+            std::cout << "Invalid number of segments, currently cannot calculate normalizer"
+                      << std::endl;
+            return 0.0;
+        }
+    }  // namespace PathWeighting
 }  // namespace twisty
+}
