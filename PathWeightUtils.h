@@ -181,7 +181,7 @@ namespace PathWeighting {
             void init_fromFile(std::ifstream &inFile);
         };
 
-        NormalizerDoubleType Norm(const BaseNormalizer &fn, int numberOfSegments, double ds,
+        NormalizerDoubleType Norm(int numberOfSegments, double ds,
               twisty::PerturbUtils::BoundaryConditions boundaryConditions);
 
         std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(

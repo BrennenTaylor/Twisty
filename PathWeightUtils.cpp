@@ -489,21 +489,23 @@ namespace PathWeighting {
         {
             const Farlor::Vector3 rVec = zVec + betaVec;
             const double rMag = rVec.Magnitude();
+            // std::cout << "rMag: " << rMag << std::endl;
             return K4(rMag, ds);
         }
 
         NormalizerDoubleType K5(const Farlor::Vector3 &zVec, const double ds)
         {
+            std::cout << "K5" << std::endl;
             NormalizerDoubleType result = 0.0;
-            const uint32_t numPhiSteps = 1000;
-            const uint32_t numThetaSteps = 1000;
+            const uint32_t numPhiSteps = 10000;
+            const uint32_t numThetaSteps = 10000;
 
             const double phiMin = -TwistyPi;
             const double phiMax = -TwistyPi;
             const double deltaPhi = (phiMax - phiMin) / numThetaSteps;
 
             const double thetaMin = 0.0;
-            const double thetaMax = 2.0 * TwistyPi;
+            const double thetaMax = TwistyPi;
             const double deltaTheta = (thetaMax - thetaMin) / numThetaSteps;
 
             for (uint32_t phiIdx = 0; phiIdx < numPhiSteps; phiIdx++) {
@@ -512,7 +514,11 @@ namespace PathWeighting {
                     const double theta = thetaMin + thetaIdx * deltaTheta;
                     const Farlor::Vector3 betaEval(std::sin(phi) * std::cos(theta),
                           std::sin(phi) * std::sin(theta), std::cos(phi));
-                    result += F5(betaEval, zVec, ds) * (deltaTheta * deltaPhi);
+                    // std::cout << "Beta: " << betaEval << std::endl;
+                    // std::cout << "Zvec: " << zVec << std::endl;
+                    const NormalizerDoubleType val = F5(betaEval.Normalized(), zVec, ds);
+                    // std::cout << "Calcualted F5: " << val << std::endl;
+                    result += val * (deltaTheta * deltaPhi);
                 }
             }
 
@@ -520,7 +526,7 @@ namespace PathWeighting {
         }
 
         // Calculate the overall normalization
-        NormalizerDoubleType Norm(const BaseNormalizer &fn, int numberOfSegments, double ds,
+        NormalizerDoubleType Norm(int numberOfSegments, double ds,
               twisty::PerturbUtils::BoundaryConditions boundaryConditions)
         {
             // For M <= 3, the normalization is undefined or has a delta function

@@ -166,36 +166,36 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = nullptr;
 
     // We dont need this actually, so we can just load the default one
-    {
-        // If we can load the fn data, load it
-        if (std::filesystem::exists(fnFilePath)) {
-            std::cout << "Using cached fd file at: " << fnFilePath << std::endl;
-            std::ifstream inFile(fnFilePath);
-            upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(inFile);
-            inFile.close();
-        }
-        // We need to generate it this time and save it off to use next time
-        else {
-            // This is the max M value
-            const int maxorder = m_upInitialCurve->m_numSegments;
+    //     {
+    //         // If we can load the fn data, load it
+    //         if (std::filesystem::exists(fnFilePath)) {
+    //             std::cout << "Using cached fd file at: " << fnFilePath << std::endl;
+    //             std::ifstream inFile(fnFilePath);
+    //             upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(inFile);
+    //             inFile.close();
+    //         }
+    //         // We need to generate it this time and save it off to use next time
+    //         else {
+    //             // This is the max M value
+    //             const int maxorder = m_upInitialCurve->m_numSegments;
 
-            // Generate the fn data table
-            const int numZSamples = 5000;
-            const int numIntegrationSamples = 5000;
+    //             // Generate the fn data table
+    //             const int numZSamples = 5000;
+    //             const int numIntegrationSamples = 5000;
 
-            // Arbitrarily set min and max |r_vec| values.
-            // Why this specific max bound, I do not know
-            const double rMin = 0.0;
-            const double rMax = 200.0;
-            upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(
-                  numZSamples, numIntegrationSamples, maxorder, rMin, rMax);
+    //             // Arbitrarily set min and max |r_vec| values.
+    //             // Why this specific max bound, I do not know
+    //             const double rMin = 0.0;
+    //             const double rMax = 200.0;
+    //             upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(
+    //                   numZSamples, numIntegrationSamples, maxorder, rMin, rMax);
 
-            std::ofstream outFile(fnFilePath);
-            dynamic_cast<PathWeighting::NormalizerStuff::FN *>(upFN.get())->WriteToFile(outFile);
-            outFile.close();
-        }
-    }
-    PathWeighting::NormalizerStuff::BaseNormalizer &fn = (*upFN);
+    //             std::ofstream outFile(fnFilePath);
+    //             dynamic_cast<PathWeighting::NormalizerStuff::FN *>(upFN.get())->WriteToFile(outFile);
+    //             outFile.close();
+    //         }
+    //     }
+    //     PathWeighting::NormalizerStuff::BaseNormalizer &fn = (*upFN);
 
     // Why the 1/(delta s) = (M+2)/s?
     //     Farlor::Vector3 zVec = (boundaryConditions.m_endPos - boundaryConditions.m_startPos)
@@ -207,7 +207,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0;
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::RadiativeTransfer) {
-        pathNormalizer = PathWeighting::NormalizerStuff::Norm(fn, m_upInitialCurve->m_numSegments,
+        pathNormalizer = PathWeighting::NormalizerStuff::Norm(m_upInitialCurve->m_numSegments,
               m_upInitialCurve->m_segmentLength, boundaryConditions);
     }
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
