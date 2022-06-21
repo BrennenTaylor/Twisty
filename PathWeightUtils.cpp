@@ -484,43 +484,56 @@ namespace PathWeighting {
             return result;
         }
 
-        NormalizerDoubleType F5(
-              const Farlor::Vector3 &betaVec, const Farlor::Vector3 &zVec, const double ds)
+        NormalizerDoubleType F5(const double x, const double &z, const double ds)
         {
-            const Farlor::Vector3 rVec = zVec + betaVec;
-            const double rMag = rVec.Magnitude();
-            // std::cout << "rMag: " << rMag << std::endl;
+            const double rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));
             return K4(rMag, ds);
         }
 
-        NormalizerDoubleType K5(const Farlor::Vector3 &zVec, const double ds)
+        NormalizerDoubleType F6(const double x, const double &z, const double ds)
+        {
+            const double rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));
+
+            NormalizerDoubleType result = 0.0;
+            const uint32_t numSteps = 10000;
+
+            const double xMin = -1.0;
+            const double xMax = 1.0;
+            const double dx = (xMax - xMin) / numSteps;
+
+            // Phi is vertical Component
+            // Theta is angle around the axis
+
+            for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
+                const double xVal = xMin + xIdx * dx;
+
+                const NormalizerDoubleType val = F5(xVal, rMag, ds);
+                result += val;
+            }
+            result *= (2.0 * TwistyPi) * dx;
+
+            return result;
+        }
+
+        NormalizerDoubleType K5(const double &z, const double ds)
         {
             std::cout << "K5" << std::endl;
             NormalizerDoubleType result = 0.0;
-            const uint32_t numPhiSteps = 10000;
-            const uint32_t numThetaSteps = 10000;
+            const uint32_t numSteps = 10000;
 
-            const double phiMin = -TwistyPi;
-            const double phiMax = -TwistyPi;
-            const double deltaPhi = (phiMax - phiMin) / numThetaSteps;
+            const double xMin = -1.0;
+            const double xMax = 1.0;
+            const double dx = (xMax - xMin) / numSteps;
 
-            const double thetaMin = 0.0;
-            const double thetaMax = TwistyPi;
-            const double deltaTheta = (thetaMax - thetaMin) / numThetaSteps;
+            // Phi is vertical Component
+            // Theta is angle around the axis
 
-            for (uint32_t phiIdx = 0; phiIdx < numPhiSteps; phiIdx++) {
-                for (uint32_t thetaIdx = 0; thetaIdx < numThetaSteps; thetaIdx++) {
-                    const double phi = phiMin + phiIdx * deltaPhi;
-                    const double theta = thetaMin + thetaIdx * deltaTheta;
-                    const Farlor::Vector3 betaEval(std::sin(phi) * std::cos(theta),
-                          std::sin(phi) * std::sin(theta), std::cos(phi));
-                    // std::cout << "Beta: " << betaEval << std::endl;
-                    // std::cout << "Zvec: " << zVec << std::endl;
-                    const NormalizerDoubleType val = F5(betaEval.Normalized(), zVec, ds);
-                    // std::cout << "Calcualted F5: " << val << std::endl;
-                    result += val * (deltaTheta * deltaPhi);
-                }
+            for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
+                const double xVal = xMin + xIdx * dx;
+                const NormalizerDoubleType val = F5(xVal, z, ds);
+                result += val;
             }
+            result *= (2.0 * TwistyPi) * dx;
 
             return result;
         }
@@ -545,7 +558,7 @@ namespace PathWeighting {
             }
 
             if (numberOfSegments == 5) {
-                return K5(zVec, ds);
+                return K5(z, ds);
             }
 
             std::cout << "Invalid number of segments, currently cannot calculate normalizer"
