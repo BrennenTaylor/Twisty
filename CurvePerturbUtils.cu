@@ -154,6 +154,15 @@ namespace PerturbUtils {
             pTangents[i * 3 + 0] = diff_x * invDS;
             pTangents[i * 3 + 1] = diff_y * invDS;
             pTangents[i * 3 + 2] = diff_z * invDS;
+
+            //TODO: Should we normalize the damn tangents?
+            float mag = pTangents[i * 3 + 0] * pTangents[i * 3 + 0]
+                  + pTangents[i * 3 + 1] * pTangents[i * 3 + 1]
+                  + pTangents[i * 3 + 2] * pTangents[i * 3 + 2];
+            mag = std::sqrt(mag);
+            pTangents[i * 3 + 0] /= mag;
+            pTangents[i * 3 + 1] /= mag;
+            pTangents[i * 3 + 2] /= mag;
         }
     }
 

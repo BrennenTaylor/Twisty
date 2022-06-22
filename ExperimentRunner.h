@@ -103,7 +103,7 @@ class ExperimentRunner {
     void EndPathBatchOutput();
 
     void StartWeightConvergenceWrite();
-    void UpdateConvergenceWeight(const uint32_t numNewPaths,
+    void UpdateConvergenceWeight(const uint64_t numNewPaths,
           const boost::multiprecision::cpp_dec_float_100 weightContribution);
     void EndWeightConvergenceWrite();
 
@@ -120,7 +120,7 @@ class ExperimentRunner {
     std::ofstream m_curvesMetadataFile;
 
     std::ofstream m_weightConvergenceFile;
-    uint32_t m_numWeightConvergencePaths = 0;
+    uint64_t m_numWeightConvergencePaths = 0;
     boost::multiprecision::cpp_dec_float_100 m_weightConvergenceCombinedWeight = 0.0;
 
    private:

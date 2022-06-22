@@ -81,6 +81,23 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
 
     std::cout << "Using " << numPurturbThreads << " threads for purturbation." << std::endl;
 
+    std::filesystem::path convergenceWeightsPath = m_experimentDirPath;
+    convergenceWeightsPath /= "ConvergenceWeights/";
+    if (!std::filesystem::exists(convergenceWeightsPath)) {
+        std::filesystem::create_directories(convergenceWeightsPath);
+    }
+
+    std::vector<std::ofstream> perThreadConvergenceFiles(numPurturbThreads);
+    for (int threadIdx = 0; threadIdx < numPurturbThreads; threadIdx++) {
+        const std::string threadFilename
+              = "ConvergenceWeights_" + std::to_string(threadIdx) + std::string(".txt");
+        perThreadConvergenceFiles[threadIdx].open(convergenceWeightsPath.string() + threadFilename);
+        if (!perThreadConvergenceFiles[threadIdx].is_open()) {
+            throw std::runtime_error("Failed to open " + threadFilename);
+        }
+    }
+
+
     // Setup rng stuff
     // TODO: Set this up more correctly, based on https://www.pcg-random.org/posts/cpp-seeding-surprises.html
     std::vector<std::mt19937_64> perThreadRngGenerators(numPurturbThreads);
@@ -296,6 +313,11 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
         // -------------------
         auto weightingTimeStart = std::chrono::high_resolution_clock::now();
 
+        int threadIdx = 0;
+        uint64_t numPathsCurrentThread = 0;
+        boost::multiprecision::cpp_dec_float_100 currentThreadTotalWeight = 0.0;
+        uint64_t numCombinedWeightsCurrentThread = 0;
+
         boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
         for (auto &combinedWeightValue : perDispatchCombinedWeightValues) {
             boost::multiprecision::cpp_dec_float_100 extractedDispatchWeight
@@ -305,6 +327,19 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
             if (m_experimentParams.outputBigFloatWeights) {
                 UpdateConvergenceWeight(
                       combinedWeightValue.m_numValues, extractedDispatchWeight * pathNormalizer);
+            }
+
+            numPathsCurrentThread += combinedWeightValue.m_numValues;
+            currentThreadTotalWeight += extractedDispatchWeight * pathNormalizer;
+            perThreadConvergenceFiles[threadIdx] << numPathsCurrentThread << ", "
+                                                 << currentThreadTotalWeight / numPathsCurrentThread
+                                                 << std::endl;
+            numCombinedWeightsCurrentThread++;
+            if (numCombinedWeightsCurrentThread >= numCombinedWeightValuesPerThread) {
+                numCombinedWeightsCurrentThread = 0;
+                numPathsCurrentThread = 0;
+                currentThreadTotalWeight = 0.0;
+                threadIdx++;
             }
         }
 

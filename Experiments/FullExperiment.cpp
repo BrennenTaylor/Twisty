@@ -203,11 +203,14 @@ int main(int argc, char *argv[])
             experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
         }
         // Force to a value
+
+
         experimentGeometry.arclength = experimentParams.arclength = 11.0f;
         //   = twisty::Bootstrapper::CalculateMinimumArclength(
         //         experimentParams.numSegmentsPerCurve, experimentGeometry.m_startPos,
         //         experimentGeometry.m_endPos);
         std::cout << "Minimum arclength: " << experimentGeometry.arclength << std::endl;
+
 
         // We run the experiment as well
         std::string outputDataFilename

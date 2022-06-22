@@ -244,13 +244,13 @@ void ExperimentRunner::StartWeightConvergenceWrite()
 }
 
 void ExperimentRunner::UpdateConvergenceWeight(
-      const uint32_t numNewPaths, const boost::multiprecision::cpp_dec_float_100 weightContribution)
+      const uint64_t numNewPaths, const boost::multiprecision::cpp_dec_float_100 weightContribution)
 {
     m_numWeightConvergencePaths += numNewPaths;
     m_weightConvergenceCombinedWeight += weightContribution;
     m_weightConvergenceFile << m_numWeightConvergencePaths << ", "
                             << m_weightConvergenceCombinedWeight / m_numWeightConvergencePaths
-                            << ", " << m_weightConvergenceCombinedWeight << std::endl;
+                            << std::endl;
 }
 
 void ExperimentRunner::EndWeightConvergenceWrite() { m_weightConvergenceFile.close(); }

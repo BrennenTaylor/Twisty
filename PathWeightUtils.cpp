@@ -320,7 +320,7 @@ namespace PathWeighting {
 
                 MinMaxCurvature result;
                 result.minCurvature = 0.0;
-                result.maxCurvature = 2.3 / (ds);
+                result.maxCurvature = (2.3 / ds) * 2.2;
                 return result;
             } break;
             case WeightingMethod::SimplifiedModel: {

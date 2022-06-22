@@ -58,13 +58,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.curvePurturbSeed
           = experimentConfig["experiment"]["experimentParams"]["random"]["perturbSeed"];
 
-    //     if (experimentParams.bootstrapSeed == 0) {
-    //         experimentParams.bootstrapSeed = time(0);
-    //     }
-    //     if (experimentParams.curvePurturbSeed == 0) {
-    //         experimentParams.curvePurturbSeed = time(0);
-    //     }
-
     // Weighting parameter stuff
     int weightFunction
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["weightFunction"];
@@ -180,11 +173,6 @@ int main(int argc, char *argv[])
     twisty::ExperimentRunner::ExperimentParameters experimentParams
           = ParseExperimentParamsFromConfig(experimentConfig);
 
-    const int normalGenSeed
-          = (int)experimentConfig["experiment"]["noisyCircleExperiment"]["normalGenSeed"]
-          ? (int)experimentConfig["experiment"]["noisyCircleExperiment"]["normalGenSeed"]
-          : (int)time(0);
-
     const int startX = experimentConfig["experiment"]["noisyCircleExperiment"]["startX"];
     const int startY = experimentConfig["experiment"]["noisyCircleExperiment"]["startY"];
 
@@ -210,7 +198,6 @@ int main(int argc, char *argv[])
     assert(startY < framePixelCount);
 
     // Lets test uniform random directions on sampling hemisphere
-    std::mt19937 normalGenerator(normalGenSeed);
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
     std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(
           framePixelCount * framePixelCount);
@@ -237,13 +224,23 @@ int main(int argc, char *argv[])
             const Farlor::Vector3 recieverPos = center
                   + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
 
-            const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
+            const Farlor::Vector3 recieverDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
 
-
-            const float minArclength
-                  = twisty::Bootstrapper::CalculateMinimumArclength(
-                          experimentParams.numSegmentsPerCurve, emitterStart, recieverPos)
-                  * 1.1f;
+            float minArclength = 0.0f;
+            if (experimentParams.numSegmentsPerCurve == 4) {
+                const float l = distanceFromPlane;
+                const float x
+                      = std::sqrt(abs(pixelIdxZ) * pixelLength * abs(pixelIdxZ) * pixelLength
+                            + abs(pixelIdxY) * pixelLength * abs(pixelIdxY) * pixelLength);
+                float minimumDs = (x * x) / (4.0 * l) + (l / 4.0);
+                minArclength = minimumDs * 4.0 * 1.001f;
+            } else {
+                minArclength = (recieverPos - emitterStart).Magnitude() + 1.1;
+            }
+            std::cout << "\tMin Arclength: " << minArclength << std::endl;
+            // = twisty::Bootstrapper::CalculateMinimumArclength(
+            //         experimentParams.numSegmentsPerCurve, emitterStart, recieverPos)
+            //       * 1.1f;
             const float maxArclength = minArclength * 2.0f;
             const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
 
@@ -348,7 +345,7 @@ int main(int argc, char *argv[])
 
             const uint32_t frameIdx
                   = (pixelIdxY + halfFrameWidth) * framePixelCount + (pixelIdxZ + halfFrameWidth);
-            std::cout << "Non-Rotated Pixel Weight: " << framePixels[frameIdx] << std::endl;
+            std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
     }
 
@@ -359,8 +356,7 @@ int main(int argc, char *argv[])
 
     // Export raw pixel data
     {
-        const std::filesystem::path rawDataFilepath
-              = outputDirectoryPath / "noisyCircleNonRotated.dat";
+        const std::filesystem::path rawDataFilepath = outputDirectoryPath / "noisyCircle.dat";
         std::ofstream rawDataOutfile(rawDataFilepath.string());
         if (!rawDataOutfile.is_open()) {
             std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath.string()
