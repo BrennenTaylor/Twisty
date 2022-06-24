@@ -245,9 +245,9 @@ int main(int argc, char *argv[])
     const float minArclength = minMinFrameArclength;
     const float maxArclength = maxMinFrameArclength + (maxMinFrameArclength - minArclength);
 
-    const deltaArclength = (maxArclength - minArclength) / numArclengths;
+    const float deltaArclength = (maxArclength - minArclength) / numArclengths;
 
-    for (size_t arclengthIdx = 0; arclengthIdx <= numArclengths; arclengthIdx++) {
+    for (size_t arclengthIdx = 0; arclengthIdx < numArclengths; arclengthIdx++) {
         const float currentArclength = minArclength + deltaArclength * arclengthIdx;
 
         for (uint32_t r = 0; r < framePixelCount; r++) {
@@ -393,16 +393,17 @@ int main(int argc, char *argv[])
             std::filesystem::create_directory(outputDirectoryPath);
         }
 
-        const std::string currentArclengthString = std::to_string(currentArclength);
-
+        std::string currentArclengthString = std::to_string(currentArclength);
+        std::replace(currentArclengthString.begin(), currentArclengthString.end(), '.', '_');
         // Export raw pixel data
         {
-            const std::filesystem::path rawDataFilepath
-                  = outputDirectoryPath / currentArclengthString / "/" / "noisyCircle.dat";
-            std::ofstream rawDataOutfile(rawDataFilepath.string());
+            const std::string rawDataFilepath = outputDirectoryPath.string() + "/"
+                  + currentArclengthString
+                  + "/"
+                    "noisyCircle.dat";
+            std::ofstream rawDataOutfile(rawDataFilepath);
             if (!rawDataOutfile.is_open()) {
-                std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath.string()
-                          << std::endl;
+                std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath << std::endl;
                 exit(1);
             }
 
@@ -425,14 +426,11 @@ int main(int argc, char *argv[])
 
         // Normalized pixel data
         {
-            const std::filesystem::path rawDataFilepath = outputDirectoryPath
-                  / currentArclengthString
-                  / "/"
-                    "normalizedData.dat";
-            std::ofstream rawDataOutfile(rawDataFilepath.string());
+            const std::string rawDataFilepath = outputDirectoryPath.string() + "/"
+                  + currentArclengthString + "/" + "normalizedData.dat";
+            std::ofstream rawDataOutfile(rawDataFilepath);
             if (!rawDataOutfile.is_open()) {
-                std::cout << "Failed to create normalizedData: " << rawDataFilepath.string()
-                          << std::endl;
+                std::cout << "Failed to create normalizedData: " << rawDataFilepath << std::endl;
                 exit(1);
             }
 
