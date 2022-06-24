@@ -201,12 +201,6 @@ int main(int argc, char *argv[])
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
     std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(
           framePixelCount * framePixelCount);
-    for (uint32_t r = 0; r < framePixelCount; r++) {
-        for (uint32_t c = 0; c < framePixelCount; c++) {
-            const uint32_t frameIdx = r * framePixelCount + c;
-            framePixels[frameIdx] = 0.0;
-        }
-    }
 
     const float pixelLength = frameLength / framePixelCount;
     Farlor::Vector3 center(distanceFromPlane, 0.0f, 0.0f);
@@ -215,17 +209,16 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
     const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
 
+    // First, we calculate the minimum possible arclength
+    float minMinFrameArclength = distanceFromPlane * 2.0f;
+    float maxMinFrameArclength = 0.0f;
     int32_t halfFrameWidth = framePixelCount / 2;
     for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
-        std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
         for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
-            std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
-
             const Farlor::Vector3 recieverPos = center
                   + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
 
             const Farlor::Vector3 recieverDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
-
             float minArclength = 0.0f;
             if (experimentParams.numSegmentsPerCurve == 4) {
                 const float l = distanceFromPlane;
@@ -237,16 +230,62 @@ int main(int argc, char *argv[])
             } else {
                 minArclength = (recieverPos - emitterStart).Magnitude() + 1.1;
             }
-            std::cout << "\tMin Arclength: " << minArclength << std::endl;
-            // = twisty::Bootstrapper::CalculateMinimumArclength(
-            //         experimentParams.numSegmentsPerCurve, emitterStart, recieverPos)
-            //       * 1.1f;
-            const float maxArclength = minArclength * 2.0f;
-            const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
+            if (minArclength < minMinFrameArclength) {
+                minMinFrameArclength = minArclength;
+            }
+            if (minArclength > maxMinFrameArclength) {
+                maxMinFrameArclength = minArclength;
+            }
+        }
+    }
 
-            for (uint32_t arclengthIdx = 0; arclengthIdx < numArclengths; ++arclengthIdx) {
-                const double targetArclength = minArclength + arclengthStepSize * arclengthIdx;
-                experimentParams.arclength = targetArclength;
+    std::cout << "Min Pixel Minimuim Arclength For Frame: " << minMinFrameArclength << std::endl;
+    std::cout << "Max Pixel Minimuim Arclength For Frame: " << maxMinFrameArclength << std::endl;
+
+    const float minArclength = minMinFrameArclength;
+    const float maxArclength = maxMinFrameArclength + (maxMinFrameArclength - minArclength);
+
+    const deltaArclength = (maxArclength - minArclength) / numArclengths;
+
+    for (size_t arclengthIdx = 0; arclengthIdx <= numArclengths; arclengthIdx++) {
+        const float currentArclength = minArclength + deltaArclength * arclengthIdx;
+
+        for (uint32_t r = 0; r < framePixelCount; r++) {
+            for (uint32_t c = 0; c < framePixelCount; c++) {
+                const uint32_t frameIdx = r * framePixelCount + c;
+                framePixels[frameIdx] = 0.0;
+            }
+        }
+
+        int32_t halfFrameWidth = framePixelCount / 2;
+        for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
+            std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
+            for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
+                std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
+
+                const Farlor::Vector3 recieverPos = center
+                      + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
+
+                const Farlor::Vector3 recieverDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
+
+                float testMinArclength = 0.0f;
+                if (experimentParams.numSegmentsPerCurve == 4) {
+                    const float l = distanceFromPlane;
+                    const float x
+                          = std::sqrt(abs(pixelIdxZ) * pixelLength * abs(pixelIdxZ) * pixelLength
+                                + abs(pixelIdxY) * pixelLength * abs(pixelIdxY) * pixelLength);
+                    float minimumDs = (x * x) / (4.0 * l) + (l / 4.0);
+                    testMinArclength = minimumDs * 4.0 * 1.001f;
+                } else {
+                    testMinArclength = (recieverPos - emitterStart).Magnitude() + 1.1;
+                }
+
+                if (testMinArclength > currentArclength) {
+                    // The current pixel has no value.
+                    continue;
+                }
+
+                experimentParams.arclength = currentArclength;
 
                 boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
 
@@ -281,14 +320,14 @@ int main(int argc, char *argv[])
                         experimentGeometry.m_startDir = emitterDir;
                         experimentGeometry.m_endPos = recieverPos;
                         experimentGeometry.m_endDir = recieverDir;
-                        experimentGeometry.arclength = targetArclength;
+                        experimentGeometry.arclength = currentArclength;
 
                         twisty::Bootstrapper bootstrapper(experimentGeometry);
 
                         std::stringstream perExperimentSS;
-                        perExperimentSS << "x_" << pixelIdxZ << "_y_" << pixelIdxY << "_a_"
-                                        << arclengthIdx << "_ic_" << initialCurveIdx << "_ci_"
-                                        << perInitialCurveIdx;
+                        perExperimentSS << "ca_" << currentArclength << "x_" << pixelIdxZ << "_y_"
+                                        << pixelIdxY << "_a_" << arclengthIdx << "_ic_"
+                                        << initialCurveIdx << "_ci_" << perInitialCurveIdx;
                         experimentParams.perExperimentDirSubfolder = perExperimentSS.str();
 
 
@@ -335,76 +374,82 @@ int main(int argc, char *argv[])
                     }
 
                     averagedResult += (maxResult * (1.0 / numInitialCurves));
+
+
+                    const uint32_t frameIdx = (pixelIdxY + halfFrameWidth) * framePixelCount
+                          + (pixelIdxZ + halfFrameWidth);
+                    framePixels[frameIdx] += averagedResult;
                 }
+
 
                 const uint32_t frameIdx = (pixelIdxY + halfFrameWidth) * framePixelCount
                       + (pixelIdxZ + halfFrameWidth);
-                framePixels[frameIdx] += averagedResult * (1.0 / (numArclengths));
+                std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
+            }
+        }
+
+        std::filesystem::path outputDirectoryPath = experimentParams.experimentDirPath;
+        if (!std::filesystem::exists(outputDirectoryPath)) {
+            std::filesystem::create_directory(outputDirectoryPath);
+        }
+
+        const std::string currentArclengthString = std::to_string(currentArclength);
+
+        // Export raw pixel data
+        {
+            const std::filesystem::path rawDataFilepath
+                  = outputDirectoryPath / currentArclengthString / "/" / "noisyCircle.dat";
+            std::ofstream rawDataOutfile(rawDataFilepath.string());
+            if (!rawDataOutfile.is_open()) {
+                std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath.string()
+                          << std::endl;
+                exit(1);
             }
 
+            // X
+            rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
 
-            const uint32_t frameIdx
-                  = (pixelIdxY + halfFrameWidth) * framePixelCount + (pixelIdxZ + halfFrameWidth);
-            std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
-        }
-    }
-
-    std::filesystem::path outputDirectoryPath = experimentParams.experimentDirPath;
-    if (!std::filesystem::exists(outputDirectoryPath)) {
-        std::filesystem::create_directory(outputDirectoryPath);
-    }
-
-    // Export raw pixel data
-    {
-        const std::filesystem::path rawDataFilepath = outputDirectoryPath / "noisyCircle.dat";
-        std::ofstream rawDataOutfile(rawDataFilepath.string());
-        if (!rawDataOutfile.is_open()) {
-            std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath.string()
-                      << std::endl;
-            exit(1);
-        }
-
-        // X
-        rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
-
-        // Write out the pixel data
-        for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-            for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
-                // Output pixel
-                const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
-                rawDataOutfile << framePixels[frameIdx] << " ";
+            // Write out the pixel data
+            for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
+                for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+                    // Output pixel
+                    const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+                    rawDataOutfile << framePixels[frameIdx] << " ";
+                }
+                rawDataOutfile << std::endl;
             }
-            rawDataOutfile << std::endl;
-        }
-    }
-
-    const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedFrames
-          = CalculateNormalizedFrames(framePixels);
-
-    // Normalized pixel data
-    {
-        const std::filesystem::path rawDataFilepath = outputDirectoryPath / "normalizedData.dat";
-        std::ofstream rawDataOutfile(rawDataFilepath.string());
-        if (!rawDataOutfile.is_open()) {
-            std::cout << "Failed to create normalizedData: " << rawDataFilepath.string()
-                      << std::endl;
-            exit(1);
         }
 
-        // X
-        rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+        const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedFrames
+              = CalculateNormalizedFrames(framePixels);
 
-        // Write out the pixel data
-        for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-            for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
-                // Output pixel
-                const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
-                rawDataOutfile << normalizedFrames[frameIdx] << " ";
+        // Normalized pixel data
+        {
+            const std::filesystem::path rawDataFilepath = outputDirectoryPath
+                  / currentArclengthString
+                  / "/"
+                    "normalizedData.dat";
+            std::ofstream rawDataOutfile(rawDataFilepath.string());
+            if (!rawDataOutfile.is_open()) {
+                std::cout << "Failed to create normalizedData: " << rawDataFilepath.string()
+                          << std::endl;
+                exit(1);
             }
-            rawDataOutfile << std::endl;
+
+            // X
+            rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+
+            // Write out the pixel data
+            for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
+                for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+                    // Output pixel
+                    const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+                    rawDataOutfile << normalizedFrames[frameIdx] << " ";
+                }
+                rawDataOutfile << std::endl;
+            }
         }
     }
-
     std::cout << "Experiment done" << std::endl;
 
     return 0;

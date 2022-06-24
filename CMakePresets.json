@@ -11,7 +11,7 @@
                 "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
                 "BUILD_SHARED_LIBS": "OFF"
             },
-            "toolchainFile": "C:/DevEnv/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            "toolchainFile": "$env{VCPKG_INSTALL_DIR}/scripts/buildsystems/vcpkg.cmake"
         },
         {
             "name": "MSVC22",
@@ -23,7 +23,7 @@
                 "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
                 "BUILD_SHARED_LIBS": "OFF"
             },
-            "toolchainFile": "C:/DevEnv/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            "toolchainFile": "$env{VCPKG_INSTALL_DIR}/scripts/buildsystems/vcpkg.cmake"
         },
         {
             "name": "MSVC22_CPU",
@@ -35,7 +35,7 @@
                 "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
                 "BUILD_SHARED_LIBS": "OFF"
             },
-            "toolchainFile": "C:/DevEnv/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            "toolchainFile": "$env{VCPKG_INSTALL_DIR}/scripts/buildsystems/vcpkg.cmake"
         },
         {
             "name": "Ninja22",
@@ -48,7 +48,7 @@
                 "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
                 "BUILD_SHARED_LIBS": "OFF"
             },
-            "toolchainFile": "C:/DevEnv/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            "toolchainFile": "$env{VCPKG_INSTALL_DIR}/scripts/buildsystems/vcpkg.cmake"
         },
         {
             "name": "Ninja22_CPU",
@@ -62,7 +62,7 @@
                 "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
                 "BUILD_SHARED_LIBS": "OFF"
             },
-            "toolchainFile": "C:/DevEnv/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            "toolchainFile": "$env{VCPKG_INSTALL_DIR}/scripts/buildsystems/vcpkg.cmake"
         }
     ]
 }
