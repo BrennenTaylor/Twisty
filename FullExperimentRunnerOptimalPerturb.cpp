@@ -88,6 +88,9 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     }
 
     std::vector<std::ofstream> perThreadConvergenceFiles(numPurturbThreads);
+    std::vector<uint64_t> perThreadNumPathsGenerated(numPurturbThreads);
+    std::vector<boost::multiprecision::cpp_dec_float_100> perThreadConvergenceWeight(
+          numPurturbThreads);
     for (int threadIdx = 0; threadIdx < numPurturbThreads; threadIdx++) {
         const std::string threadFilename
               = "ConvergenceWeights_" + std::to_string(threadIdx) + std::string(".txt");
@@ -199,11 +202,12 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
 
 
-    const uint64_t MaxNumberOfPathsInDispatch = 200000000;
+    const uint64_t MaxNumberOfPathsInDispatch = 20000000000;
 
     const uint64_t numDispatchesRequired
           = (m_experimentParams.numPathsInExperiment + MaxNumberOfPathsInDispatch - 1)
           / MaxNumberOfPathsInDispatch;
+    std::cout << "Num dispatches required: " << numDispatchesRequired << std::endl;
 
     uint64_t pathsLeftInExperiment = m_experimentParams.numPathsInExperiment;
 
@@ -290,8 +294,6 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
             auto weightingTimeStart = std::chrono::high_resolution_clock::now();
 
             int threadIdx = 0;
-            uint64_t numPathsCurrentThread = 0;
-            boost::multiprecision::cpp_dec_float_100 currentThreadTotalWeight = 0.0;
             uint64_t numCombinedWeightsCurrentThread = 0;
 
             boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
@@ -305,16 +307,17 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                           extractedDispatchWeight * pathNormalizer);
                 }
 
-                numPathsCurrentThread += combinedWeightValue.m_numValues;
-                currentThreadTotalWeight += extractedDispatchWeight * pathNormalizer;
-                perThreadConvergenceFiles[threadIdx]
-                      << numPathsCurrentThread << ", "
-                      << currentThreadTotalWeight / numPathsCurrentThread << std::endl;
+                perThreadNumPathsGenerated[threadIdx] += combinedWeightValue.m_numValues;
+                perThreadConvergenceWeight[threadIdx] += extractedDispatchWeight * pathNormalizer;
+
+                perThreadConvergenceFiles[threadIdx] << perThreadNumPathsGenerated[threadIdx]
+                                                     << ", "
+                                                     << perThreadConvergenceWeight[threadIdx]
+                            / perThreadNumPathsGenerated[threadIdx]
+                                                     << std::endl;
                 numCombinedWeightsCurrentThread++;
                 if (numCombinedWeightsCurrentThread >= numCombinedWeightValuesPerThread) {
                     numCombinedWeightsCurrentThread = 0;
-                    numPathsCurrentThread = 0;
-                    currentThreadTotalWeight = 0.0;
                     threadIdx++;
                 }
             }
