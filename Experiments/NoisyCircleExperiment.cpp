@@ -239,6 +239,7 @@ int main(int argc, char *argv[])
         }
     }
 
+
     std::cout << "Min Pixel Minimuim Arclength For Frame: " << minMinFrameArclength << std::endl;
     std::cout << "Max Pixel Minimuim Arclength For Frame: " << maxMinFrameArclength << std::endl;
 
@@ -249,6 +250,10 @@ int main(int argc, char *argv[])
 
     for (size_t arclengthIdx = 0; arclengthIdx < numArclengths; arclengthIdx++) {
         const float currentArclength = minArclength + deltaArclength * arclengthIdx;
+
+        std::string currentArclengthString = std::to_string(currentArclength);
+        std::replace(currentArclengthString.begin(), currentArclengthString.end(), '.', '_');
+
 
         for (uint32_t r = 0; r < framePixelCount; r++) {
             for (uint32_t c = 0; c < framePixelCount; c++) {
@@ -325,9 +330,10 @@ int main(int argc, char *argv[])
                         twisty::Bootstrapper bootstrapper(experimentGeometry);
 
                         std::stringstream perExperimentSS;
-                        perExperimentSS << "ca_" << currentArclength << "x_" << pixelIdxZ << "_y_"
-                                        << pixelIdxY << "_a_" << arclengthIdx << "_ic_"
-                                        << initialCurveIdx << "_ci_" << perInitialCurveIdx;
+                        perExperimentSS << currentArclengthString << "/"
+                                        << "x_" << pixelIdxZ << "_y_" << pixelIdxY << "_a_"
+                                        << arclengthIdx << "_ic_" << initialCurveIdx << "_ci_"
+                                        << perInitialCurveIdx;
                         experimentParams.perExperimentDirSubfolder = perExperimentSS.str();
 
 
@@ -393,17 +399,20 @@ int main(int argc, char *argv[])
             std::filesystem::create_directory(outputDirectoryPath);
         }
 
-        std::string currentArclengthString = std::to_string(currentArclength);
-        std::replace(currentArclengthString.begin(), currentArclengthString.end(), '.', '_');
         // Export raw pixel data
         {
-            const std::string rawDataFilepath = outputDirectoryPath.string() + "/"
-                  + currentArclengthString
-                  + "/"
-                    "noisyCircle.dat";
-            std::ofstream rawDataOutfile(rawDataFilepath);
+            std::filesystem::path rawDataFilepath = outputDirectoryPath;
+            rawDataFilepath /= currentArclengthString;
+
+            if (!std::filesystem::exists(rawDataFilepath)) {
+                std::filesystem::create_directories(rawDataFilepath);
+            }
+
+            rawDataFilepath /= "noisyCircle.dat";
+            std::ofstream rawDataOutfile(rawDataFilepath.string());
             if (!rawDataOutfile.is_open()) {
-                std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath << std::endl;
+                std::cout << "Failed to create rawDataOutfile: " << rawDataFilepath.string()
+                          << std::endl;
                 exit(1);
             }
 
@@ -426,11 +435,18 @@ int main(int argc, char *argv[])
 
         // Normalized pixel data
         {
-            const std::string rawDataFilepath = outputDirectoryPath.string() + "/"
-                  + currentArclengthString + "/" + "normalizedData.dat";
-            std::ofstream rawDataOutfile(rawDataFilepath);
+            std::filesystem::path rawDataFilepath = outputDirectoryPath;
+            rawDataFilepath /= currentArclengthString;
+
+            if (!std::filesystem::exists(rawDataFilepath)) {
+                std::filesystem::create_directories(rawDataFilepath);
+            }
+
+            rawDataFilepath /= "normalizedData.dat";
+            std::ofstream rawDataOutfile(rawDataFilepath.string());
             if (!rawDataOutfile.is_open()) {
-                std::cout << "Failed to create normalizedData: " << rawDataFilepath << std::endl;
+                std::cout << "Failed to create normalizedData: " << rawDataFilepath.string()
+                          << std::endl;
                 exit(1);
             }
 
