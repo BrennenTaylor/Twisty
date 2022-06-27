@@ -169,57 +169,12 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
         perThreadCurvatureScratchRight = perThreadCurveCurvatures;
     }
 
-    // Cached weights: num segments X num perturb threads
-    // Stores the weights to read back from the experiment?
-    // Export path batch cache size -> How many compressed paths we can track at once?
-    // Per scatter value, which we will focus on one atm.
-
-
     std::stringstream fnFilenameSS;
     fnFilenameSS << "SavedFN";
     fnFilenameSS << m_experimentParams.numSegmentsPerCurve;
     fnFilenameSS << ".fnd";
     const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilenameSS.str();
     std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = nullptr;
-
-    // We dont need this actually, so we can just load the default one
-    //     {
-    //         // If we can load the fn data, load it
-    //         if (std::filesystem::exists(fnFilePath)) {
-    //             std::cout << "Using cached fd file at: " << fnFilePath << std::endl;
-    //             std::ifstream inFile(fnFilePath);
-    //             upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(inFile);
-    //             inFile.close();
-    //         }
-    //         // We need to generate it this time and save it off to use next time
-    //         else {
-    //             // This is the max M value
-    //             const int maxorder = m_upInitialCurve->m_numSegments;
-
-    //             // Generate the fn data table
-    //             const int numZSamples = 5000;
-    //             const int numIntegrationSamples = 5000;
-
-    //             // Arbitrarily set min and max |r_vec| values.
-    //             // Why this specific max bound, I do not know
-    //             const double rMin = 0.0;
-    //             const double rMax = 200.0;
-    //             upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(
-    //                   numZSamples, numIntegrationSamples, maxorder, rMin, rMax);
-
-    //             std::ofstream outFile(fnFilePath);
-    //             dynamic_cast<PathWeighting::NormalizerStuff::FN *>(upFN.get())->WriteToFile(outFile);
-    //             outFile.close();
-    //         }
-    //     }
-    //     PathWeighting::NormalizerStuff::BaseNormalizer &fn = (*upFN);
-
-    // Why the 1/(delta s) = (M+2)/s?
-    //     Farlor::Vector3 zVec = (boundaryConditions.m_endPos - boundaryConditions.m_startPos)
-    //                 * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
-    //           - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
-    //     std::cout << "Z: " << Z << std::endl;
-    //     std::cout << "|Z|: " << Z.Magnitude() << std::endl;
 
     PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0;
     if (m_experimentParams.weightingParameters.weightingMethod
@@ -237,129 +192,151 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     ;
     /* --------------------- */
 
-
-    /* --------------------- */
-    const int64_t numCombinedWeightValues
-          = (m_experimentParams.numPathsInExperiment + MaxNumPathsPerCombinedWeight - 1)
-          / MaxNumPathsPerCombinedWeight;
-
-    std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
-    std::cout << "Num combined weight values needed: " << numCombinedWeightValues << std::endl;
-
-    // We need to calculate the absorbtion/scattering piece
-    boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
-
     long long perturbTimeCount = 0;
     long long weightCalcTimeCount = 0;
 
     assert(lookupEvaluator);
     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
 
-    std::vector<CombinedWeightValues_C> perDispatchCombinedWeightValues(numCombinedWeightValues);
-    int32_t numCombinedWeightValuesPerThread
-          = (numCombinedWeightValues + numPurturbThreads - 1) / numPurturbThreads;
-    std::cout << "Num combined weight values per thread: " << numCombinedWeightValuesPerThread
-              << std::endl;
 
-    // Single dispatch, with a number of threads
-    {
-        auto dispatchTimeStart = std::chrono::high_resolution_clock::now();
+    const uint64_t MaxNumberOfPathsInDispatch = 200000000;
 
-        auto perturbTimeStart = std::chrono::high_resolution_clock::now();
-        {
-            int64_t numPathsPerThread
-                  = MaxNumPathsPerCombinedWeight * numCombinedWeightValuesPerThread;
-            std::vector<std::thread> threads(numPurturbThreads);
-            for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
-                switch (m_experimentParams.perturbMethod) {
-                    case ExperimentRunner::PerturbMethod::GeometricRandom: {
-                        std::thread newThread(&FullExperimentRunnerOptimalPerturb::GeometryRandom,
-                              this, threadIdx, m_experimentParams.numPathsInExperiment,
-                              numPathsPerThread, m_experimentParams.numPathsToSkip,
-                              m_experimentParams.numSegmentsPerCurve,
-                              std::ref(perThreadRngGenerators), std::ref(perThreadCurvePositions),
-                              std::ref(perThreadCurveTangents), std::ref(perThreadCurveCurvatures),
-                              std::ref(perDispatchCombinedWeightValues),
-                              m_upInitialCurve->m_segmentLength,
-                              lookupEvaluator->AccessLookupTable().data(),
-                              lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
-                              lookupEvaluator->GetMinCurvature(),
-                              lookupEvaluator->GetMaxCurvature(),
-                              lookupEvaluator->GetCurvatureStepSize(), boundaryConditions);
-                        threads[threadIdx] = std::move(newThread);
-                    } break;
+    const uint64_t numDispatchesRequired
+          = (m_experimentParams.numPathsInExperiment + MaxNumberOfPathsInDispatch - 1)
+          / MaxNumberOfPathsInDispatch;
 
-                    case ExperimentRunner::PerturbMethod::GeometricMinCurvature:
-                    case ExperimentRunner::PerturbMethod::GeometricCombined:
-                    default: {
-                        std::cout << "Error: Invalid Perturb Method" << std::endl;
-                        exit(1);
-                    } break;
-                };
-            }
+    uint64_t pathsLeftInExperiment = m_experimentParams.numPathsInExperiment;
 
-            for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
-                if (threads[threadIdx].joinable()) {
-                    threads[threadIdx].join();
-                }
-            }
-        }
+    // We need to calculate the absorbtion/scattering piece
+    boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
 
-        auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
-        perturbTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(
-              perturbTimeEnd - perturbTimeStart)
-                                  .count();
+    std::cout << "Number of paths in experiment total: " << pathsLeftInExperiment << std::endl;
 
-        // -------------------
-        auto weightingTimeStart = std::chrono::high_resolution_clock::now();
-
-        int threadIdx = 0;
-        uint64_t numPathsCurrentThread = 0;
-        boost::multiprecision::cpp_dec_float_100 currentThreadTotalWeight = 0.0;
-        uint64_t numCombinedWeightsCurrentThread = 0;
-
-        boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
-        for (auto &combinedWeightValue : perDispatchCombinedWeightValues) {
-            boost::multiprecision::cpp_dec_float_100 extractedDispatchWeight
-                  = ExtractFinalValue(combinedWeightValue);
-            totalDispatchWeight += extractedDispatchWeight;
-
-            if (m_experimentParams.outputBigFloatWeights) {
-                UpdateConvergenceWeight(
-                      combinedWeightValue.m_numValues, extractedDispatchWeight * pathNormalizer);
-            }
-
-            numPathsCurrentThread += combinedWeightValue.m_numValues;
-            currentThreadTotalWeight += extractedDispatchWeight * pathNormalizer;
-            perThreadConvergenceFiles[threadIdx] << numPathsCurrentThread << ", "
-                                                 << currentThreadTotalWeight / numPathsCurrentThread
-                                                 << std::endl;
-            numCombinedWeightsCurrentThread++;
-            if (numCombinedWeightsCurrentThread >= numCombinedWeightValuesPerThread) {
-                numCombinedWeightsCurrentThread = 0;
-                numPathsCurrentThread = 0;
-                currentThreadTotalWeight = 0.0;
-                threadIdx++;
-            }
-        }
-
-        totalDispatchWeight *= pathNormalizer;
-
-        std::cout << "Dispatch Weight: " << totalDispatchWeight << std::endl;
-        std::cout << "\tAverage Path Weight: "
-                  << totalDispatchWeight / m_experimentParams.numPathsInExperiment << std::endl;
-        bigTotalExperimentWeight += totalDispatchWeight;
-
-        auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
-        weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(
-              weightingTimeEnd - weightingTimeStart)
-                                     .count();
+    for (uint64_t dispatchIdx = 0; dispatchIdx < numDispatchesRequired; dispatchIdx++) {
         /* --------------------- */
 
-        auto dispatchTimeEnd = std::chrono::high_resolution_clock::now();
-        auto dispatchRunTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-              dispatchTimeEnd - dispatchTimeStart);
-        std::cout << "\tDispatch Time: " << dispatchRunTime.count() << "ms" << std::endl;
+        const uint64_t pathsInCurrentDispatch
+              = std::min(pathsLeftInExperiment, MaxNumberOfPathsInDispatch);
+        pathsLeftInExperiment -= pathsInCurrentDispatch;
+
+        const int64_t numCombinedWeightValues
+              = (pathsInCurrentDispatch + MaxNumPathsPerCombinedWeight - 1)
+              / MaxNumPathsPerCombinedWeight;
+
+        std::cout << "Num paths in current dispatch: " << pathsInCurrentDispatch << std::endl;
+        std::cout << "Num combined weight values needed for current dispatch: "
+                  << numCombinedWeightValues << std::endl;
+
+        std::vector<CombinedWeightValues_C> perDispatchCombinedWeightValues(
+              numCombinedWeightValues);
+        int32_t numCombinedWeightValuesPerThread
+              = (numCombinedWeightValues + numPurturbThreads - 1) / numPurturbThreads;
+        std::cout << "Num combined weight values per thread: " << numCombinedWeightValuesPerThread
+                  << std::endl;
+
+        // Single dispatch, with a number of threads
+        {
+            auto dispatchTimeStart = std::chrono::high_resolution_clock::now();
+
+            auto perturbTimeStart = std::chrono::high_resolution_clock::now();
+            {
+                int64_t numPathsPerThread
+                      = MaxNumPathsPerCombinedWeight * numCombinedWeightValuesPerThread;
+                std::vector<std::thread> threads(numPurturbThreads);
+                for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
+                    switch (m_experimentParams.perturbMethod) {
+                        case ExperimentRunner::PerturbMethod::GeometricRandom: {
+                            std::thread newThread(
+                                  &FullExperimentRunnerOptimalPerturb::GeometryRandom, this,
+                                  threadIdx, pathsInCurrentDispatch, numPathsPerThread,
+                                  m_experimentParams.numPathsToSkip,
+                                  m_experimentParams.numSegmentsPerCurve,
+                                  std::ref(perThreadRngGenerators),
+                                  std::ref(perThreadCurvePositions),
+                                  std::ref(perThreadCurveTangents),
+                                  std::ref(perThreadCurveCurvatures),
+                                  std::ref(perDispatchCombinedWeightValues),
+                                  m_upInitialCurve->m_segmentLength,
+                                  lookupEvaluator->AccessLookupTable().data(),
+                                  lookupEvaluator->AccessLookupTable().size(),
+                                  lookupEvaluator->GetDs(), lookupEvaluator->GetMinCurvature(),
+                                  lookupEvaluator->GetMaxCurvature(),
+                                  lookupEvaluator->GetCurvatureStepSize(), boundaryConditions);
+                            threads[threadIdx] = std::move(newThread);
+                        } break;
+
+                        case ExperimentRunner::PerturbMethod::GeometricMinCurvature:
+                        case ExperimentRunner::PerturbMethod::GeometricCombined:
+                        default: {
+                            std::cout << "Error: Invalid Perturb Method" << std::endl;
+                            exit(1);
+                        } break;
+                    };
+                }
+
+                for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
+                    if (threads[threadIdx].joinable()) {
+                        threads[threadIdx].join();
+                    }
+                }
+            }
+
+            auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
+            perturbTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(
+                  perturbTimeEnd - perturbTimeStart)
+                                      .count();
+
+            // -------------------
+            auto weightingTimeStart = std::chrono::high_resolution_clock::now();
+
+            int threadIdx = 0;
+            uint64_t numPathsCurrentThread = 0;
+            boost::multiprecision::cpp_dec_float_100 currentThreadTotalWeight = 0.0;
+            uint64_t numCombinedWeightsCurrentThread = 0;
+
+            boost::multiprecision::cpp_dec_float_100 totalDispatchWeight = 0.0;
+            for (auto &combinedWeightValue : perDispatchCombinedWeightValues) {
+                boost::multiprecision::cpp_dec_float_100 extractedDispatchWeight
+                      = ExtractFinalValue(combinedWeightValue);
+                totalDispatchWeight += extractedDispatchWeight;
+
+                if (m_experimentParams.outputBigFloatWeights) {
+                    UpdateConvergenceWeight(combinedWeightValue.m_numValues,
+                          extractedDispatchWeight * pathNormalizer);
+                }
+
+                numPathsCurrentThread += combinedWeightValue.m_numValues;
+                currentThreadTotalWeight += extractedDispatchWeight * pathNormalizer;
+                perThreadConvergenceFiles[threadIdx]
+                      << numPathsCurrentThread << ", "
+                      << currentThreadTotalWeight / numPathsCurrentThread << std::endl;
+                numCombinedWeightsCurrentThread++;
+                if (numCombinedWeightsCurrentThread >= numCombinedWeightValuesPerThread) {
+                    numCombinedWeightsCurrentThread = 0;
+                    numPathsCurrentThread = 0;
+                    currentThreadTotalWeight = 0.0;
+                    threadIdx++;
+                }
+            }
+
+            totalDispatchWeight *= pathNormalizer;
+
+            std::cout << "Dispatch Weight: " << totalDispatchWeight << std::endl;
+            std::cout << "\tAverage Path Weight in Dispatch: "
+                      << totalDispatchWeight / pathsInCurrentDispatch << std::endl;
+            bigTotalExperimentWeight += totalDispatchWeight;
+
+            auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
+            weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(
+                  weightingTimeEnd - weightingTimeStart)
+                                         .count();
+            /* --------------------- */
+
+            auto dispatchTimeEnd = std::chrono::high_resolution_clock::now();
+            auto dispatchRunTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  dispatchTimeEnd - dispatchTimeStart);
+            std::cout << "\tDispatch Time: " << dispatchRunTime.count() << "ms" << std::endl;
+        }
     }
 
     ExperimentResults results;
