@@ -239,6 +239,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    minMinFrameArclength = 10.01;
+    maxMinFrameArclength = 10.83 - (10.83 - 10.01) * 0.5;
 
     std::cout << "Min Pixel Minimuim Arclength For Frame: " << minMinFrameArclength << std::endl;
     std::cout << "Max Pixel Minimuim Arclength For Frame: " << maxMinFrameArclength << std::endl;
