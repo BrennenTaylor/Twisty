@@ -8,9 +8,10 @@ namespace PathWeighting {
           const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral)
     {
         return WeightCurveViaCurvatureLog10_CudaSafe(pCurvatureStart, numCurvatures,
-              weightIntegral.AccessLookupTable().data(), weightIntegral.AccessLookupTable().size(),
-              weightIntegral.GetDs(), weightIntegral.GetMinCurvature(),
-              weightIntegral.GetMaxCurvature(), weightIntegral.GetCurvatureStepSize());
+              weightIntegral.AccessLookupTable().data(),
+              (uint32_t)weightIntegral.AccessLookupTable().size(), weightIntegral.GetDs(),
+              weightIntegral.GetMinCurvature(), weightIntegral.GetMaxCurvature(),
+              weightIntegral.GetCurvatureStepSize());
     }
 
     __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float *pCurvatureStart,

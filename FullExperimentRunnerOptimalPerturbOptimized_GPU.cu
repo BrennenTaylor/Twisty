@@ -679,8 +679,9 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTr
         }
 
         // We need a loop over the batches
-        for (uint32_t pathCount = 0; pathCount < numPathsToSkipPerThread + numPathsPerThread;
-              pathCount++) {
+        // TODO: Do we even need to do this?
+        // Should we seperate into seperate step
+        for (uint32_t pathCount = 0; pathCount < numPathsPerThread; pathCount++) {
             uint32_t currentPathIdx = (numPathsPerThread * threadIdx.x) + pathCount;
 
             // Do our random rolls here
@@ -689,7 +690,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTr
             float e2 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
 
             // We can exit once this point is reached as we have generated all the paths necessary for this thread
-            if (currentPathIdx >= (MaxNumPathsPerCombinedWeight + numPathsToSkipPerThread)) {
+            if (currentPathIdx >= (MaxNumPathsPerCombinedWeight)) {
                 printf("Breaking early as paths are done for this combined weight value\n");
                 // We dont want to continue if we have already generated the correct number of paths.
                 break;
@@ -808,13 +809,10 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTr
                                 weightLookupTableSize, ds, minCurvature, maxCurvature,
                                 curvatureStepSize);
 
-                    if (pathCount < numPathsToSkipPerThread) {
-                        // Skip
-                    } else {
-                        // Else, contribute to the paths
-                        CombinedWeightValues_C_AddValue(
-                              perThreadWeightValues[threadIdx.x], pathWeightLog10);
-                    }
+
+                    // Else, contribute to the paths
+                    CombinedWeightValues_C_AddValue(
+                          perThreadWeightValues[threadIdx.x], pathWeightLog10);
                 }
             }
         }
@@ -892,10 +890,8 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedM
         }
 
         // We need a loop over the batches
-        for (int64_t pathCount = 0; pathCount < numPathsToSkipPerThread + numPathsPerThread;
-              pathCount++) {
-            int64_t currentPathIdx
-                  = numPathsPerThread * threadIdx.x + pathCount - numPathsToSkipPerThread;
+        for (int64_t pathCount = 0; pathCount < numPathsPerThread; pathCount++) {
+            int64_t currentPathIdx = numPathsPerThread * threadIdx.x + pathCount;
 
             // Do our random rolls here
             float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
@@ -1020,13 +1016,9 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedM
                                 weightLookupTableSize, ds, minCurvature, maxCurvature,
                                 curvatureStepSize);
 
-                    if (pathCount < numPathsToSkipPerThread) {
-                        // Skip
-                    } else {
-                        // Else, contribute to the paths
-                        CombinedWeightValues_C_AddValue(
-                              perThreadWeightValues[threadIdx.x], pathWeightLog10);
-                    }
+                    // Else, contribute to the paths
+                    CombinedWeightValues_C_AddValue(
+                          perThreadWeightValues[threadIdx.x], pathWeightLog10);
                 }
             }
         }
