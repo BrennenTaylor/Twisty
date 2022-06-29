@@ -1,5 +1,10 @@
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 
+// Include these specifically to have all localized linking
+#include "CombinedWeightUtils.cpp"
+#include "CurvePerturbUtils.cpp"
+#include "PathWeighters.cpp"
+
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
 #include "CombinedWeightUtils.h"
@@ -27,8 +32,13 @@
 #include <stdlib.h>
 #include <memory>
 
+/*
+      Notes, the GPU should not involve numbers larger than 4 billion
+      as this is the maximum size that can fit in a unsigned 32 bit in
+*/
+
 const uint32_t PerturbGridSize = 64;
-const uint32_t PerturbBlockSize = 64;
+const uint32_t PerturbBlockSize = 256;
 
 namespace twisty {
 static void CudaSafeErrorCheck(cudaError_t error, std::string message)
@@ -39,26 +49,46 @@ static void CudaSafeErrorCheck(cudaError_t error, std::string message)
         // assert(false);
     }
 }
-__global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
+
+__global__ void
+FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
       const int64_t numCombinedWeightValuesTotal,
       const int64_t numCombinedWeightValuesPerWarp,
-      const int64_t numPathsPerThread,
-      const int64_t numPathsToSkipPerThread,
-      const int64_t numSegmentsPerCurve,
+      const uint32_t numPathsPerThread,
+      const uint32_t numPathsToSkipPerThread,
+      const uint32_t numSegmentsPerCurve,
       curandState_t *const pCurandStates,
       float *const pPerGlobalThreadScratchSpacePositions,
       float *const pPerGlobalThreadScratchSpaceTangents,
       float *const pPerGlobalThreadScratchSpaceCurvatures,
       CombinedWeightValues_C *const pFinalCombinedValues,
-      const int32_t weightingMethod,
-      const double pathNormalizerLog10,
       const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-      const double *const pWeightLookupTable,
-      const int32_t weightLookupTableSize,
-      const double ds,
-      const double minCurvature,
-      const double maxCurvature,
-      const double curvatureStepSize);
+      const float *const pWeightLookupTable,
+      const uint32_t weightLookupTableSize,
+      const float ds,
+      const float minCurvature,
+      const float maxCurvature,
+      const float curvatureStepSize);
+
+__global__ void
+FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
+      const int64_t numCombinedWeightValuesTotal,
+      const int64_t numCombinedWeightValuesPerWarp,
+      const uint32_t numPathsPerThread,
+      const uint32_t numPathsToSkipPerThread,
+      const uint32_t numSegmentsPerCurve,
+      curandState_t *const pCurandStates,
+      float *const pPerGlobalThreadScratchSpacePositions,
+      float *const pPerGlobalThreadScratchSpaceTangents,
+      float *const pPerGlobalThreadScratchSpaceCurvatures,
+      CombinedWeightValues_C *const pFinalCombinedValues,
+      const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+      const float *const pWeightLookupTable,
+      const uint32_t weightLookupTableSize,
+      const float ds,
+      const float minCurvature,
+      const float maxCurvature,
+      const float curvatureStepSize);
 
 FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(
       ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
@@ -165,57 +195,13 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     const std::filesystem::path fnFilePath = std::filesystem::current_path() / fnFilenameSS.str();
     std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> upFN = nullptr;
 
-    // We dont need this actually, so we can just load the default one
-    //     {
-    //         // If we can load the fn data, load it
-    //         if (std::filesystem::exists(fnFilePath)) {
-    //             std::cout << "Using cached fd file at: " << fnFilePath << std::endl;
-    //             std::ifstream inFile(fnFilePath);
-    //             upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(inFile);
-    //             inFile.close();
-    //         }
-    //         // We need to generate it this time and save it off to use next time
-    //         else {
-    //             // This is the max M value
-    //             const int maxorder = m_upInitialCurve->m_numSegments;
-
-    //             // Generate the fn data table
-    //             const int numZSamples = 5000;
-    //             const int numIntegrationSamples = 5000;
-
-    //             // Arbitrarily set min and max |r_vec| values.
-    //             // Why this specific max bound, I do not know
-    //             const double rMin = 0.0;
-    //             const double rMax = 200.0;
-    //             upFN = std::make_unique<PathWeighting::NormalizerStuff::FN>(
-    //                   numZSamples, numIntegrationSamples, maxorder, rMin, rMax);
-
-    //             std::ofstream outFile(fnFilePath);
-    //             dynamic_cast<PathWeighting::NormalizerStuff::FN *>(upFN.get())->WriteToFile(outFile);
-    //             outFile.close();
-    //         }
-    //     }
-    //     PathWeighting::NormalizerStuff::BaseNormalizer &fn = (*upFN);
-
-    // Why the 1/(delta s) = (M+2)/s?
-    //     Farlor::Vector3 Z = (boundaryConditions.m_endPos - boundaryConditions.m_startPos)
-    //                 * (m_upInitialCurve->m_numSegments + 2) / boundaryConditions.arclength
-    //           - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
-    //     std::cout << "Z: " << Z << std::endl;
-    //     std::cout << "|Z|: " << Z.Magnitude() << std::endl;
-
-    PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0;
-    if (m_experimentParams.weightingParameters.weightingMethod
-          == WeightingMethod::RadiativeTransfer) {
-        pathNormalizer = PathWeighting::NormalizerStuff::Norm(m_upInitialCurve->m_numSegments,
-              m_upInitialCurve->m_segmentLength, boundaryConditions);
-    }
-    const boost::multiprecision::cpp_dec_float_100 pathNormalizerLog10
-          = boost::multiprecision::log10(pathNormalizer);
-
+    const PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
+          = (m_experimentParams.weightingParameters.weightingMethod
+                  != WeightingMethod::RadiativeTransfer)
+          ? 1.0
+          : PathWeighting::NormalizerStuff::Norm(m_upInitialCurve->m_numSegments,
+                m_upInitialCurve->m_segmentLength, boundaryConditions);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
-    std::cout << "PathNormalizerLog10: " << pathNormalizerLog10 << std::endl;
-
     auto setupTimeEnd = std::chrono::high_resolution_clock::now();
     /* --------------------- */
 
@@ -276,32 +262,44 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
         std::cout << "Curvature Step Size: " << lookupEvaluator->GetCurvatureStepSize()
                   << std::endl;
 
-        FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel<<<gridSize, blockSize,
-              sharedMemorySizeBytes, stream>>>(numCombinedWeightValuesTotal,
-              numCombinedWeightValuesPerWarp,
-              numPathsPerThread,
-              m_experimentParams.numPathsToSkip,
-              m_experimentParams.numSegmentsPerCurve,
-              m_pPerGlobalThreadRandStates,
-              m_pPerGlobalThreadScratchSpacePositions,
-              m_pPerGlobalThreadScratchSpaceTangents,
-              m_pPerGlobalThreadScratchSpaceCurvatures,
-              m_pFinalCombinedValues,
-              (int32_t)m_experimentParams.weightingParameters.weightingMethod,
-              m_experimentParams.weightingParameters.weightingMethod
-                          == twisty::WeightingMethod::RadiativeTransfer
-                    ? pathNormalizerLog10.convert_to<double>()
-                    : 0.0,
-              csBoundaryConditions,
-              m_pDeviceWeightLookupTable,
-              lookupEvaluator->AccessLookupTable().size(),
-              lookupEvaluator->GetDs(),
-              lookupEvaluator->GetMinCurvature(),
-              lookupEvaluator->GetMaxCurvature(),
-              lookupEvaluator->GetCurvatureStepSize());
+        if (m_experimentParams.weightingParameters.weightingMethod
+              == WeightingMethod::RadiativeTransfer) {
+            FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer<<<
+                  gridSize, blockSize, sharedMemorySizeBytes, stream>>>(
+                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp, numPathsPerThread,
+                  m_experimentParams.numPathsToSkip, m_experimentParams.numSegmentsPerCurve,
+                  m_pPerGlobalThreadRandStates, m_pPerGlobalThreadScratchSpacePositions,
+                  m_pPerGlobalThreadScratchSpaceTangents, m_pPerGlobalThreadScratchSpaceCurvatures,
+                  m_pFinalCombinedValues, csBoundaryConditions, m_pDeviceWeightLookupTable,
+                  lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
+                  lookupEvaluator->GetMinCurvature(), lookupEvaluator->GetMaxCurvature(),
+                  lookupEvaluator->GetCurvatureStepSize());
 
-        CudaSafeErrorCheck(cudaGetLastError(), "GPU_GeometryRandomKernel kernal launch");
-        CudaSafeErrorCheck(cudaDeviceSynchronize(), "GPU_GeometryRandomKernel kernel sync");
+            CudaSafeErrorCheck(cudaGetLastError(),
+                  "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
+                  "RadiativeTransfer kernal launch");
+            CudaSafeErrorCheck(cudaDeviceSynchronize(),
+                  "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
+                  "RadiativeTransfer kernel sync");
+        } else {
+            FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel<<<
+                  gridSize, blockSize, sharedMemorySizeBytes, stream>>>(
+                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp, numPathsPerThread,
+                  m_experimentParams.numPathsToSkip, m_experimentParams.numSegmentsPerCurve,
+                  m_pPerGlobalThreadRandStates, m_pPerGlobalThreadScratchSpacePositions,
+                  m_pPerGlobalThreadScratchSpaceTangents, m_pPerGlobalThreadScratchSpaceCurvatures,
+                  m_pFinalCombinedValues, csBoundaryConditions, m_pDeviceWeightLookupTable,
+                  lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
+                  lookupEvaluator->GetMinCurvature(), lookupEvaluator->GetMaxCurvature(),
+                  lookupEvaluator->GetCurvatureStepSize());
+
+            CudaSafeErrorCheck(cudaGetLastError(),
+                  "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
+                  "SimplifiedModel kernal launch");
+            CudaSafeErrorCheck(cudaDeviceSynchronize(),
+                  "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
+                  "SimplifiedModel kernel sync");
+        }
     }
 
     auto perturbTimeEnd = std::chrono::high_resolution_clock::now();
@@ -329,24 +327,18 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
 
     // No, we calculating the weighting
     for (auto &combinedWeightValue : combinedWeightValues) {
-        // std::cout << "Combined Weight Value" << std::endl;
-        // std::cout << "Extracted Value: " << ExtractFinalValue(combinedWeightValue);
-        // std::cout << "\tNum Values: " << combinedWeightValue.m_numValues << std::endl;
-        // std::cout << "\tOffset: " << combinedWeightValue.m_offset << std::endl;
-        // std::cout << "\tRunning Total: " << combinedWeightValue.m_runningTotal << std::endl;
-
         const boost::multiprecision::cpp_dec_float_100 extractedDispatchWeight
               = ExtractFinalValue(combinedWeightValue);
         bigTotalExperimentWeight += extractedDispatchWeight;
 
         if (m_experimentParams.outputBigFloatWeights) {
-            UpdateConvergenceWeight(combinedWeightValue.m_numValues, extractedDispatchWeight);
+            UpdateConvergenceWeight(
+                  combinedWeightValue.m_numValues, extractedDispatchWeight * pathNormalizer);
         }
 
         numWeightsGenerated += combinedWeightValue.m_numValues;
     }
-    // bigTotalExperimentWeight *= pathNormalizer;
-
+    bigTotalExperimentWeight *= pathNormalizer;
     auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
     weightCalcTimeCount = std::chrono::duration_cast<std::chrono::milliseconds>(
           weightingTimeEnd - weightingTimeStart)
@@ -489,7 +481,7 @@ void FullExperimentRunnerOptimalPerturbOptimized_GPU::CleanupCudaRandStates()
 // Pass in total number of threads that can be used, as well as the number of batches of 10^6 paths which will be generated
 bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
       int32_t numGlobalPerturbThreads, int32_t numCombinedWeightValues, int32_t numSegments,
-      const std::vector<double> &weightTable)
+      const std::vector<float> &weightTable)
 {
     std::cout << "Setup Cuda Perturb: " << std::endl;
     uint64_t usedMemoryInBytes = 0;
@@ -518,7 +510,7 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
           "Cuda malloc combined weight values per thread");
     usedMemoryInBytes += combinedValueBytes;
 
-    const uint64_t weightTableBytes = sizeof(double) * weightTable.size();
+    const uint64_t weightTableBytes = sizeof(float) * weightTable.size();
     CudaSafeErrorCheck(cudaMalloc((void **)&m_pDeviceWeightLookupTable, weightTableBytes),
           "Cuda malloc combined weight values per thread");
     usedMemoryInBytes += weightTableBytes;
@@ -548,11 +540,20 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
           (numSegments + 1) * sizeof(float) * 3);
 
     // Update and curvature
-    twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(pInitialCurvePositions,
-          pInitialCurveTangents, m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe);
-    twisty::PerturbUtils::UpdateCurvaturesFromTangentsCudaSafe(pInitialCurveTangents,
-          pInitialCurveCurvatures, m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe,
-          (int32_t)m_experimentParams.weightingParameters.weightingMethod);
+    if (m_experimentParams.weightingParameters.weightingMethod
+          == WeightingMethod::RadiativeTransfer) {
+        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(pInitialCurvePositions,
+              pInitialCurveTangents, m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe);
+        twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
+              pInitialCurveTangents, pInitialCurveCurvatures, m_upInitialCurve->m_numSegments,
+              boundaryConditionsCudaSafe);
+    } else {
+        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(pInitialCurvePositions,
+              pInitialCurveTangents, m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe);
+        twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel_CudaSafe(
+              pInitialCurveTangents, pInitialCurveCurvatures, m_upInitialCurve->m_numSegments,
+              boundaryConditionsCudaSafe);
+    }
 
     // TODO: Should this be intermixed somehow for better performance?
     std::cout << "Copying over intial curves" << std::endl;
@@ -602,7 +603,7 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
           finalCombinedWeights.size() * sizeof(CombinedWeightValues_C), cudaMemcpyHostToDevice);
 
     cudaMemcpy((void *)m_pDeviceWeightLookupTable, (void *)weightTable.data(),
-          weightTable.size() * sizeof(double), cudaMemcpyHostToDevice);
+          weightTable.size() * sizeof(float), cudaMemcpyHostToDevice);
 
     return true;
 }
@@ -632,45 +633,251 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurand
     }
 }
 
-__device__ double WeightCurveViaCurvatureLog10_CUDA(float *pCurvatureStart, uint32_t numCurvatures,
-      double *pWeightIntegral, double ds, twisty::WeightingParameters weightingParams_cuda)
-{
-    return 0.0;
-}
-
-__global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel(
+__global__ void
+FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
       const int64_t numCombinedWeightValuesTotal,
       const int64_t numCombinedWeightValuesPerWarp,
-      const int64_t numPathsPerThread,
-      const int64_t numPathsToSkipPerThread,
-      const int64_t numSegmentsPerCurve,
+      const uint32_t numPathsPerThread,
+      const uint32_t numPathsToSkipPerThread,
+      const uint32_t numSegmentsPerCurve,
       curandState_t *const pCurandStates,
       float *const pPerGlobalThreadScratchSpacePositions,
       float *const pPerGlobalThreadScratchSpaceTangents,
       float *const pPerGlobalThreadScratchSpaceCurvatures,
       CombinedWeightValues_C *const pFinalCombinedValues,
-      const int32_t weightingMethod,
-      const double pathNormalizerLog10,
       const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-      const double *const pWeightLookupTable,
-      const int32_t weightLookupTableSize,
-      const double ds,
-      const double minCurvature,
-      const double maxCurvature,
-      const double curvatureStepSize)
+      const float *const pWeightLookupTable,
+      const uint32_t weightLookupTableSize,
+      const float ds,
+      const float minCurvature,
+      const float maxCurvature,
+      const float curvatureStepSize)
 {
     __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
 
+// Should be between 0 and max num threads - 1
+#define GlobalThreadIdx (blockIdx.x * blockDim.x + threadIdx.x)
+
+#define NumPosPerCurve (numSegmentsPerCurve + 1)
+#define NumTanPerCurve (numSegmentsPerCurve)
+#define NumCurvaturesPerCurve (numSegmentsPerCurve - 1)
+
+#define CurrentThreadPosStartIdx (NumPosPerCurve * 3 * GlobalThreadIdx)
+#define CurrentThreadTanStartIdx (NumTanPerCurve * 3 * GlobalThreadIdx)
+#define CurrentThreadCurvatureStartIdx (NumCurvaturesPerCurve * GlobalThreadIdx)
+
+    // Ok, we want to loop over the outer batches first, the number per warp
+    for (uint32_t combinedWeightValuesWarpIdx = 0;
+          combinedWeightValuesWarpIdx < numCombinedWeightValuesPerWarp;
+          combinedWeightValuesWarpIdx++) {
+        CombinedWeightValues_C_Reset(perThreadWeightValues[threadIdx.x]);
+
+        // We want to stop generating in this case
+        if (combinedWeightValuesWarpIdx + numCombinedWeightValuesPerWarp * blockIdx.x
+              >= numCombinedWeightValuesTotal) {
+            continue;
+        }
+
+        // We need a loop over the batches
+        for (uint32_t pathCount = 0; pathCount < numPathsToSkipPerThread + numPathsPerThread;
+              pathCount++) {
+            uint32_t currentPathIdx = (numPathsPerThread * threadIdx.x) + pathCount;
+
+            // Do our random rolls here
+            float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+            float e1 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+            float e2 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+
+            // We can exit once this point is reached as we have generated all the paths necessary for this thread
+            if (currentPathIdx >= (MaxNumPathsPerCombinedWeight + numPathsToSkipPerThread)) {
+                printf("Breaking early as paths are done for this combined weight value\n");
+                // We dont want to continue if we have already generated the correct number of paths.
+                break;
+            }
+
+            // Ok, now we first want to reset the combined weight stuff
+            {
+                // This is the perturbation piece.
+                // Can we do this in place, most likely
+                // This will modify pCurrentThreadCurve
+                // Remember, the structure of this is:
+                // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
+                {
+                    // Should be 2 - 180
+                    uint32_t maxDiff = min((uint32_t)(numSegmentsPerCurve - 2), 25);
+                    uint32_t diff = floorf(e0 * (maxDiff - 2)) + 2;
+
+                    // -2 from the -1 to offset for the +1, and -1 as required by index
+                    uint32_t leftPointIndex = floorf(e1 * (numSegmentsPerCurve - diff - 2)) + 1;
+
+                    uint32_t rightPointIndex = leftPointIndex + diff;
+
+                    // We need two frames for each segment to get the new curvature and torsion.
+                    // we need the frame left of the segment, as well as the frame right of the segment.
+                    // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
+                    const float leftPoint_x
+                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                + leftPointIndex * 3 + 0];
+                    const float leftPoint_y
+                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                + leftPointIndex * 3 + 1];
+                    const float leftPoint_z
+                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                + leftPointIndex * 3 + 2];
+
+                    const float rightPoint_x
+                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                + rightPointIndex * 3 + 0];
+                    const float rightPoint_y
+                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                + rightPointIndex * 3 + 1];
+                    const float rightPoint_z
+                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                + rightPointIndex * 3 + 2];
+
+
+                    float N[3] = { rightPoint_x - leftPoint_x, rightPoint_y - leftPoint_y,
+                        rightPoint_z - leftPoint_z };
+                    float N_length_inv = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
+                    N[0] *= N_length_inv;
+                    N[1] *= N_length_inv;
+                    N[2] *= N_length_inv;
+
+                    // Overwrite angle
+                    const float randRotationAngleNeedsPi = (e2 * 2.0 - 1.0);
+
+                    // Rotation
+                    {
+                        float rotationMatrix[9]
+                              = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+                        RotationMatrixAroundAxis_MultiplyAngleByPi_CudaSafe(
+                              randRotationAngleNeedsPi, (float *)N, (float *)rotationMatrix);
+
+                        for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
+                              ++pointIdx) {
+                            float shiftedPoint[3];
+                            shiftedPoint[0]
+                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                          + pointIdx * 3 + 0]
+                                  - leftPoint_x;
+                            shiftedPoint[1]
+                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                          + pointIdx * 3 + 1]
+                                  - leftPoint_y;
+                            shiftedPoint[2]
+                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                          + pointIdx * 3 + 2]
+                                  - leftPoint_z;
+
+                            // Rotate and stuff back in shifted point
+                            RotateVectorByMatrix((float *)rotationMatrix, (float *)shiftedPoint);
+                            // Update the point with the rotated version
+                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                  + pointIdx * 3 + 0]
+                                  = shiftedPoint[0] + leftPoint_x;
+                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                  + pointIdx * 3 + 1]
+                                  = shiftedPoint[1] + leftPoint_y;
+                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                                  + pointIdx * 3 + 2]
+                                  = shiftedPoint[2] + leftPoint_z;
+                        }
+
+                        // Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                        // We can do a different approach later.
+                        // Here, we want to do a perturb update call
+                        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
+                              &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
+                              &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
+                              numSegmentsPerCurve, csBoundaryConditions);
+
+                        twisty::PerturbUtils::
+                              UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
+                                    &(pPerGlobalThreadScratchSpaceTangents
+                                                [CurrentThreadTanStartIdx]),
+                                    &(pPerGlobalThreadScratchSpaceCurvatures
+                                                [CurrentThreadCurvatureStartIdx]),
+                                    numSegmentsPerCurve, csBoundaryConditions);
+                    }
+
+                    double pathWeightLog10
+                          = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
+                                &(pPerGlobalThreadScratchSpaceCurvatures
+                                            [CurrentThreadCurvatureStartIdx]),
+                                (numSegmentsPerCurve - 1), pWeightLookupTable,
+                                weightLookupTableSize, ds, minCurvature, maxCurvature,
+                                curvatureStepSize);
+
+                    if (pathCount < numPathsToSkipPerThread) {
+                        // Skip
+                    } else {
+                        // Else, contribute to the paths
+                        CombinedWeightValues_C_AddValue(
+                              perThreadWeightValues[threadIdx.x], pathWeightLog10);
+                    }
+                }
+            }
+        }
+
+        // First thread in warp responsible for combining all the weights into one
+        __syncthreads();
+
+        if (threadIdx.x == 0) {
+            for (uint32_t warpThreadIdx = 1; warpThreadIdx < blockDim.x; ++warpThreadIdx) {
+                perThreadWeightValues[0] = CombinedWeightValues_C_CombineValues(
+                      perThreadWeightValues[0], perThreadWeightValues[warpThreadIdx]);
+            }
+
+            // Finally, we write to the combined final values
+            pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp
+                  + combinedWeightValuesWarpIdx]
+                  = perThreadWeightValues[0];
+        }
+    }
+
     // Should be between 0 and max num threads - 1
-    volatile uint32_t globalThreadIdx = blockIdx.x * blockDim.x + threadIdx.x;
+#undef GlobalThreadIdx
+#undef NumPosPerCurve
+#undef NumTanPerCurve
+#undef NumCurvaturesPerCurve
+#undef CurrentThreadPosStartIdx
+#undef CurrentThreadTanStartIdx
+#undef CurrentThreadCurvatureStartIdx
+}
 
-    volatile int32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-    volatile int32_t NumTanPerCurve = numSegmentsPerCurve;
-    volatile int32_t NumCurvaturesPerCurve = (numSegmentsPerCurve - 1);
+__global__ void
+FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
+      const int64_t numCombinedWeightValuesTotal,
+      const int64_t numCombinedWeightValuesPerWarp,
+      const uint32_t numPathsPerThread,
+      const uint32_t numPathsToSkipPerThread,
+      const uint32_t numSegmentsPerCurve,
+      curandState_t *const pCurandStates,
+      float *const pPerGlobalThreadScratchSpacePositions,
+      float *const pPerGlobalThreadScratchSpaceTangents,
+      float *const pPerGlobalThreadScratchSpaceCurvatures,
+      CombinedWeightValues_C *const pFinalCombinedValues,
+      // const int32_t weightingMethod,
+      const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+      const float *const pWeightLookupTable,
+      const uint32_t weightLookupTableSize,
+      const float ds,
+      const float minCurvature,
+      const float maxCurvature,
+      const float curvatureStepSize)
+{
+    __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
 
-    volatile int32_t CurrentThreadPosStartIdx = NumPosPerCurve * 3 * globalThreadIdx;
-    volatile int32_t CurrentThreadTanStartIdx = NumTanPerCurve * 3 * globalThreadIdx;
-    volatile int32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * globalThreadIdx;
+// Should be between 0 and max num threads - 1
+#define GlobalThreadIdx (blockIdx.x * blockDim.x + threadIdx.x)
+
+#define NumPosPerCurve (numSegmentsPerCurve + 1)
+#define NumTanPerCurve (numSegmentsPerCurve)
+#define NumCurvaturesPerCurve (numSegmentsPerCurve - 1)
+
+#define CurrentThreadPosStartIdx (NumPosPerCurve * 3 * GlobalThreadIdx)
+#define CurrentThreadTanStartIdx (NumTanPerCurve * 3 * GlobalThreadIdx)
+#define CurrentThreadCurvatureStartIdx (NumCurvaturesPerCurve * GlobalThreadIdx)
 
     // Ok, we want to loop over the outer batches first, the number per warp
     for (int64_t combinedWeightValuesWarpIdx = 0;
@@ -681,7 +888,6 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
         // We want to stop generating in this case
         if (combinedWeightValuesWarpIdx + numCombinedWeightValuesPerWarp * blockIdx.x
               >= numCombinedWeightValuesTotal) {
-            // printf("Exiting early\n");
             continue;
         }
 
@@ -692,9 +898,9 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
                   = numPathsPerThread * threadIdx.x + pathCount - numPathsToSkipPerThread;
 
             // Do our random rolls here
-            float e0 = curand_uniform(&(pCurandStates[globalThreadIdx]));
-            float e1 = curand_uniform(&(pCurandStates[globalThreadIdx]));
-            float e2 = curand_uniform(&(pCurandStates[globalThreadIdx]));
+            float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+            float e1 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+            float e2 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
 
             // We can exit once this point is reached as we have generated all the paths necessary for this thread
             if (currentPathIdx >= MaxNumPathsPerCombinedWeight) {
@@ -752,14 +958,14 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
                     N[2] /= N_length;
 
                     // Overwrite angle
-                    const float randRotationAngle = (e2 * 2.0 - 1.0) * TwistyPi;
+                    const float randRotationAngleNeedsPi = (e2 * 2.0 - 1.0);
 
                     // Rotation
                     {
                         float rotationMatrix[9]
                               = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                        RotationMatrixAroundAxis(
-                              randRotationAngle, (float *)N, (float *)rotationMatrix);
+                        RotationMatrixAroundAxis_MultiplyAngleByPi_CudaSafe(
+                              randRotationAngleNeedsPi, (float *)N, (float *)rotationMatrix);
 
                         for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
                               ++pointIdx) {
@@ -791,19 +997,19 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
                                   = shiftedPoint[2] + leftPoint_z;
                         }
 
-                        // //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
-                        // //We can do a different approach later.
-                        // // Here, we want to do a perturb update call
-                        twisty::PerturbUtils::UpdateTangentsFromPosCudaSafe(
+                        // Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                        // We can do a different approach later.
+                        // Here, we want to do a perturb update call
+                        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
                               &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
                               &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
                               numSegmentsPerCurve, csBoundaryConditions);
 
-                        twisty::PerturbUtils::UpdateCurvaturesFromTangentsCudaSafe(
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel_CudaSafe(
                               &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
                               &(pPerGlobalThreadScratchSpaceCurvatures
                                           [CurrentThreadCurvatureStartIdx]),
-                              numSegmentsPerCurve, csBoundaryConditions, weightingMethod);
+                              numSegmentsPerCurve, csBoundaryConditions);
                     }
 
                     double pathWeightLog10
@@ -813,7 +1019,6 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
                                 (numSegmentsPerCurve - 1), pWeightLookupTable,
                                 weightLookupTableSize, ds, minCurvature, maxCurvature,
                                 curvatureStepSize);
-                    pathWeightLog10 += pathNormalizerLog10;
 
                     if (pathCount < numPathsToSkipPerThread) {
                         // Skip
@@ -841,6 +1046,13 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKe
                   = perThreadWeightValues[0];
         }
     }
+#undef GlobalThreadIdx
+#undef NumPosPerCurve
+#undef NumTanPerCurve
+#undef NumCurvaturesPerCurve
+#undef CurrentThreadPosStartIdx
+#undef CurrentThreadTanStartIdx
+#undef CurrentThreadCurvatureStartIdx
 }
 
 }

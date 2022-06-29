@@ -45,7 +45,8 @@ class ExperimentRunner {
         uint64_t numPathsInExperiment = 0;
         uint64_t numPathsPerBatch = 1000000;
         uint64_t numPathsToSkip = 0;
-        uint32_t numSegmentsPerCurve = 3;
+        uint32_t numSegmentsPerCurve = 4;
+        bool allowSaturatePathCount = true;
         float arclength = 0.0f;
         uint32_t exportPathBatchSize = 1000;
         bool exportGeneratedCurves = false;

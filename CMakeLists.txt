@@ -8,11 +8,10 @@ include(FetchContent)
 option(USE_CUDA "Enable Cuda and GPU runner?" TRUE)
 if (USE_CUDA)
 enable_language(CUDA)
+
 set(CUDA_VERBOSE_BUILD ON)
-SET(CUDA_SEPARABLE_COMPILATION ON)
-SET(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-    set(CMAKE_CUDA_STANDARD 17)
-    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif (USE_CUDA)
 
 # Needed for multiprecision float library
@@ -38,16 +37,14 @@ add_library(Twisty
     Bootstrapper.h
     Bootstrapper.cpp
     CombinedWeightUtils.h
-    CombinedWeightUtils.cu
+    # CombinedWeightUtils.cpp
     Curve.h
     Curve.cpp
     CurvePerturbUtils.h
-    CurvePerturbUtils.cu
+    # CurvePerturbUtils.cpp
     CurveUtils.h
     CurveUtils.cpp
-    CurveGen.cu
     Derivative.h
-    DeviceCurve.h
     ExperimentRunner.cpp
     ExperimentRunner.h
 
@@ -60,7 +57,7 @@ add_library(Twisty
     Integrate.h
     MathConsts.h
     PathWeighters.h
-    PathWeighters.cu
+    # PathWeighters.cpp
     PathWeightUtils.h
     PathWeightUtils.cpp
     PerturbUtils.h
@@ -68,18 +65,21 @@ add_library(Twisty
 )
 
 if (USE_CUDA)
+# set_source_files_properties(CombinedWeightUtils.cpp PROPERTIES LANGUAGE CUDA)
+# set_source_files_properties(CurvePerturbUtils.cpp PROPERTIES LANGUAGE CUDA)
+# set_source_files_properties(PathWeighters.cpp PROPERTIES LANGUAGE CUDA)
 else()
-set_source_files_properties(CombinedWeightUtils.cu PROPERTIES LANGUAGE CXX)
-set_source_files_properties(CurvePerturbUtils.cu PROPERTIES LANGUAGE CXX)
 endif(USE_CUDA)
 
 if (USE_CUDA)
-set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES 61 70 72)
+set (cuda_flags -Xcompiler=-Wall)
+# set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES 61 70 72)
 set_target_properties(Twisty PROPERTIES CUDA_STANDARD 17)
-set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+# set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+# set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
-target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-use_fast_math -Xptxas -v -maxrregcount=32>)
+target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -gencode=arch=compute_61,code=[compute_61,lto_61] -gencode=arch=compute_70,code=[compute_70,lto_70] -gencode=arch=compute_72,code=[compute_72,lto_72] -Xptxas -v>)
+target_link_options(Twisty PRIVATE $<DEVICE_LINK:-gencode=arch=compute_61,code=sm_61 -gencode=arch=70,code=sm_70 -gencode=arch=compute_72,code=sm_72 -dlto>)
 
 target_compile_definitions(Twisty
     PUBLIC USE_CUDA

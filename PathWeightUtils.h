@@ -33,15 +33,15 @@ namespace twisty {
 enum class WeightingMethod : int32_t { RadiativeTransfer = 0, SimplifiedModel = 1 };
 
 struct WeightingParameters {
-    double mu = 0.1;
+    float mu = 0.1f;
     uint32_t numStepsInt = 2000;
-    double minBound = 0.0;
-    double maxBound = 100.0;
-    double eps = 0.01;
+    float minBound = 0.0f;
+    float maxBound = 100.0f;
+    float eps = 0.01f;
 
-    double scatter = 0.0;
-    std::vector<double> scatterValues;
-    double absorbtion = 0.0;
+    float scatter = 0.0f;
+    std::vector<float> scatterValues;
+    float absorbtion = 0.0f;
 
     uint32_t numCurvatureSteps = 10000;
 
@@ -50,39 +50,39 @@ struct WeightingParameters {
     WeightingParameters()
         : scatterValues()
     {
-        scatterValues.push_back(0.0);
+        scatterValues.push_back(0.0f);
     }
 };
 
 namespace PathWeighting {
     // Used for the Path Integral Radiative Transfer Weighting
-    double SimpleGaussianPhase(double evalLocation, double mu);
-    double GaussianPhase(double evalLocation, double mu);
+    float SimpleGaussianPhase(float evalLocation, float mu);
+    float GaussianPhase(float evalLocation, float mu);
 
     // Simple Weight Function, for small segment work!
-    double SimpleWeightFunction(double curvature);
+    float SimpleWeightFunction(float curvature);
 
     class BaseWeightLookupTable {
        public:
-        BaseWeightLookupTable(const WeightingParameters &weightingParams, double ds,
-              double minCurvature, double maxCurvature);
+        BaseWeightLookupTable(const WeightingParameters &weightingParams, float ds,
+              float minCurvature, float maxCurvature);
         virtual ~BaseWeightLookupTable();
 
-        double InterpolateWeightValues(double curvature) const;
+        float InterpolateWeightValues(float curvature) const;
 
-        const std::vector<double> &AccessLookupTable() const { return m_lookupTable; }
+        const std::vector<float> &AccessLookupTable() const { return m_lookupTable; }
 
-        double GetMinSegmentWeight() const { return m_minSegmentWeight; }
+        float GetMinSegmentWeight() const { return m_minSegmentWeight; }
 
-        double GetMaxSegmentWeight() const { return m_maxSegmentWeight; }
+        float GetMaxSegmentWeight() const { return m_maxSegmentWeight; }
 
-        double GetMinCurvature() const { return m_minCurvature; }
+        float GetMinCurvature() const { return m_minCurvature; }
 
-        double GetMaxCurvature() const { return m_maxCurvature; }
+        float GetMaxCurvature() const { return m_maxCurvature; }
 
-        double GetDs() const { return m_ds; }
+        float GetDs() const { return m_ds; }
 
-        double GetCurvatureStepSize() const { return m_curvatureStepSize; }
+        float GetCurvatureStepSize() const { return m_curvatureStepSize; }
 
         WeightingParameters GetWeightingParams() const { return m_weightingParams; }
 
@@ -93,27 +93,27 @@ namespace PathWeighting {
         // weightingParams, double ds) const = 0;
         virtual const std::string ExportFilename() const = 0;
 
-        double m_minCurvature;
-        double m_maxCurvature;
+        float m_minCurvature;
+        float m_maxCurvature;
 
-        double m_minSegmentWeight = 0.0;
-        double m_maxSegmentWeight = 0.0;
+        float m_minSegmentWeight = 0.0;
+        float m_maxSegmentWeight = 0.0;
 
-        double m_curvatureStepSize;
-        std::vector<double> m_lookupTable;
+        float m_curvatureStepSize;
+        std::vector<float> m_lookupTable;
 
-        double m_ds;
+        float m_ds;
         WeightingParameters m_weightingParams;
     };
 
     class WeightLookupTableIntegral : public BaseWeightLookupTable {
        public:
-        WeightLookupTableIntegral(const WeightingParameters &weightingParams, double ds);
+        WeightLookupTableIntegral(const WeightingParameters &weightingParams, float ds);
         virtual ~WeightLookupTableIntegral();
 
        protected:
-        double Integrate(
-              double curvature, const WeightingParameters &weightingParams, double ds) const;
+        float Integrate(
+              float curvature, const WeightingParameters &weightingParams, float ds) const;
         virtual const std::string ExportFilename() const override
         {
             return "WeightLookupTableIntegral_Values.csv";
@@ -123,7 +123,7 @@ namespace PathWeighting {
     // The ICTT27 Weighting function integral
     class SimpleWeightLookupTable : public BaseWeightLookupTable {
        public:
-        SimpleWeightLookupTable(const WeightingParameters &weightingParams, double ds);
+        SimpleWeightLookupTable(const WeightingParameters &weightingParams, float ds);
         virtual ~SimpleWeightLookupTable();
 
         virtual const std::string ExportFilename() const override
@@ -135,10 +135,10 @@ namespace PathWeighting {
     };
 
     struct MinMaxCurvature {
-        double minCurvature = 0.0;
-        double maxCurvature = 0.0;
+        float minCurvature = 0.0f;
+        float maxCurvature = 0.0f;
     };
-    MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, double ds);
+    MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, float ds);
 
     namespace NormalizerStuff {
         typedef boost::multiprecision::cpp_dec_float_100 NormalizerDoubleType;
@@ -149,7 +149,7 @@ namespace PathWeighting {
 
             virtual ~BaseNormalizer() { }
 
-            virtual NormalizerDoubleType eval(int order, double r) const { return 1.0; }
+            virtual NormalizerDoubleType eval(int order, float r) const { return 1.0; }
         };
 
         class FN : public BaseNormalizer {
@@ -160,20 +160,20 @@ namespace PathWeighting {
 
             ~FN() { }
 
-            virtual NormalizerDoubleType eval(int order, double r) const override;
+            virtual NormalizerDoubleType eval(int order, float r) const override;
 
-            double minimum() const { return zMin; }
-            double maximum() const { return zMax; }
+            float minimum() const { return zMin; }
+            float maximum() const { return zMax; }
             int samples() const { return nb_samples; }
             int orders() const { return nb_orders; }
 
             void WriteToFile(std::ofstream &outFile);
 
            private:
-            int nb_samples;
-            int nb_orders;
-            double zMin;
-            double zMax;
+            int32_t nb_samples;
+            int32_t nb_orders;
+            float zMin;
+            float zMax;
 
             std::map<int, std::vector<NormalizerDoubleType>> fNsets;
             void init(int numIntegrationSamples);
@@ -181,7 +181,7 @@ namespace PathWeighting {
             void init_fromFile(std::ifstream &inFile);
         };
 
-        NormalizerDoubleType Norm(int numberOfSegments, double ds,
+        NormalizerDoubleType Norm(int numberOfSegments, float ds,
               twisty::PerturbUtils::BoundaryConditions boundaryConditions);
 
         std::unique_ptr<PathWeighting::NormalizerStuff::BaseNormalizer> GetNormalizer(

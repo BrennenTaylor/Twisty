@@ -61,7 +61,7 @@ class FullExperimentRunnerOptimalPerturbOptimized_GPU : public ExperimentRunner 
     void CleanupCudaRandStates();
 
     bool SetupCudaPerturb(int32_t numGlobalPerturbThreads, int32_t numCombinedWeightValues,
-          int32_t numSegments, const std::vector<double> &weightTable);
+          int32_t numSegments, const std::vector<float> &weightTable);
     void CleanupCudaPerturb();
 
 
@@ -82,7 +82,7 @@ class FullExperimentRunnerOptimalPerturbOptimized_GPU : public ExperimentRunner 
 
     CombinedWeightValues_C *m_pPerThreadCombinedWeightValues = nullptr;
     CombinedWeightValues_C *m_pFinalCombinedValues = nullptr;
-    double *m_pDeviceWeightLookupTable = nullptr;
+    float *m_pDeviceWeightLookupTable = nullptr;
 };
 
 __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurandState(

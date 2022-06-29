@@ -14,25 +14,25 @@
 namespace twisty {
 namespace PathWeighting {
     // Parameterized simple gaussian function
-    double SimpleGaussianPhase(double p, double mu)
+    float SimpleGaussianPhase(float p, float mu)
     {
-        const double val = (-mu * p * p) * 0.5;
-        return std::exp(val);
+        const float val = (-mu * p * p) * 0.5f;
+        return expf(val);
     }
 
     // Parameterized gaussian function
     // Switched to version found in "A leading order approximation of the path integral for radiative transfer"
-    double GaussianPhase(double evalLocation, double mu)
+    float GaussianPhase(float evalLocation, float mu)
     {
         // 8.0 is 2.0^3
-        const double Np
-              = std::sqrt(8.0 * TwistyPi * TwistyPi * TwistyPi * mu) / (1.0 - std::exp(-2.0 / mu));
+        const float Np
+              = sqrtf(8.0f * TwistyPi * TwistyPi * TwistyPi * mu) / (1.0f - expf(-2.0f / mu));
         return Np * SimpleGaussianPhase(evalLocation, mu);
     }
 
     // Lookup table integrand
     BaseWeightLookupTable::BaseWeightLookupTable(const WeightingParameters &weightingParams,
-          double ds, double minCurvature, double maxCurvature)
+          float ds, float minCurvature, float maxCurvature)
         : m_minCurvature(minCurvature)
         , m_maxCurvature(maxCurvature)
         , m_curvatureStepSize((maxCurvature - minCurvature) / weightingParams.numCurvatureSteps)
@@ -45,7 +45,7 @@ namespace PathWeighting {
 
     BaseWeightLookupTable::~BaseWeightLookupTable() { }
 
-    double BaseWeightLookupTable::InterpolateWeightValues(double curvature) const
+    float BaseWeightLookupTable::InterpolateWeightValues(float curvature) const
     {
         if (curvature < m_minCurvature) {
             std::cout << "Clamping to min curvature" << std::endl;
@@ -65,16 +65,16 @@ namespace PathWeighting {
             return m_lookupTable[m_weightingParams.numCurvatureSteps];
         }
 
-        double distanceFromMin = curvature - m_minCurvature;
-        double realIdx = distanceFromMin / m_curvatureStepSize;
+        float distanceFromMin = curvature - m_minCurvature;
+        float realIdx = distanceFromMin / m_curvatureStepSize;
         int32_t leftIdx = floor(realIdx);
         int32_t rightIdx = leftIdx + 1;
 
-        double leftLookup = m_lookupTable[leftIdx];
-        double rightLookup = m_lookupTable[rightIdx];
+        float leftLookup = m_lookupTable[leftIdx];
+        float rightLookup = m_lookupTable[rightIdx];
 
-        double interpDist = distanceFromMin - (leftIdx * m_curvatureStepSize);
-        double interpolatedResult = leftLookup * (1.0f - interpDist) + (rightLookup * interpDist);
+        float interpDist = distanceFromMin - (leftIdx * m_curvatureStepSize);
+        float interpolatedResult = leftLookup * (1.0f - interpDist) + (rightLookup * interpDist);
         return interpolatedResult;
     }
 
@@ -100,7 +100,7 @@ namespace PathWeighting {
 
     // Lookup table integrand
     WeightLookupTableIntegral::WeightLookupTableIntegral(
-          const WeightingParameters &weightingParams, double ds)
+          const WeightingParameters &weightingParams, float ds)
         : BaseWeightLookupTable(weightingParams, ds, 0.0, 0.0)
     {
         std::cout << "Calcuating WeightLookupTableIntegral lookup table" << std::endl;
@@ -113,15 +113,15 @@ namespace PathWeighting {
 
         // Handle first case
         {
-            double value = Integrate(m_minCurvature, weightingParams, ds);
+            float value = Integrate(m_minCurvature, weightingParams, ds);
             m_lookupTable[0] = value;
         }
-        double min = m_lookupTable[0];
-        double max = m_lookupTable[0];
+        float min = m_lookupTable[0];
+        float max = m_lookupTable[0];
 
         for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i) {
-            double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-            double value = Integrate(curvatureEval, weightingParams, ds);
+            float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
+            float value = Integrate(curvatureEval, weightingParams, ds);
 
             // Running min?
             if (value <= 0.0) {
@@ -140,7 +140,7 @@ namespace PathWeighting {
 
         uint32_t numInvalid = 0;
         for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i) {
-            double value = m_lookupTable[i];
+            float value = m_lookupTable[i];
 
             if (value <= 0.0) {
                 numInvalid++;
@@ -173,29 +173,29 @@ namespace PathWeighting {
 
     WeightLookupTableIntegral::~WeightLookupTableIntegral() { }
 
-    double WeightLookupTableIntegral::Integrate(
-          double curvature, const WeightingParameters &weightingParams, double ds) const
+    float WeightLookupTableIntegral::Integrate(
+          float curvature, const WeightingParameters &weightingParams, float ds) const
     {
-        const double kds = curvature * ds;
-        const double bds = weightingParams.scatter * ds;
+        const float kds = curvature * ds;
+        const float bds = weightingParams.scatter * ds;
 
-        const double cds = (weightingParams.absorbtion + weightingParams.scatter) * ds;
-        const double transmissionFalloff = std::exp(-cds) / (2.0 * TwistyPi * TwistyPi);
+        const float cds = (weightingParams.absorbtion + weightingParams.scatter) * ds;
+        const float transmissionFalloff = std::exp(-cds) / (2.0 * TwistyPi * TwistyPi);
 
-        auto Integrand = [this, weightingParams](double p, double kds, double bds) -> double {
-            double phaseFunction = GaussianPhase(p, weightingParams.mu);
+        auto Integrand = [this, weightingParams](float p, float kds, float bds) -> float {
+            float phaseFunction = GaussianPhase(p, weightingParams.mu);
 
-            double scatteringTerm = p
+            float scatteringTerm = p
                   * std::exp(bds * phaseFunction  // scatter piece
                         - 1.0
                               * (weightingParams.eps * weightingParams.eps * p * p
                                     * 0.5)  // regularizer
                   );
 
-            double sinTerm = 0.0;
+            float sinTerm = 0.0f;
             // TODO: Should we implement this as if (kds < smallAngleThreshold?)
             if (kds != 0.0) {
-                sinTerm = sin(kds * p) / kds;
+                sinTerm = sinf(kds * p) / kds;
             }
             // With small angle apprimation, we have that kds is very small
             // As we approch, we have that sin(kds * p) => p
@@ -212,14 +212,14 @@ namespace PathWeighting {
         // However, as we already are using a big float library, do we even need to
         // deal with this?
 
-        const double stepSize = (weightingParams.maxBound - weightingParams.minBound)
+        const float stepSize = (weightingParams.maxBound - weightingParams.minBound)
               / (weightingParams.numStepsInt);
 
-        double firstVal = 0.0f;
-        double normalizerWithZeroCurvature = 0.0f;
+        float firstVal = 0.0f;
+        float normalizerWithZeroCurvature = 0.0f;
         {
             for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i) {
-                const double p = weightingParams.minBound + (i * stepSize);
+                const float p = weightingParams.minBound + (i * stepSize);
                 firstVal += Integrand(p, kds, bds) * stepSize;
                 normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
             }
@@ -229,8 +229,8 @@ namespace PathWeighting {
 
     // Lookup table integrand
     SimpleWeightLookupTable::SimpleWeightLookupTable(
-          const twisty::WeightingParameters &weightingParams, double ds)
-        : BaseWeightLookupTable(weightingParams, ds, -1.0, 1.0)
+          const twisty::WeightingParameters &weightingParams, float ds)
+        : BaseWeightLookupTable(weightingParams, ds, -1.0f, 1.0f)
     {
         std::cout << "Calcuating path weight integral lookup table: "
                   << weightingParams.numCurvatureSteps << std::endl;
@@ -241,25 +241,25 @@ namespace PathWeighting {
         m_curvatureStepSize
               = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
-        auto CalculateSimpleWeightValue = [weightingParams, ds](double curvature) -> double {
+        auto CalculateSimpleWeightValue = [weightingParams, ds](float curvature) -> float {
             curvature *= -1.0;  // All curvatures in this mode are negated
-            const double alpha = 1.0 / (weightingParams.scatter * ds * weightingParams.mu);
-            const double leftComponent = std::exp(-1.0 * alpha);
-            const double rightComponent = std::exp(alpha * curvature);
+            const float alpha = 1.0 / (weightingParams.scatter * ds * weightingParams.mu);
+            const float leftComponent = std::exp(-1.0 * alpha);
+            const float rightComponent = std::exp(alpha * curvature);
             return leftComponent * rightComponent;
         };
 
         // Handle first case
         {
-            double value = CalculateSimpleWeightValue(m_minCurvature);
+            float value = CalculateSimpleWeightValue(m_minCurvature);
             m_lookupTable[0] = value;
         }
 
-        double min = m_lookupTable[0];
-        double max = m_lookupTable[0];
+        float min = m_lookupTable[0];
+        float max = m_lookupTable[0];
         for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i) {
-            double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-            double value = CalculateSimpleWeightValue(curvatureEval);
+            float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
+            float value = CalculateSimpleWeightValue(curvatureEval);
             // Running min?
             if (value <= 0.0) {
                 value = min;
@@ -277,7 +277,7 @@ namespace PathWeighting {
 
         uint32_t numInvalid = 0;
         for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i) {
-            double value = m_lookupTable[i];
+            float value = m_lookupTable[i];
 
             if (value <= 0.0) {
                 numInvalid++;
@@ -310,7 +310,7 @@ namespace PathWeighting {
 
     SimpleWeightLookupTable::~SimpleWeightLookupTable() { }
 
-    MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, double ds)
+    MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, float ds)
     {
         switch (wp.weightingMethod) {
             case WeightingMethod::RadiativeTransfer: {
@@ -319,8 +319,8 @@ namespace PathWeighting {
                 // Our max and min are calculated as follows
 
                 MinMaxCurvature result;
-                result.minCurvature = 0.0;
-                result.maxCurvature = (2.3 / ds) * 2.2;
+                result.minCurvature = 0.0f;
+                result.maxCurvature = (2.3f / ds) * 1.1f;
                 return result;
             } break;
             case WeightingMethod::SimplifiedModel: {
@@ -328,8 +328,8 @@ namespace PathWeighting {
                 // Curvatures are calculated in the following:
                 // tr.dot(tl) = [-1, 1]
                 MinMaxCurvature result;
-                result.minCurvature = -1.0;
-                result.maxCurvature = 1.0;
+                result.minCurvature = -1.0f;
+                result.maxCurvature = 1.0f;
                 return result;
             } break;
             default: {
@@ -449,7 +449,7 @@ namespace PathWeighting {
         }
 
         // Evaluate f of a given order at an z magnitude
-        NormalizerDoubleType FN::eval(int order, double z) const
+        NormalizerDoubleType FN::eval(int order, float z) const
         {
             // // Get the stored dataset for the specific order
             // const std::vector<NormalizerDoubleType> &data = fNsets.at(order);
@@ -474,38 +474,38 @@ namespace PathWeighting {
         }
 
         // The smallest order of F we can numerically evaluate
-        NormalizerDoubleType K4(const double z, const double ds)
+        NormalizerDoubleType K4(const float z, const float ds)
         {
-            double result = (z < 2.0) ? 1.0 : 0.0;
+            float result = (z < 2.0) ? 1.0 : 0.0;
             result /= z;
             result *= 2.0 * TwistyPi;
-            const double invDs = (1.0 / ds);
+            const float invDs = (1.0 / ds);
             result *= (invDs * invDs * invDs);
             return result;
         }
 
-        NormalizerDoubleType F5(const double x, const double &z, const double ds)
+        NormalizerDoubleType F5(const float x, const float &z, const float ds)
         {
-            const double rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));
+            const float rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));
             return K4(rMag, ds);
         }
 
-        NormalizerDoubleType F6(const double x, const double &z, const double ds)
+        NormalizerDoubleType F6(const float x, const float &z, const float ds)
         {
-            const double rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));
+            const float rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));
 
             NormalizerDoubleType result = 0.0;
             const uint32_t numSteps = 10000;
 
-            const double xMin = -1.0;
-            const double xMax = 1.0;
-            const double dx = (xMax - xMin) / numSteps;
+            const float xMin = -1.0;
+            const float xMax = 1.0;
+            const float dx = (xMax - xMin) / numSteps;
 
             // Phi is vertical Component
             // Theta is angle around the axis
 
             for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
-                const double xVal = xMin + xIdx * dx;
+                const float xVal = xMin + xIdx * dx;
 
                 const NormalizerDoubleType val = F5(xVal, rMag, ds);
                 result += val;
@@ -521,15 +521,15 @@ namespace PathWeighting {
             NormalizerDoubleType result = 0.0;
             const uint32_t numSteps = 10000;
 
-            const double xMin = -1.0;
-            const double xMax = 1.0;
-            const double dx = (xMax - xMin) / numSteps;
+            const float xMin = -1.0;
+            const float xMax = 1.0;
+            const float dx = (xMax - xMin) / numSteps;
 
             // Phi is vertical Component
             // Theta is angle around the axis
 
             for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
-                const double xVal = xMin + xIdx * dx;
+                const float xVal = xMin + xIdx * dx;
                 const NormalizerDoubleType val = F5(xVal, z, ds);
                 result += val;
             }
@@ -539,7 +539,7 @@ namespace PathWeighting {
         }
 
         // Calculate the overall normalization
-        NormalizerDoubleType Norm(int numberOfSegments, double ds,
+        NormalizerDoubleType Norm(int numberOfSegments, float ds,
               twisty::PerturbUtils::BoundaryConditions boundaryConditions)
         {
             // For M <= 3, the normalization is undefined or has a delta function

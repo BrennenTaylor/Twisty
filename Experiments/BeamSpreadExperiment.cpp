@@ -125,7 +125,7 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     auto &scatterValuesLookup
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatterValues"];
 
-    std::vector<double> scatterValues;
+    std::vector<float> scatterValues;
     for (auto &elem : scatterValuesLookup)
         scatterValues.push_back(elem);
     experimentParams.weightingParameters.scatterValues = scatterValues;
