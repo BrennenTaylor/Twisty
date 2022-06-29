@@ -37,8 +37,9 @@
       as this is the maximum size that can fit in a unsigned 32 bit in
 */
 
-const uint32_t PerturbGridSize = 64;
-const uint32_t PerturbBlockSize = 256;
+#define PerturbGridSize 32
+#define PerturbBlockSize 64
+#define PathsPerGPUThread (MaxNumPathsPerCombinedWeight / PerturbBlockSize)
 
 namespace twisty {
 static void CudaSafeErrorCheck(cudaError_t error, std::string message)
@@ -46,49 +47,46 @@ static void CudaSafeErrorCheck(cudaError_t error, std::string message)
     if (error != cudaSuccess) {
         std::string errorString(cudaGetErrorString(error));
         fprintf(stdout, "ERROR: %s : %s\n", message.c_str(), errorString.c_str());
-        // assert(false);
     }
 }
 
-__global__ void
-FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
-      const int64_t numCombinedWeightValuesTotal,
-      const int64_t numCombinedWeightValuesPerWarp,
-      const uint32_t numPathsPerThread,
-      const uint32_t numPathsToSkipPerThread,
-      const uint32_t numSegmentsPerCurve,
-      curandState_t *const pCurandStates,
-      float *const pPerGlobalThreadScratchSpacePositions,
-      float *const pPerGlobalThreadScratchSpaceTangents,
-      float *const pPerGlobalThreadScratchSpaceCurvatures,
-      CombinedWeightValues_C *const pFinalCombinedValues,
-      const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-      const float *const pWeightLookupTable,
-      const uint32_t weightLookupTableSize,
-      const float ds,
-      const float minCurvature,
-      const float maxCurvature,
-      const float curvatureStepSize);
+__global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
+      FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
+            const int64_t numCombinedWeightValuesTotal,
+            const int64_t numCombinedWeightValuesPerWarp,
+            const uint32_t numPathsToSkipPerThread,
+            const uint32_t numSegmentsPerCurve,
+            curandState_t *const pCurandStates,
+            float *const pPerGlobalThreadScratchSpacePositions,
+            float *const pPerGlobalThreadScratchSpaceTangents,
+            float *const pPerGlobalThreadScratchSpaceCurvatures,
+            CombinedWeightValues_C *const pFinalCombinedValues,
+            const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+            const float *const pWeightLookupTable,
+            const uint32_t weightLookupTableSize,
+            const float ds,
+            const float minCurvature,
+            const float maxCurvature,
+            const float curvatureStepSize);
 
-__global__ void
-FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
-      const int64_t numCombinedWeightValuesTotal,
-      const int64_t numCombinedWeightValuesPerWarp,
-      const uint32_t numPathsPerThread,
-      const uint32_t numPathsToSkipPerThread,
-      const uint32_t numSegmentsPerCurve,
-      curandState_t *const pCurandStates,
-      float *const pPerGlobalThreadScratchSpacePositions,
-      float *const pPerGlobalThreadScratchSpaceTangents,
-      float *const pPerGlobalThreadScratchSpaceCurvatures,
-      CombinedWeightValues_C *const pFinalCombinedValues,
-      const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-      const float *const pWeightLookupTable,
-      const uint32_t weightLookupTableSize,
-      const float ds,
-      const float minCurvature,
-      const float maxCurvature,
-      const float curvatureStepSize);
+__global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
+      FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
+            const int64_t numCombinedWeightValuesTotal,
+            const int64_t numCombinedWeightValuesPerWarp,
+            const uint32_t numPathsToSkipPerThread,
+            const uint32_t numSegmentsPerCurve,
+            curandState_t *const pCurandStates,
+            float *const pPerGlobalThreadScratchSpacePositions,
+            float *const pPerGlobalThreadScratchSpaceTangents,
+            float *const pPerGlobalThreadScratchSpaceCurvatures,
+            CombinedWeightValues_C *const pFinalCombinedValues,
+            const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+            const float *const pWeightLookupTable,
+            const uint32_t weightLookupTableSize,
+            const float ds,
+            const float minCurvature,
+            const float maxCurvature,
+            const float curvatureStepSize);
 
 FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(
       ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
@@ -117,8 +115,8 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     }
     m_experimentParams.weightingParameters.scatter
           = m_experimentParams.weightingParameters.scatterValues[0];
-    std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
 
+    std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::SimplifiedModel) {
         lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
@@ -127,10 +125,9 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
               m_experimentParams.weightingParameters, m_upInitialCurve->m_segmentLength);
     }
-
     lookupEvaluator->ExportValues(m_experimentDirPath.string());
 
-    twisty::PerturbUtils::BoundaryConditions boundaryConditions
+    const twisty::PerturbUtils::BoundaryConditions boundaryConditions
           = m_upInitialCurve->GetBoundaryConditions();
 
     bool result = SetupCudaDevice();
@@ -149,8 +146,6 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
           / MaxNumPathsPerCombinedWeight;
     const uint32_t numCombinedWeightValuesPerWarp
           = (numCombinedWeightValuesTotal + PerturbGridSize - 1) / PerturbGridSize;
-    const uint32_t numPathsPerThread
-          = (MaxNumPathsPerCombinedWeight + PerturbBlockSize - 1) / PerturbBlockSize;
 
     std::cout << "Num Global Perturb Threads: " << numGlobalPerturbThreads << std::endl;
     std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
@@ -218,26 +213,26 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
               << numCombinedWeightValuesTotal * MaxNumPathsPerCombinedWeight << std::endl;
     std::cout << "numCombinedWeightValuesTotal: " << numCombinedWeightValuesTotal << std::endl;
     std::cout << "numCombinedWeightValuesPerWarp: " << numCombinedWeightValuesPerWarp << std::endl;
-    std::cout << "numPathsPerThread: " << numPathsPerThread << std::endl;
+    std::cout << "numPathsPerThread: " << PathsPerGPUThread << std::endl;
 
     auto perturbTimeStart = std::chrono::high_resolution_clock::now();
 
     twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions;
-    csBoundaryConditions.m_startPos[0] = boundaryConditions.m_startPos[0];
-    csBoundaryConditions.m_startPos[1] = boundaryConditions.m_startPos[1];
-    csBoundaryConditions.m_startPos[2] = boundaryConditions.m_startPos[2];
+    csBoundaryConditions.m_startPos[0] = boundaryConditions.m_startPos.x;
+    csBoundaryConditions.m_startPos[1] = boundaryConditions.m_startPos.y;
+    csBoundaryConditions.m_startPos[2] = boundaryConditions.m_startPos.z;
 
-    csBoundaryConditions.m_startDir[0] = boundaryConditions.m_startDir[0];
-    csBoundaryConditions.m_startDir[1] = boundaryConditions.m_startDir[1];
-    csBoundaryConditions.m_startDir[2] = boundaryConditions.m_startDir[2];
+    csBoundaryConditions.m_startDir[0] = boundaryConditions.m_startDir.x;
+    csBoundaryConditions.m_startDir[1] = boundaryConditions.m_startDir.y;
+    csBoundaryConditions.m_startDir[2] = boundaryConditions.m_startDir.z;
 
-    csBoundaryConditions.m_endPos[0] = boundaryConditions.m_endPos[0];
-    csBoundaryConditions.m_endPos[1] = boundaryConditions.m_endPos[1];
-    csBoundaryConditions.m_endPos[2] = boundaryConditions.m_endPos[2];
+    csBoundaryConditions.m_endPos[0] = boundaryConditions.m_endPos.x;
+    csBoundaryConditions.m_endPos[1] = boundaryConditions.m_endPos.y;
+    csBoundaryConditions.m_endPos[2] = boundaryConditions.m_endPos.z;
 
-    csBoundaryConditions.m_endDir[0] = boundaryConditions.m_endDir[0];
-    csBoundaryConditions.m_endDir[1] = boundaryConditions.m_endDir[1];
-    csBoundaryConditions.m_endDir[2] = boundaryConditions.m_endDir[2];
+    csBoundaryConditions.m_endDir[0] = boundaryConditions.m_endDir.x;
+    csBoundaryConditions.m_endDir[1] = boundaryConditions.m_endDir.y;
+    csBoundaryConditions.m_endDir[2] = boundaryConditions.m_endDir.z;
 
     csBoundaryConditions.arclength = boundaryConditions.arclength;
 
@@ -266,7 +261,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
               == WeightingMethod::RadiativeTransfer) {
             FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer<<<
                   gridSize, blockSize, sharedMemorySizeBytes, stream>>>(
-                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp, numPathsPerThread,
+                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp,
                   m_experimentParams.numPathsToSkip, m_experimentParams.numSegmentsPerCurve,
                   m_pPerGlobalThreadRandStates, m_pPerGlobalThreadScratchSpacePositions,
                   m_pPerGlobalThreadScratchSpaceTangents, m_pPerGlobalThreadScratchSpaceCurvatures,
@@ -284,7 +279,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
         } else {
             FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel<<<
                   gridSize, blockSize, sharedMemorySizeBytes, stream>>>(
-                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp, numPathsPerThread,
+                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp,
                   m_experimentParams.numPathsToSkip, m_experimentParams.numSegmentsPerCurve,
                   m_pPerGlobalThreadRandStates, m_pPerGlobalThreadScratchSpacePositions,
                   m_pPerGlobalThreadScratchSpaceTangents, m_pPerGlobalThreadScratchSpaceCurvatures,
@@ -372,6 +367,9 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
 
 bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaDevice()
 {
+    // Force the creation of the context
+    cudaFree(0);
+
     // Query for the number of devices avalible
     int32_t numDevices = 0;
     CudaSafeErrorCheck(cudaGetDeviceCount(&numDevices), "Get Devices");
@@ -386,16 +384,39 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaDevice()
     for (int32_t i = 0; i < numDevices; ++i) {
         cudaDeviceProp prop;
         CudaSafeErrorCheck(cudaGetDeviceProperties(&prop, i), "Get Device Prop");
-        printf("\nDevice Number: %d\n", i);
-        printf("\tDevice name: %s\n", prop.name);
-        printf("\tSM Count: %d\n", prop.multiProcessorCount);
-        printf("\tSM Shared Memory: %d\n", prop.sharedMemPerBlock);
-        printf("\tWarp Size: %d\n", prop.warpSize);
-        printf("\tThreads per SM: %d\n", prop.maxThreadsPerMultiProcessor);
-        printf("\tPeak Memory Bandwidth (GB/s): %f\n",
-              2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
-        printf("\tGlobal Memory: %zu\n", prop.totalGlobalMem);
-        printf("\tConst Memory: %zu\n", prop.totalConstMem);
+        std::cout << "\nDevice Number: " << i << std::endl;
+        std::cout << "\tDevice name: " << prop.name << std::endl;
+        std::cout << "\tDevice Capability: " << prop.major << ", " << prop.minor << std::endl;
+
+        std::cout << "\tSM Count: " << prop.multiProcessorCount << std::endl;
+        std::cout << "\tMax Blocks Per SM: " << prop.maxBlocksPerMultiProcessor << std::endl;
+        std::cout << "\tMax Threads Per Block: " << prop.maxThreadsPerBlock << std::endl;
+        std::cout << "\tMax Threads Per SM: " << prop.maxThreadsPerMultiProcessor << std::endl;
+        std::cout << "\tRegisters per SM: " << prop.regsPerMultiprocessor << std::endl;
+        std::cout << "\tRegisters per Block: " << prop.regsPerBlock << std::endl;
+        std::cout << "\tShared Memory per SM: " << prop.sharedMemPerMultiprocessor << std::endl;
+        std::cout << "\tShared Memory per Block: " << prop.sharedMemPerBlock << std::endl;
+
+        std::cout << "\tSingle to Double Perf Ratio: " << prop.singleToDoublePrecisionPerfRatio
+                  << std::endl;
+
+        std::cout << "\tSM Count: " << prop.multiProcessorCount << std::endl;
+        std::cout << "\tSM Shared Memory: " << prop.sharedMemPerBlock << std::endl;
+        std::cout << "\tWarp Size: " << prop.warpSize << std::endl;
+        std::cout << "\tThreads per SM: " << prop.maxThreadsPerMultiProcessor << std::endl;
+        std::cout << "\tPeak Memory Bandwidth (GB/s): "
+                  << 2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6 << std::endl;
+        std::cout << "\tGlobal Memory: " << prop.totalGlobalMem << std::endl;
+        std::cout << "\tConst Memory: " << prop.totalConstMem << std::endl;
+
+        std::cout << "\tFeatures Supported: " << std::endl;
+        std::cout << "\t\tCompute Preemption Supported: " << prop.computePreemptionSupported
+                  << std::endl;
+        std::cout << "\t\tConcurrent Kernels Supported: " << prop.concurrentKernels << std::endl;
+        std::cout << "\t\tGlobal L1 Cache Support: " << prop.globalL1CacheSupported << std::endl;
+        std::cout << "\t\tLocal L1 Cache Support: " << prop.localL1CacheSupported << std::endl;
+        std::cout << "\t\tKernel Exec Timeout Enabled: " << prop.kernelExecTimeoutEnabled
+                  << std::endl;
     }
 
     // We select the first device only
@@ -404,10 +425,7 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaDevice()
     cudaDeviceProp deviceProp;
     CudaSafeErrorCheck(cudaGetDeviceProperties(&deviceProp, 0), "Get first device prop");
 
-    m_numSMs = deviceProp.multiProcessorCount;
-    m_warpSize = deviceProp.warpSize;
-    m_maxThreadsPerMultiprocessor = deviceProp.maxThreadsPerMultiProcessor;
-
+    m_deviceProp = deviceProp;
     return true;
 }
 
@@ -633,25 +651,24 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurand
     }
 }
 
-__global__ void
-FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
-      const int64_t numCombinedWeightValuesTotal,
-      const int64_t numCombinedWeightValuesPerWarp,
-      const uint32_t numPathsPerThread,
-      const uint32_t numPathsToSkipPerThread,
-      const uint32_t numSegmentsPerCurve,
-      curandState_t *const pCurandStates,
-      float *const pPerGlobalThreadScratchSpacePositions,
-      float *const pPerGlobalThreadScratchSpaceTangents,
-      float *const pPerGlobalThreadScratchSpaceCurvatures,
-      CombinedWeightValues_C *const pFinalCombinedValues,
-      const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-      const float *const pWeightLookupTable,
-      const uint32_t weightLookupTableSize,
-      const float ds,
-      const float minCurvature,
-      const float maxCurvature,
-      const float curvatureStepSize)
+__global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
+      FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
+            const int64_t numCombinedWeightValuesTotal,
+            const int64_t numCombinedWeightValuesPerWarp,
+            const uint32_t numPathsToSkipPerThread,
+            const uint32_t numSegmentsPerCurve,
+            curandState_t *const pCurandStates,
+            float *const pPerGlobalThreadScratchSpacePositions,
+            float *const pPerGlobalThreadScratchSpaceTangents,
+            float *const pPerGlobalThreadScratchSpaceCurvatures,
+            CombinedWeightValues_C *const pFinalCombinedValues,
+            const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+            const float *const pWeightLookupTable,
+            const uint32_t weightLookupTableSize,
+            const float ds,
+            const float minCurvature,
+            const float maxCurvature,
+            const float curvatureStepSize)
 {
     __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
 
@@ -681,8 +698,8 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTr
         // We need a loop over the batches
         // TODO: Do we even need to do this?
         // Should we seperate into seperate step
-        for (uint32_t pathCount = 0; pathCount < numPathsPerThread; pathCount++) {
-            uint32_t currentPathIdx = (numPathsPerThread * threadIdx.x) + pathCount;
+        for (uint32_t pathCount = 0; pathCount < PathsPerGPUThread; pathCount++) {
+            uint32_t currentPathIdx = (PathsPerGPUThread * threadIdx.x) + pathCount;
 
             // Do our random rolls here
             float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
@@ -843,26 +860,25 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTr
 #undef CurrentThreadCurvatureStartIdx
 }
 
-__global__ void
-FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
-      const int64_t numCombinedWeightValuesTotal,
-      const int64_t numCombinedWeightValuesPerWarp,
-      const uint32_t numPathsPerThread,
-      const uint32_t numPathsToSkipPerThread,
-      const uint32_t numSegmentsPerCurve,
-      curandState_t *const pCurandStates,
-      float *const pPerGlobalThreadScratchSpacePositions,
-      float *const pPerGlobalThreadScratchSpaceTangents,
-      float *const pPerGlobalThreadScratchSpaceCurvatures,
-      CombinedWeightValues_C *const pFinalCombinedValues,
-      // const int32_t weightingMethod,
-      const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-      const float *const pWeightLookupTable,
-      const uint32_t weightLookupTableSize,
-      const float ds,
-      const float minCurvature,
-      const float maxCurvature,
-      const float curvatureStepSize)
+__global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
+      FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
+            const int64_t numCombinedWeightValuesTotal,
+            const int64_t numCombinedWeightValuesPerWarp,
+            const uint32_t numPathsToSkipPerThread,
+            const uint32_t numSegmentsPerCurve,
+            curandState_t *const pCurandStates,
+            float *const pPerGlobalThreadScratchSpacePositions,
+            float *const pPerGlobalThreadScratchSpaceTangents,
+            float *const pPerGlobalThreadScratchSpaceCurvatures,
+            CombinedWeightValues_C *const pFinalCombinedValues,
+            // const int32_t weightingMethod,
+            const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+            const float *const pWeightLookupTable,
+            const uint32_t weightLookupTableSize,
+            const float ds,
+            const float minCurvature,
+            const float maxCurvature,
+            const float curvatureStepSize)
 {
     __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
 
@@ -890,8 +906,8 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedM
         }
 
         // We need a loop over the batches
-        for (int64_t pathCount = 0; pathCount < numPathsPerThread; pathCount++) {
-            int64_t currentPathIdx = numPathsPerThread * threadIdx.x + pathCount;
+        for (int64_t pathCount = 0; pathCount < PathsPerGPUThread; pathCount++) {
+            int64_t currentPathIdx = PathsPerGPUThread * threadIdx.x + pathCount;
 
             // Do our random rolls here
             float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));

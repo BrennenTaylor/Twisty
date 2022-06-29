@@ -68,9 +68,10 @@ class FullExperimentRunnerOptimalPerturbOptimized_GPU : public ExperimentRunner 
    private:
     // CUDA STUFF
    private:
-    int32_t m_numSMs = 0;
-    int32_t m_warpSize = 0;
-    int32_t m_maxThreadsPerMultiprocessor = 0;
+    cudaDeviceProp m_deviceProp;
+    //     int32_t m_numSMs = 0;
+    //     int32_t m_warpSize = 0;
+    //     int32_t m_maxThreadsPerMultiprocessor = 0;
 
     uint64_t m_usedDeviceMemoryInBytes = 0;
 

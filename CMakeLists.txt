@@ -6,13 +6,14 @@ include(FetchContent)
 
 # Needed for GPU build
 option(USE_CUDA "Enable Cuda and GPU runner?" TRUE)
-if (USE_CUDA)
-enable_language(CUDA)
 
-set(CUDA_VERBOSE_BUILD ON)
-set(CMAKE_CUDA_STANDARD 17)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-endif (USE_CUDA)
+if(USE_CUDA)
+    enable_language(CUDA)
+
+    set(CUDA_VERBOSE_BUILD ON)
+    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+endif(USE_CUDA)
 
 # Needed for multiprecision float library
 find_package(Boost)
@@ -37,10 +38,12 @@ add_library(Twisty
     Bootstrapper.h
     Bootstrapper.cpp
     CombinedWeightUtils.h
+
     # CombinedWeightUtils.cpp
     Curve.h
     Curve.cpp
     CurvePerturbUtils.h
+
     # CurvePerturbUtils.cpp
     CurveUtils.h
     CurveUtils.cpp
@@ -57,6 +60,7 @@ add_library(Twisty
     Integrate.h
     MathConsts.h
     PathWeighters.h
+
     # PathWeighters.cpp
     PathWeightUtils.h
     PathWeightUtils.cpp
@@ -64,36 +68,32 @@ add_library(Twisty
     PerturbUtils.cpp
 )
 
-if (USE_CUDA)
-# set_source_files_properties(CombinedWeightUtils.cpp PROPERTIES LANGUAGE CUDA)
-# set_source_files_properties(CurvePerturbUtils.cpp PROPERTIES LANGUAGE CUDA)
-# set_source_files_properties(PathWeighters.cpp PROPERTIES LANGUAGE CUDA)
+if(USE_CUDA)
 else()
 endif(USE_CUDA)
 
-if (USE_CUDA)
-set (cuda_flags -Xcompiler=-Wall)
-# set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES 61 70 72)
-set_target_properties(Twisty PROPERTIES CUDA_STANDARD 17)
-# set_target_properties(Twisty PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-# set_target_properties(Twisty PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+if(USE_CUDA)
+    set(cuda_flags -Xcompiler=-Wall)
 
-target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -gencode=arch=compute_61,code=[compute_61,lto_61] -gencode=arch=compute_70,code=[compute_70,lto_70] -gencode=arch=compute_72,code=[compute_72,lto_72] -Xptxas -v>)
-target_link_options(Twisty PRIVATE $<DEVICE_LINK:-gencode=arch=compute_61,code=sm_61 -gencode=arch=70,code=sm_70 -gencode=arch=compute_72,code=sm_72 -dlto>)
+    set_property(TARGET Twisty PROPERTY CUDA_ARCHITECTURES 52 70 72)
+    set_target_properties(Twisty PROPERTIES CUDA_STANDARD 17)
 
-target_compile_definitions(Twisty
-    PUBLIC USE_CUDA
-)
-endif (USE_CUDA)
+    target_compile_options(Twisty PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -Xptxas -v>)
+
+    target_compile_definitions(Twisty
+        PUBLIC USE_CUDA
+    )
+endif(USE_CUDA)
 
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}
 )
-if (USE_CUDA)
-target_include_directories(Twisty
-    PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-)
+
+if(USE_CUDA)
+    target_include_directories(Twisty
+        PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
+    )
 endif(USE_CUDA)
 
 target_compile_features(Twisty
@@ -104,16 +104,16 @@ target_compile_options(Twisty
     PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:MSVC>:/openmp>>
 )
 
-if (WIN32)
+if(WIN32)
 else()
-target_compile_options(Twisty
-    PUBLIC -lstdc++fs
-)
-target_link_options(Twisty
-    PUBLIC -pthread
-    PUBLIC -lstdc++fs
-)
-endif (WIN32)
+    target_compile_options(Twisty
+        PUBLIC -lstdc++fs
+    )
+    target_link_options(Twisty
+        PUBLIC -pthread
+        PUBLIC -lstdc++fs
+    )
+endif(WIN32)
 
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
@@ -122,11 +122,12 @@ target_link_libraries(Twisty
     PUBLIC nlohmann_json::nlohmann_json
 )
 
-if (WIN32)
-add_subdirectory(Experiments)
-# add_subdirectory(Tools)
-# add_subdirectory(Utils)
-add_subdirectory(Viewer)
-add_subdirectory(unitweights)
-add_subdirectory(RelatedWork/Fred_2017/)
-endif (WIN32)
+if(WIN32)
+    add_subdirectory(Experiments)
+
+    # add_subdirectory(Tools)
+    # add_subdirectory(Utils)
+    add_subdirectory(Viewer)
+    add_subdirectory(unitweights)
+    add_subdirectory(RelatedWork/Fred_2017/)
+endif(WIN32)
