@@ -33,3 +33,4 @@ python_sandbox/
 *cppcheck*
 CudaProfiling/
 unitweights/python
+*.nvprof
