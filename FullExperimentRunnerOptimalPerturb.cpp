@@ -352,9 +352,10 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     return specificResult;
 }
 
-void FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel(const int64_t threadIdx,
-      int64_t numWeights, int64_t numWeightsPerThread, float arclength, int64_t numSegmentsPerCurve,
-      const twisty::WeightingMethod weightingMethod, const std::vector<float> &compressedWeights,
+void FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel(const uint32_t threadIdx,
+      uint64_t numWeights, uint64_t numWeightsPerThread, float arclength,
+      uint32_t numSegmentsPerCurve, const twisty::WeightingMethod weightingMethod,
+      const std::vector<float> &compressedWeights,
       std::vector<boost::multiprecision::cpp_dec_float_100> &bigFloatWeightsLog10,
       std::vector<boost::multiprecision::cpp_dec_float_100> &threadScatterWeights)
 {
@@ -377,10 +378,10 @@ void FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel(const int64_t
 }
 
 void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
-      int64_t numExperimentPaths,
-      int64_t numPathsPerThread,
-      int64_t numPathsToSkipPerThread,
-      int64_t numSegmentsPerCurve,
+      uint64_t numExperimentPaths,
+      uint64_t numPathsPerThread,
+      uint32_t numPathsToSkipPerThread,
+      uint32_t numSegmentsPerCurve,
       std::vector<std::mt19937_64> &rngGenerators,
       std::vector<Farlor::Vector3> &globalPos,
       std::vector<Farlor::Vector3> &globalTans,
@@ -395,13 +396,13 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
       const float curvatureStepSize,
       const twisty::PerturbUtils::BoundaryConditions &boundaryConditions)
 {
-    const int64_t NumPosPerCurve = (numSegmentsPerCurve + 1);
-    const int64_t NumTanPerCurve = numSegmentsPerCurve;
-    const int64_t NumCurvaturesPerCurve = (numSegmentsPerCurve - 1);
+    const uint32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
+    const uint32_t NumTanPerCurve = numSegmentsPerCurve;
+    const uint32_t NumCurvaturesPerCurve = (numSegmentsPerCurve - 1);
 
-    const int64_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
-    const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
-    const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
+    const uint32_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
+    const uint32_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
+    const uint32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
 
     // Now, we can begin the actual algorithm
     {
@@ -425,12 +426,12 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
 
             std::uniform_int_distribution<int> diffDist(
                   2, std::min((int)(numSegmentsPerCurve - 2), 25));  // uniform, unbiased
-            int64_t diff = diffDist(rngGenerators[threadIdx]);
+            uint32_t diff = diffDist(rngGenerators[threadIdx]);
 
             std::uniform_int_distribution<int> leftPointIndexUniformDist(
                   1, numSegmentsPerCurve - diff - 1);  // uniform, unbiased
-            int64_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
-            int64_t rightPointIndex = leftPointIndex + diff;
+            uint32_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
+            uint32_t rightPointIndex = leftPointIndex + diff;
 
             // We need two frames for each segment to get the new curvature and torsion.
             // we need the frame left of the segment, as well as the frame right of the segment.
@@ -450,7 +451,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                 RotationMatrixAroundAxis_AngleAsIs_CudaSafe(
                       randRotationAngle, N.m_data.data(), rotationMatrix);
 
-                for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
+                for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
                       ++pointIdx) {
                     Farlor::Vector3 shiftedPoint
                           = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
