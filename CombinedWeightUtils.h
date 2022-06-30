@@ -18,10 +18,10 @@
 #endif
 
 // Currently implemented as #defines as there is no good way that I can find to make these a class specific constant.
-// TODO: Keep looking, there has to be something better
+// We can fit a maximum of 1e6 paths in a double as of now. Dont try more, it wont work yet.
 #define MaxDoubleLog10 300
-#define MaxNumberOfPathsLog10 9
-#define MaxNumPathsPerCombinedWeight 1000000000
+#define MaxNumberOfPathsLog10 6
+#define MaxNumPathsPerCombinedWeight 1000000
 
 namespace twisty {
 // Initializer cant be used for cuda, thus the reset function!

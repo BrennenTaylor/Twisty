@@ -325,6 +325,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
             std::cout << "\tAverage Path Weight in Dispatch: "
                       << totalDispatchWeight / pathsInCurrentDispatch << std::endl;
             bigTotalExperimentWeight += totalDispatchWeight;
+            numPathsGenerated += pathsInCurrentDispatch;
 
             auto weightingTimeEnd = std::chrono::high_resolution_clock::now();
             weightCalcTimeCount += std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -350,31 +351,6 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     specificResult.weightingMs = weightCalcTimeCount;
 
     return specificResult;
-}
-
-void FullExperimentRunnerOptimalPerturb::WeightCombineThreadKernel(const uint32_t threadIdx,
-      uint64_t numWeights, uint64_t numWeightsPerThread, float arclength,
-      uint32_t numSegmentsPerCurve, const twisty::WeightingMethod weightingMethod,
-      const std::vector<float> &compressedWeights,
-      std::vector<boost::multiprecision::cpp_dec_float_100> &bigFloatWeightsLog10,
-      std::vector<boost::multiprecision::cpp_dec_float_100> &threadScatterWeights)
-{
-    for (int64_t i = 0; i < numWeightsPerThread; i++) {
-        int64_t idx = threadIdx * numWeightsPerThread + i;
-        if (idx >= numWeights) {
-            break;
-        }
-
-        // std::cout << "Compressed weight: " << compressedWeights[idx] << std::endl;
-
-        boost::multiprecision::cpp_dec_float_100 bigFloatPathWeightLog10 = compressedWeights[idx];
-        boost::multiprecision::cpp_dec_float_100 bigfloatPathWeight
-              = boost::multiprecision::pow(10.0, bigFloatPathWeightLog10);
-
-        // Pulled from Jerry analysis
-        bigFloatWeightsLog10[idx] = bigFloatPathWeightLog10;
-        threadScatterWeights[threadIdx] += bigfloatPathWeight;
-    }
 }
 
 void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
@@ -412,11 +388,10 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
         for (int64_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread);
               ++pathCount) {
             // Expect to go negative, thus int
-            int64_t currentPathIdx
-                  = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
+            int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount;
 
             // We can exit once this point is reached as we have generated all the paths necessary for this thread
-            if (currentPathIdx >= numExperimentPaths) {
+            if (currentPathIdx >= (numExperimentPaths + numPathsToSkipPerThread)) {
                 printf("Exiting early\n");
                 // We dont want to continue if we have already generated the correct number of paths.
                 break;
@@ -500,13 +475,14 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                 // Skip
             } else {
                 // Else, contribute to the paths
-                int64_t currentPathIdx
-                      = numPathsPerThread * threadIdx + pathCount - numPathsToSkipPerThread;
-                assert(currentPathIdx >= numPathsPerThread * threadIdx);
+                int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount;
+                assert((currentPathIdx - numPathsToSkipPerThread) >= numPathsPerThread * threadIdx);
 
-                int combinedWeightValueIdx = (currentPathIdx / MaxNumPathsPerCombinedWeight);
+                int combinedWeightValueIdx
+                      = ((currentPathIdx - numPathsToSkipPerThread) / MaxNumPathsPerCombinedWeight);
 
-                if ((currentPathIdx % MaxNumPathsPerCombinedWeight) == 0) {
+                if (((currentPathIdx - numPathsToSkipPerThread) % MaxNumPathsPerCombinedWeight)
+                      == 0) {
                     // printf("****************Calling reset: %d\n", combinedWeightValueIdx);
                     CombinedWeightValues_C_Reset(combinedWeightValues[combinedWeightValueIdx]);
                 }

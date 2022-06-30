@@ -48,12 +48,5 @@ class FullExperimentRunnerOptimalPerturb : public ExperimentRunner {
           const float maxCurvature,
           const float curvatureStepSize,
           const twisty::PerturbUtils::BoundaryConditions &boundaryConditions);
-
-    void WeightCombineThreadKernel(const uint32_t threadIdx, uint64_t numWeights,
-          uint64_t numWeightsPerThread, float arclength, uint32_t numSegmentsPerCurve,
-          const twisty::WeightingMethod weightingMethod,
-          const std::vector<float> &compressedWeights,
-          std::vector<boost::multiprecision::cpp_dec_float_100> &bigFloatWeightsLog10,
-          std::vector<boost::multiprecision::cpp_dec_float_100> &threadScatterWeights);
 };
 }
