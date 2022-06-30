@@ -37,7 +37,7 @@
       as this is the maximum size that can fit in a unsigned 32 bit in
 */
 
-#define PerturbGridSize 32
+#define PerturbGridSize 32 * 4
 #define PerturbBlockSize 64
 #define PathsPerGPUThread (MaxNumPathsPerCombinedWeight / PerturbBlockSize)
 
@@ -52,9 +52,7 @@ static void CudaSafeErrorCheck(cudaError_t error, std::string message)
 
 __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
       FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
-            const int64_t numCombinedWeightValuesTotal,
-            const int64_t numCombinedWeightValuesPerWarp,
-            const uint32_t numPathsToSkipPerThread,
+            const uint32_t numCombinedWeightValuesPerWarp,
             const uint32_t numSegmentsPerCurve,
             curandState_t *const pCurandStates,
             float *const pPerGlobalThreadScratchSpacePositions,
@@ -69,24 +67,23 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
             const float maxCurvature,
             const float curvatureStepSize);
 
-__global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
-      FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
-            const int64_t numCombinedWeightValuesTotal,
-            const int64_t numCombinedWeightValuesPerWarp,
-            const uint32_t numPathsToSkipPerThread,
-            const uint32_t numSegmentsPerCurve,
-            curandState_t *const pCurandStates,
-            float *const pPerGlobalThreadScratchSpacePositions,
-            float *const pPerGlobalThreadScratchSpaceTangents,
-            float *const pPerGlobalThreadScratchSpaceCurvatures,
-            CombinedWeightValues_C *const pFinalCombinedValues,
-            const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-            const float *const pWeightLookupTable,
-            const uint32_t weightLookupTableSize,
-            const float ds,
-            const float minCurvature,
-            const float maxCurvature,
-            const float curvatureStepSize);
+// __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
+//       FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
+//             const int64_t numCombinedWeightValuesTotal,
+//             const int64_t numCombinedWeightValuesPerWarp,
+//             const uint32_t numSegmentsPerCurve,
+//             curandState_t *const pCurandStates,
+//             float *const pPerGlobalThreadScratchSpacePositions,
+//             float *const pPerGlobalThreadScratchSpaceTangents,
+//             float *const pPerGlobalThreadScratchSpaceCurvatures,
+//             CombinedWeightValues_C *const pFinalCombinedValues,
+//             const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+//             const float *const pWeightLookupTable,
+//             const uint32_t weightLookupTableSize,
+//             const float ds,
+//             const float minCurvature,
+//             const float maxCurvature,
+//             const float curvatureStepSize);
 
 FullExperimentRunnerOptimalPerturbOptimized_GPU::FullExperimentRunnerOptimalPerturbOptimized_GPU(
       ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
@@ -137,21 +134,31 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     }
 
     // Calculate number of paths needed to generate
-
+    // Each warp is responsible for calculating a combined weight at a time
     const uint32_t warpPathCount = MaxNumPathsPerCombinedWeight;
     const uint32_t numGlobalPerturbThreads = PerturbGridSize * PerturbBlockSize;
 
-    const uint32_t numCombinedWeightValuesTotal
-          = (m_experimentParams.numPathsInExperiment + MaxNumPathsPerCombinedWeight - 1)
-          / MaxNumPathsPerCombinedWeight;
-    const uint32_t numCombinedWeightValuesPerWarp
-          = (numCombinedWeightValuesTotal + PerturbGridSize - 1) / PerturbGridSize;
+    const uint32_t numDispatchedWarps = PerturbGridSize;
+    const uint64_t numPathsPerFullGrid
+          = (uint64_t)numDispatchedWarps * MaxNumPathsPerCombinedWeight;
 
+    const uint32_t numCombinedWeightValuesPerBlock
+          = (m_experimentParams.numPathsInExperiment + numPathsPerFullGrid - 1)
+          / numPathsPerFullGrid;
+    const uint32_t numCombinedWeightValuesTotal
+          = numCombinedWeightValuesPerBlock * numDispatchedWarps;
+
+    const uint64_t actualNumberOfPaths
+          = (uint64_t)numCombinedWeightValuesTotal * MaxNumPathsPerCombinedWeight;
+
+    std::cout << "Requested number of paths: " << m_experimentParams.numPathsInExperiment
+              << std::endl;
+    std::cout << "Actual number of paths: " << actualNumberOfPaths << std::endl;
+    std::cout << "Number of added paths: "
+              << actualNumberOfPaths - m_experimentParams.numPathsInExperiment << std::endl;
     std::cout << "Num Global Perturb Threads: " << numGlobalPerturbThreads << std::endl;
-    std::cout << "numPathsInExperiment: " << m_experimentParams.numPathsInExperiment << std::endl;
-    std::cout << "numPathsPerBatch: " << warpPathCount << std::endl;
     std::cout << "Num Combined Weight Values Total: " << numCombinedWeightValuesTotal << std::endl;
-    std::cout << "Num Combined weights per warp: " << numCombinedWeightValuesPerWarp << std::endl;
+    std::cout << "Num Combined weights per warp: " << numCombinedWeightValuesPerBlock << std::endl;
     std::cout << "Perturb Grid Size required: " << PerturbGridSize << std::endl;
     std::cout << "Perturb Block Size required: " << PerturbBlockSize << std::endl;
 
@@ -212,7 +219,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     std::cout << "numPathsInExperiment generated: "
               << numCombinedWeightValuesTotal * MaxNumPathsPerCombinedWeight << std::endl;
     std::cout << "numCombinedWeightValuesTotal: " << numCombinedWeightValuesTotal << std::endl;
-    std::cout << "numCombinedWeightValuesPerWarp: " << numCombinedWeightValuesPerWarp << std::endl;
+    std::cout << "numCombinedWeightValuesPerWarp: " << numCombinedWeightValuesPerBlock << std::endl;
     std::cout << "numPathsPerThread: " << PathsPerGPUThread << std::endl;
 
     auto perturbTimeStart = std::chrono::high_resolution_clock::now();
@@ -261,8 +268,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
               == WeightingMethod::RadiativeTransfer) {
             FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer<<<
                   gridSize, blockSize, sharedMemorySizeBytes, stream>>>(
-                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp,
-                  m_experimentParams.numPathsToSkip, m_experimentParams.numSegmentsPerCurve,
+                  numCombinedWeightValuesPerBlock, m_experimentParams.numSegmentsPerCurve,
                   m_pPerGlobalThreadRandStates, m_pPerGlobalThreadScratchSpacePositions,
                   m_pPerGlobalThreadScratchSpaceTangents, m_pPerGlobalThreadScratchSpaceCurvatures,
                   m_pFinalCombinedValues, csBoundaryConditions, m_pDeviceWeightLookupTable,
@@ -277,23 +283,24 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
                   "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
                   "RadiativeTransfer kernel sync");
         } else {
-            FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel<<<
-                  gridSize, blockSize, sharedMemorySizeBytes, stream>>>(
-                  numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp,
-                  m_experimentParams.numPathsToSkip, m_experimentParams.numSegmentsPerCurve,
-                  m_pPerGlobalThreadRandStates, m_pPerGlobalThreadScratchSpacePositions,
-                  m_pPerGlobalThreadScratchSpaceTangents, m_pPerGlobalThreadScratchSpaceCurvatures,
-                  m_pFinalCombinedValues, csBoundaryConditions, m_pDeviceWeightLookupTable,
-                  lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
-                  lookupEvaluator->GetMinCurvature(), lookupEvaluator->GetMaxCurvature(),
-                  lookupEvaluator->GetCurvatureStepSize());
+            std::cout << "Currently not implemented" << std::endl;
+            // FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel<<<
+            //       gridSize, blockSize, sharedMemorySizeBytes, stream>>>(
+            //       numCombinedWeightValuesTotal, numCombinedWeightValuesPerWarp,
+            // , m_experimentParams.numSegmentsPerCurve,
+            //       m_pPerGlobalThreadRandStates, m_pPerGlobalThreadScratchSpacePositions,
+            //       m_pPerGlobalThreadScratchSpaceTangents, m_pPerGlobalThreadScratchSpaceCurvatures,
+            //       m_pFinalCombinedValues, csBoundaryConditions, m_pDeviceWeightLookupTable,
+            //       lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
+            //       lookupEvaluator->GetMinCurvature(), lookupEvaluator->GetMaxCurvature(),
+            //       lookupEvaluator->GetCurvatureStepSize());
 
-            CudaSafeErrorCheck(cudaGetLastError(),
-                  "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
-                  "SimplifiedModel kernal launch");
-            CudaSafeErrorCheck(cudaDeviceSynchronize(),
-                  "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
-                  "SimplifiedModel kernel sync");
+            // CudaSafeErrorCheck(cudaGetLastError(),
+            //       "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
+            //       "SimplifiedModel kernal launch");
+            // CudaSafeErrorCheck(cudaDeviceSynchronize(),
+            //       "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
+            //       "SimplifiedModel kernel sync");
         }
     }
 
@@ -321,6 +328,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     uint64_t numWeightsGenerated = 0;
 
     // No, we calculating the weighting
+    std::cout << "Num combined weights: " << combinedWeightValues.size() << std::endl;
     for (auto &combinedWeightValue : combinedWeightValues) {
         const boost::multiprecision::cpp_dec_float_100 extractedDispatchWeight
               = ExtractFinalValue(combinedWeightValue);
@@ -498,7 +506,7 @@ void FullExperimentRunnerOptimalPerturbOptimized_GPU::CleanupCudaRandStates()
 
 // Pass in total number of threads that can be used, as well as the number of batches of 10^6 paths which will be generated
 bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
-      int32_t numGlobalPerturbThreads, int32_t numCombinedWeightValues, int32_t numSegments,
+      uint32_t numGlobalPerturbThreads, uint32_t numCombinedWeightValues, uint32_t numSegments,
       const std::vector<float> &weightTable)
 {
     std::cout << "Setup Cuda Perturb: " << std::endl;
@@ -651,11 +659,10 @@ __global__ void FullExperimentRunnerOptimalPerturbOptimized_GPU_InitializeCurand
     }
 }
 
+
 __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
       FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
-            const int64_t numCombinedWeightValuesTotal,
-            const int64_t numCombinedWeightValuesPerWarp,
-            const uint32_t numPathsToSkipPerThread,
+            const uint32_t numCombinedWeightValuesPerBlock,
             const uint32_t numSegmentsPerCurve,
             curandState_t *const pCurandStates,
             float *const pPerGlobalThreadScratchSpacePositions,
@@ -684,34 +691,22 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
 #define CurrentThreadCurvatureStartIdx (NumCurvaturesPerCurve * GlobalThreadIdx)
 
     // Ok, we want to loop over the outer batches first, the number per warp
-    for (uint32_t combinedWeightValuesWarpIdx = 0;
-          combinedWeightValuesWarpIdx < numCombinedWeightValuesPerWarp;
-          combinedWeightValuesWarpIdx++) {
+    for (uint32_t currentBlockCombinedWeightIdx = 0;
+          currentBlockCombinedWeightIdx < numCombinedWeightValuesPerBlock;
+          currentBlockCombinedWeightIdx++) {
         CombinedWeightValues_C_Reset(perThreadWeightValues[threadIdx.x]);
 
         // We want to stop generating in this case
-        if (combinedWeightValuesWarpIdx + numCombinedWeightValuesPerWarp * blockIdx.x
-              >= numCombinedWeightValuesTotal) {
-            continue;
-        }
+
 
         // We need a loop over the batches
         // TODO: Do we even need to do this?
         // Should we seperate into seperate step
         for (uint32_t pathCount = 0; pathCount < PathsPerGPUThread; pathCount++) {
-            uint32_t currentPathIdx = (PathsPerGPUThread * threadIdx.x) + pathCount;
-
             // Do our random rolls here
             float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
             float e1 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
             float e2 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
-
-            // We can exit once this point is reached as we have generated all the paths necessary for this thread
-            if (currentPathIdx >= (MaxNumPathsPerCombinedWeight)) {
-                printf("Breaking early as paths are done for this combined weight value\n");
-                // We dont want to continue if we have already generated the correct number of paths.
-                break;
-            }
 
             // Ok, now we first want to reset the combined weight stuff
             {
@@ -756,7 +751,7 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
 
                     float N[3] = { rightPoint_x - leftPoint_x, rightPoint_y - leftPoint_y,
                         rightPoint_z - leftPoint_z };
-                    float N_length_inv = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
+                    float N_length_inv = 1.0f / sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
                     N[0] *= N_length_inv;
                     N[1] *= N_length_inv;
                     N[2] *= N_length_inv;
@@ -804,27 +799,28 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
                         // Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                         // We can do a different approach later.
                         // Here, we want to do a perturb update call
-                        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
-                              &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
-                              &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
-                              numSegmentsPerCurve, csBoundaryConditions);
+                        // twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
+                        //       &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
+                        //       &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
+                        //       numSegmentsPerCurve, csBoundaryConditions);
 
-                        twisty::PerturbUtils::
-                              UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
-                                    &(pPerGlobalThreadScratchSpaceTangents
-                                                [CurrentThreadTanStartIdx]),
-                                    &(pPerGlobalThreadScratchSpaceCurvatures
-                                                [CurrentThreadCurvatureStartIdx]),
-                                    numSegmentsPerCurve, csBoundaryConditions);
+                        // twisty::PerturbUtils::
+                        //       UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
+                        //             &(pPerGlobalThreadScratchSpaceTangents
+                        //                         [CurrentThreadTanStartIdx]),
+                        //             &(pPerGlobalThreadScratchSpaceCurvatures
+                        //                         [CurrentThreadCurvatureStartIdx]),
+                        //             numSegmentsPerCurve, csBoundaryConditions);
                     }
 
-                    double pathWeightLog10
-                          = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
-                                &(pPerGlobalThreadScratchSpaceCurvatures
-                                            [CurrentThreadCurvatureStartIdx]),
-                                (numSegmentsPerCurve - 1), pWeightLookupTable,
-                                weightLookupTableSize, ds, minCurvature, maxCurvature,
-                                curvatureStepSize);
+                    //   double pathWeightLog10
+                    //         = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
+                    //               &(pPerGlobalThreadScratchSpaceCurvatures
+                    //                           [CurrentThreadCurvatureStartIdx]),
+                    //               (numSegmentsPerCurve - 1), pWeightLookupTable,
+                    //               weightLookupTableSize, ds, minCurvature, maxCurvature,
+                    //               curvatureStepSize);
+                    double pathWeightLog10 = 1.0;
 
 
                     // Else, contribute to the paths
@@ -838,14 +834,14 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
         __syncthreads();
 
         if (threadIdx.x == 0) {
-            for (uint32_t warpThreadIdx = 1; warpThreadIdx < blockDim.x; ++warpThreadIdx) {
+            for (uint32_t warpThreadIdx = 1; warpThreadIdx < PerturbBlockSize; ++warpThreadIdx) {
                 perThreadWeightValues[0] = CombinedWeightValues_C_CombineValues(
                       perThreadWeightValues[0], perThreadWeightValues[warpThreadIdx]);
             }
 
             // Finally, we write to the combined final values
-            pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp
-                  + combinedWeightValuesWarpIdx]
+            pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerBlock
+                  + currentBlockCombinedWeightIdx]
                   = perThreadWeightValues[0];
         }
     }
@@ -860,207 +856,206 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
 #undef CurrentThreadCurvatureStartIdx
 }
 
-__global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
-      FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
-            const int64_t numCombinedWeightValuesTotal,
-            const int64_t numCombinedWeightValuesPerWarp,
-            const uint32_t numPathsToSkipPerThread,
-            const uint32_t numSegmentsPerCurve,
-            curandState_t *const pCurandStates,
-            float *const pPerGlobalThreadScratchSpacePositions,
-            float *const pPerGlobalThreadScratchSpaceTangents,
-            float *const pPerGlobalThreadScratchSpaceCurvatures,
-            CombinedWeightValues_C *const pFinalCombinedValues,
-            // const int32_t weightingMethod,
-            const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
-            const float *const pWeightLookupTable,
-            const uint32_t weightLookupTableSize,
-            const float ds,
-            const float minCurvature,
-            const float maxCurvature,
-            const float curvatureStepSize)
-{
-    __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
+// __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
+//       FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
+//             const int64_t numCombinedWeightValuesTotal,
+//             const int64_t numCombinedWeightValuesPerWarp,
+//             const uint32_t numSegmentsPerCurve,
+//             curandState_t *const pCurandStates,
+//             float *const pPerGlobalThreadScratchSpacePositions,
+//             float *const pPerGlobalThreadScratchSpaceTangents,
+//             float *const pPerGlobalThreadScratchSpaceCurvatures,
+//             CombinedWeightValues_C *const pFinalCombinedValues,
+//             // const int32_t weightingMethod,
+//             const twisty::PerturbUtils::BoundaryConditions_CudaSafe csBoundaryConditions,
+//             const float *const pWeightLookupTable,
+//             const uint32_t weightLookupTableSize,
+//             const float ds,
+//             const float minCurvature,
+//             const float maxCurvature,
+//             const float curvatureStepSize)
+// {
+//     __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
 
-// Should be between 0 and max num threads - 1
-#define GlobalThreadIdx (blockIdx.x * blockDim.x + threadIdx.x)
+// // Should be between 0 and max num threads - 1
+// #define GlobalThreadIdx (blockIdx.x * blockDim.x + threadIdx.x)
 
-#define NumPosPerCurve (numSegmentsPerCurve + 1)
-#define NumTanPerCurve (numSegmentsPerCurve)
-#define NumCurvaturesPerCurve (numSegmentsPerCurve - 1)
+// #define NumPosPerCurve (numSegmentsPerCurve + 1)
+// #define NumTanPerCurve (numSegmentsPerCurve)
+// #define NumCurvaturesPerCurve (numSegmentsPerCurve - 1)
 
-#define CurrentThreadPosStartIdx (NumPosPerCurve * 3 * GlobalThreadIdx)
-#define CurrentThreadTanStartIdx (NumTanPerCurve * 3 * GlobalThreadIdx)
-#define CurrentThreadCurvatureStartIdx (NumCurvaturesPerCurve * GlobalThreadIdx)
+// #define CurrentThreadPosStartIdx (NumPosPerCurve * 3 * GlobalThreadIdx)
+// #define CurrentThreadTanStartIdx (NumTanPerCurve * 3 * GlobalThreadIdx)
+// #define CurrentThreadCurvatureStartIdx (NumCurvaturesPerCurve * GlobalThreadIdx)
 
-    // Ok, we want to loop over the outer batches first, the number per warp
-    for (int64_t combinedWeightValuesWarpIdx = 0;
-          combinedWeightValuesWarpIdx < numCombinedWeightValuesPerWarp;
-          combinedWeightValuesWarpIdx++) {
-        CombinedWeightValues_C_Reset(perThreadWeightValues[threadIdx.x]);
+//     // Ok, we want to loop over the outer batches first, the number per warp
+//     for (int64_t combinedWeightValuesWarpIdx = 0;
+//           combinedWeightValuesWarpIdx < numCombinedWeightValuesPerWarp;
+//           combinedWeightValuesWarpIdx++) {
+//         CombinedWeightValues_C_Reset(perThreadWeightValues[threadIdx.x]);
 
-        // We want to stop generating in this case
-        if (combinedWeightValuesWarpIdx + numCombinedWeightValuesPerWarp * blockIdx.x
-              >= numCombinedWeightValuesTotal) {
-            continue;
-        }
+//         // We want to stop generating in this case
+//         if (combinedWeightValuesWarpIdx + numCombinedWeightValuesPerWarp * blockIdx.x
+//               >= numCombinedWeightValuesTotal) {
+//             continue;
+//         }
 
-        // We need a loop over the batches
-        for (int64_t pathCount = 0; pathCount < PathsPerGPUThread; pathCount++) {
-            int64_t currentPathIdx = PathsPerGPUThread * threadIdx.x + pathCount;
+//         // We need a loop over the batches
+//         for (int64_t pathCount = 0; pathCount < PathsPerGPUThread; pathCount++) {
+//             int64_t currentPathIdx = PathsPerGPUThread * threadIdx.x + pathCount;
 
-            // Do our random rolls here
-            float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
-            float e1 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
-            float e2 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+//             // Do our random rolls here
+//             float e0 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+//             float e1 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
+//             float e2 = curand_uniform(&(pCurandStates[GlobalThreadIdx]));
 
-            // We can exit once this point is reached as we have generated all the paths necessary for this thread
-            if (currentPathIdx >= MaxNumPathsPerCombinedWeight) {
-                printf("Breaking early as paths are done for this combined weight value\n");
-                // We dont want to continue if we have already generated the correct number of paths.
-                break;
-            }
+//             // We can exit once this point is reached as we have generated all the paths necessary for this thread
+//             if (currentPathIdx >= MaxNumPathsPerCombinedWeight) {
+//                 printf("Breaking early as paths are done for this combined weight value\n");
+//                 // We dont want to continue if we have already generated the correct number of paths.
+//                 break;
+//             }
 
-            // Ok, now we first want to reset the combined weight stuff
-            {
-                // This is the perturbation piece.
-                // Can we do this in place, most likely
-                // This will modify pCurrentThreadCurve
-                // Remember, the structure of this is:
-                // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
-                {
-                    // Should be 2 - 180
-                    int64_t maxDiff = min((int)(numSegmentsPerCurve - 2), 25);
-                    int64_t diff = floorf(e0 * (maxDiff - 2)) + 2;
+//             // Ok, now we first want to reset the combined weight stuff
+//             {
+//                 // This is the perturbation piece.
+//                 // Can we do this in place, most likely
+//                 // This will modify pCurrentThreadCurve
+//                 // Remember, the structure of this is:
+//                 // Pos_0, .,,, Pos_M, Pos_[M+1], Tan_0, ..., Tan_M
+//                 {
+//                     // Should be 2 - 180
+//                     int64_t maxDiff = min((int)(numSegmentsPerCurve - 2), 25);
+//                     int64_t diff = floorf(e0 * (maxDiff - 2)) + 2;
 
-                    // -2 from the -1 to offset for the +1, and -1 as required by index
-                    int64_t leftPointIndex = floorf(e1 * (numSegmentsPerCurve - diff - 2)) + 1;
+//                     // -2 from the -1 to offset for the +1, and -1 as required by index
+//                     int64_t leftPointIndex = floorf(e1 * (numSegmentsPerCurve - diff - 2)) + 1;
 
-                    int64_t rightPointIndex = leftPointIndex + diff;
+//                     int64_t rightPointIndex = leftPointIndex + diff;
 
-                    // We need two frames for each segment to get the new curvature and torsion.
-                    // we need the frame left of the segment, as well as the frame right of the segment.
-                    // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
-                    const float leftPoint_x
-                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                + leftPointIndex * 3 + 0];
-                    const float leftPoint_y
-                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                + leftPointIndex * 3 + 1];
-                    const float leftPoint_z
-                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                + leftPointIndex * 3 + 2];
+//                     // We need two frames for each segment to get the new curvature and torsion.
+//                     // we need the frame left of the segment, as well as the frame right of the segment.
+//                     // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
+//                     const float leftPoint_x
+//                           = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                 + leftPointIndex * 3 + 0];
+//                     const float leftPoint_y
+//                           = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                 + leftPointIndex * 3 + 1];
+//                     const float leftPoint_z
+//                           = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                 + leftPointIndex * 3 + 2];
 
-                    const float rightPoint_x
-                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                + rightPointIndex * 3 + 0];
-                    const float rightPoint_y
-                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                + rightPointIndex * 3 + 1];
-                    const float rightPoint_z
-                          = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                + rightPointIndex * 3 + 2];
+//                     const float rightPoint_x
+//                           = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                 + rightPointIndex * 3 + 0];
+//                     const float rightPoint_y
+//                           = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                 + rightPointIndex * 3 + 1];
+//                     const float rightPoint_z
+//                           = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                 + rightPointIndex * 3 + 2];
 
 
-                    float N[3] = { rightPoint_x - leftPoint_x, rightPoint_y - leftPoint_y,
-                        rightPoint_z - leftPoint_z };
-                    volatile float N_length = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
-                    N[0] /= N_length;
-                    N[1] /= N_length;
-                    N[2] /= N_length;
+//                     float N[3] = { rightPoint_x - leftPoint_x, rightPoint_y - leftPoint_y,
+//                         rightPoint_z - leftPoint_z };
+//                     volatile float N_length = sqrt(N[0] * N[0] + N[1] * N[1] + N[2] * N[2]);
+//                     N[0] /= N_length;
+//                     N[1] /= N_length;
+//                     N[2] /= N_length;
 
-                    // Overwrite angle
-                    const float randRotationAngleNeedsPi = (e2 * 2.0 - 1.0);
+//                     // Overwrite angle
+//                     const float randRotationAngleNeedsPi = (e2 * 2.0 - 1.0);
 
-                    // Rotation
-                    {
-                        float rotationMatrix[9]
-                              = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                        RotationMatrixAroundAxis_MultiplyAngleByPi_CudaSafe(
-                              randRotationAngleNeedsPi, (float *)N, (float *)rotationMatrix);
+//                     // Rotation
+//                     {
+//                         float rotationMatrix[9]
+//                               = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+//                         RotationMatrixAroundAxis_MultiplyAngleByPi_CudaSafe(
+//                               randRotationAngleNeedsPi, (float *)N, (float *)rotationMatrix);
 
-                        for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
-                              ++pointIdx) {
-                            float shiftedPoint[3];
-                            shiftedPoint[0]
-                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                          + pointIdx * 3 + 0]
-                                  - leftPoint_x;
-                            shiftedPoint[1]
-                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                          + pointIdx * 3 + 1]
-                                  - leftPoint_y;
-                            shiftedPoint[2]
-                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                          + pointIdx * 3 + 2]
-                                  - leftPoint_z;
+//                         for (int64_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
+//                               ++pointIdx) {
+//                             float shiftedPoint[3];
+//                             shiftedPoint[0]
+//                                   = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                           + pointIdx * 3 + 0]
+//                                   - leftPoint_x;
+//                             shiftedPoint[1]
+//                                   = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                           + pointIdx * 3 + 1]
+//                                   - leftPoint_y;
+//                             shiftedPoint[2]
+//                                   = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                           + pointIdx * 3 + 2]
+//                                   - leftPoint_z;
 
-                            // Rotate and stuff back in shifted point
-                            RotateVectorByMatrix((float *)rotationMatrix, (float *)shiftedPoint);
-                            // Update the point with the rotated version
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                  + pointIdx * 3 + 0]
-                                  = shiftedPoint[0] + leftPoint_x;
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                  + pointIdx * 3 + 1]
-                                  = shiftedPoint[1] + leftPoint_y;
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                  + pointIdx * 3 + 2]
-                                  = shiftedPoint[2] + leftPoint_z;
-                        }
+//                             // Rotate and stuff back in shifted point
+//                             RotateVectorByMatrix((float *)rotationMatrix, (float *)shiftedPoint);
+//                             // Update the point with the rotated version
+//                             pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                   + pointIdx * 3 + 0]
+//                                   = shiftedPoint[0] + leftPoint_x;
+//                             pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                   + pointIdx * 3 + 1]
+//                                   = shiftedPoint[1] + leftPoint_y;
+//                             pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+//                                   + pointIdx * 3 + 2]
+//                                   = shiftedPoint[2] + leftPoint_z;
+//                         }
 
-                        // Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
-                        // We can do a different approach later.
-                        // Here, we want to do a perturb update call
-                        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
-                              &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
-                              &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
-                              numSegmentsPerCurve, csBoundaryConditions);
+//                         // Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+//                         // We can do a different approach later.
+//                         // Here, we want to do a perturb update call
+//                         twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
+//                               &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
+//                               &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
+//                               numSegmentsPerCurve, csBoundaryConditions);
 
-                        twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel_CudaSafe(
-                              &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
-                              &(pPerGlobalThreadScratchSpaceCurvatures
-                                          [CurrentThreadCurvatureStartIdx]),
-                              numSegmentsPerCurve, csBoundaryConditions);
-                    }
+//                         twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel_CudaSafe(
+//                               &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
+//                               &(pPerGlobalThreadScratchSpaceCurvatures
+//                                           [CurrentThreadCurvatureStartIdx]),
+//                               numSegmentsPerCurve, csBoundaryConditions);
+//                     }
 
-                    double pathWeightLog10
-                          = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
-                                &(pPerGlobalThreadScratchSpaceCurvatures
-                                            [CurrentThreadCurvatureStartIdx]),
-                                (numSegmentsPerCurve - 1), pWeightLookupTable,
-                                weightLookupTableSize, ds, minCurvature, maxCurvature,
-                                curvatureStepSize);
+//                     double pathWeightLog10
+//                           = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
+//                                 &(pPerGlobalThreadScratchSpaceCurvatures
+//                                             [CurrentThreadCurvatureStartIdx]),
+//                                 (numSegmentsPerCurve - 1), pWeightLookupTable,
+//                                 weightLookupTableSize, ds, minCurvature, maxCurvature,
+//                                 curvatureStepSize);
 
-                    // Else, contribute to the paths
-                    CombinedWeightValues_C_AddValue(
-                          perThreadWeightValues[threadIdx.x], pathWeightLog10);
-                }
-            }
-        }
+//                     // Else, contribute to the paths
+//                     CombinedWeightValues_C_AddValue(
+//                           perThreadWeightValues[threadIdx.x], pathWeightLog10);
+//                 }
+//             }
+//         }
 
-        // First thread in warp responsible for combining all the weights into one
-        __syncthreads();
+//         // First thread in warp responsible for combining all the weights into one
+//         __syncthreads();
 
-        if (threadIdx.x == 0) {
-            for (uint32_t warpThreadIdx = 1; warpThreadIdx < blockDim.x; ++warpThreadIdx) {
-                perThreadWeightValues[0] = CombinedWeightValues_C_CombineValues(
-                      perThreadWeightValues[0], perThreadWeightValues[warpThreadIdx]);
-            }
+//         if (threadIdx.x == 0) {
+//             for (uint32_t warpThreadIdx = 1; warpThreadIdx < blockDim.x; ++warpThreadIdx) {
+//                 perThreadWeightValues[0] = CombinedWeightValues_C_CombineValues(
+//                       perThreadWeightValues[0], perThreadWeightValues[warpThreadIdx]);
+//             }
 
-            // Finally, we write to the combined final values
-            pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp
-                  + combinedWeightValuesWarpIdx]
-                  = perThreadWeightValues[0];
-        }
-    }
-#undef GlobalThreadIdx
-#undef NumPosPerCurve
-#undef NumTanPerCurve
-#undef NumCurvaturesPerCurve
-#undef CurrentThreadPosStartIdx
-#undef CurrentThreadTanStartIdx
-#undef CurrentThreadCurvatureStartIdx
-}
+//             // Finally, we write to the combined final values
+//             pFinalCombinedValues[blockIdx.x * numCombinedWeightValuesPerWarp
+//                   + combinedWeightValuesWarpIdx]
+//                   = perThreadWeightValues[0];
+//         }
+//     }
+// #undef GlobalThreadIdx
+// #undef NumPosPerCurve
+// #undef NumTanPerCurve
+// #undef NumCurvaturesPerCurve
+// #undef CurrentThreadPosStartIdx
+// #undef CurrentThreadTanStartIdx
+// #undef CurrentThreadCurvatureStartIdx
+// }
 
 }

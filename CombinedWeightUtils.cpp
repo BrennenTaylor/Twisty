@@ -54,8 +54,8 @@ __host__ __device__ void CombinedWeightValues_C_AddValue(
 }
 
 __host__ __device__ CombinedWeightValues_C CombinedWeightValues_C_CombineValues(
-      CombinedWeightValues_C &firstCombinedWeightValue,
-      CombinedWeightValues_C &secondCombinedWeightValue)
+      CombinedWeightValues_C firstCombinedWeightValue,
+      CombinedWeightValues_C secondCombinedWeightValue)
 {
     // printf("New combined number: %d\n", (firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues));
     assert((firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues)

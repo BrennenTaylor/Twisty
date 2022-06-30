@@ -59,8 +59,8 @@ class FullExperimentRunnerOptimalPerturbOptimized_GPU : public ExperimentRunner 
     bool SetupCuRandStates(int32_t numGlobalPerturbThreads, uint32_t seed);
     void CleanupCudaRandStates();
 
-    bool SetupCudaPerturb(int32_t numGlobalPerturbThreads, int32_t numCombinedWeightValues,
-          int32_t numSegments, const std::vector<float> &weightTable);
+    bool SetupCudaPerturb(uint32_t numGlobalPerturbThreads, uint32_t numCombinedWeightValues,
+          uint32_t numSegments, const std::vector<float> &weightTable);
     void CleanupCudaPerturb();
 
 
