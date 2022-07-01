@@ -136,7 +136,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     // Calculate number of paths needed to generate
     // Each warp is responsible for calculating a combined weight at a time
     const uint32_t warpPathCount = MaxNumPathsPerCombinedWeight;
-    const uint32_t numGlobalPerturbThreads = PerturbGridSize * PerturbBlockSize;
+    const uint64_t numGlobalPerturbThreads = PerturbGridSize * PerturbBlockSize;
 
     const uint32_t numDispatchedWarps = PerturbGridSize;
     const uint64_t numPathsPerFullGrid
@@ -145,8 +145,8 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     const uint32_t numCombinedWeightValuesPerBlock
           = (m_experimentParams.numPathsInExperiment + numPathsPerFullGrid - 1)
           / numPathsPerFullGrid;
-    const uint32_t numCombinedWeightValuesTotal
-          = numCombinedWeightValuesPerBlock * numDispatchedWarps;
+    const uint64_t numCombinedWeightValuesTotal
+          = (uint64_t)numCombinedWeightValuesPerBlock * (uint64_t)numDispatchedWarps;
 
     const uint64_t actualNumberOfPaths
           = (uint64_t)numCombinedWeightValuesTotal * MaxNumPathsPerCombinedWeight;
@@ -252,10 +252,6 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
         std::cout << "Dispatching with: " << std::endl;
         std::cout << "\tGrid Size: " << PerturbGridSize << std::endl;
         std::cout << "\tBlock Size: " << PerturbBlockSize << std::endl;
-
-
-        std::cout << "Weight Table Ptr: " << lookupEvaluator->AccessLookupTable().data()
-                  << std::endl;
         std::cout << "Weight Table Size: " << lookupEvaluator->AccessLookupTable().size()
                   << std::endl;
         std::cout << "DS: " << lookupEvaluator->GetDs() << std::endl;
@@ -506,7 +502,7 @@ void FullExperimentRunnerOptimalPerturbOptimized_GPU::CleanupCudaRandStates()
 
 // Pass in total number of threads that can be used, as well as the number of batches of 10^6 paths which will be generated
 bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
-      uint32_t numGlobalPerturbThreads, uint32_t numCombinedWeightValues, uint32_t numSegments,
+      uint64_t numGlobalPerturbThreads, uint64_t numCombinedWeightValues, uint32_t numSegments,
       const std::vector<float> &weightTable)
 {
     std::cout << "Setup Cuda Perturb: " << std::endl;
@@ -690,6 +686,9 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
 #define CurrentThreadTanStartIdx (NumTanPerCurve * 3 * GlobalThreadIdx)
 #define CurrentThreadCurvatureStartIdx (NumCurvaturesPerCurve * GlobalThreadIdx)
 
+    //     printf("Number of combined weight values per block: %d\n", numCombinedWeightValuesPerBlock);
+
+
     // Ok, we want to loop over the outer batches first, the number per warp
     for (uint32_t currentBlockCombinedWeightIdx = 0;
           currentBlockCombinedWeightIdx < numCombinedWeightValuesPerBlock;
@@ -799,28 +798,27 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
                         // Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                         // We can do a different approach later.
                         // Here, we want to do a perturb update call
-                        // twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
-                        //       &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
-                        //       &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
-                        //       numSegmentsPerCurve, csBoundaryConditions);
+                        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(
+                              &(pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx]),
+                              &(pPerGlobalThreadScratchSpaceTangents[CurrentThreadTanStartIdx]),
+                              numSegmentsPerCurve, csBoundaryConditions);
 
-                        // twisty::PerturbUtils::
-                        //       UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
-                        //             &(pPerGlobalThreadScratchSpaceTangents
-                        //                         [CurrentThreadTanStartIdx]),
-                        //             &(pPerGlobalThreadScratchSpaceCurvatures
-                        //                         [CurrentThreadCurvatureStartIdx]),
-                        //             numSegmentsPerCurve, csBoundaryConditions);
+                        twisty::PerturbUtils::
+                              UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
+                                    &(pPerGlobalThreadScratchSpaceTangents
+                                                [CurrentThreadTanStartIdx]),
+                                    &(pPerGlobalThreadScratchSpaceCurvatures
+                                                [CurrentThreadCurvatureStartIdx]),
+                                    numSegmentsPerCurve, csBoundaryConditions);
                     }
 
-                    //   double pathWeightLog10
-                    //         = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
-                    //               &(pPerGlobalThreadScratchSpaceCurvatures
-                    //                           [CurrentThreadCurvatureStartIdx]),
-                    //               (numSegmentsPerCurve - 1), pWeightLookupTable,
-                    //               weightLookupTableSize, ds, minCurvature, maxCurvature,
-                    //               curvatureStepSize);
-                    double pathWeightLog10 = 1.0;
+                    double pathWeightLog10
+                          = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
+                                &(pPerGlobalThreadScratchSpaceCurvatures
+                                            [CurrentThreadCurvatureStartIdx]),
+                                (numSegmentsPerCurve - 1), pWeightLookupTable,
+                                weightLookupTableSize, ds, minCurvature, maxCurvature,
+                                curvatureStepSize);
 
 
                     // Else, contribute to the paths
@@ -844,9 +842,10 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
                   + currentBlockCombinedWeightIdx]
                   = perThreadWeightValues[0];
         }
+        __syncthreads();
     }
 
-    // Should be between 0 and max num threads - 1
+// Should be between 0 and max num threads - 1
 #undef GlobalThreadIdx
 #undef NumPosPerCurve
 #undef NumTanPerCurve
@@ -1057,5 +1056,4 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
 // #undef CurrentThreadTanStartIdx
 // #undef CurrentThreadCurvatureStartIdx
 // }
-
 }

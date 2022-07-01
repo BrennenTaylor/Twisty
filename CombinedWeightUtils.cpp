@@ -51,6 +51,7 @@ __host__ __device__ void CombinedWeightValues_C_AddValue(
 
     combinedWeightValue.m_runningTotal += pow(10.0, (valueLog10 + combinedWeightValue.m_offset));
     combinedWeightValue.m_numValues++;
+    assert(combined.m_numValues <= MaxNumPathsPerCombinedWeight);
 }
 
 __host__ __device__ CombinedWeightValues_C CombinedWeightValues_C_CombineValues(
@@ -85,6 +86,7 @@ __host__ __device__ CombinedWeightValues_C CombinedWeightValues_C_CombineValues(
         combined.m_maxWeightLog10 = firstCombinedWeightValue.m_maxWeightLog10;
         combined.m_numValues
               = firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues;
+        assert(combined.m_numValues <= MaxNumPathsPerCombinedWeight);
         combined.m_offset = firstCombinedWeightValue.m_offset;
         combined.m_runningTotal
               = firstCombinedWeightValue.m_runningTotal + secondCombinedWeightValue.m_runningTotal;
@@ -105,6 +107,7 @@ __host__ __device__ CombinedWeightValues_C CombinedWeightValues_C_CombineValues(
     combined.m_maxWeightLog10 = firstCombinedWeightValue.m_maxWeightLog10;
     combined.m_numValues
           = firstCombinedWeightValue.m_numValues + secondCombinedWeightValue.m_numValues;
+    assert(combined.m_numValues <= MaxNumPathsPerCombinedWeight);
     combined.m_offset = firstCombinedWeightValue.m_offset;
     combined.m_runningTotal = firstCombinedWeightValue.m_runningTotal + newSecondRunningTotal;
     return combined;
@@ -113,6 +116,8 @@ __host__ __device__ CombinedWeightValues_C CombinedWeightValues_C_CombineValues(
 boost::multiprecision::cpp_dec_float_100 ExtractFinalValue(
       const CombinedWeightValues_C &combinedWeightValue)
 {
+    assert(combined.m_numValues <= MaxNumPathsPerCombinedWeight);
+
     // TODO: Do we need this, or can we simply compute using running total and offset?
     if (combinedWeightValue.m_numValues == 0) {
         return 0.0;
