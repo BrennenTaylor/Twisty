@@ -16,10 +16,10 @@
 
 #include <assert.h>
 
-CurveViewer::CurveViewer(QWidget* pParent, bool parentDrivesUpdate)
+CurveViewer::CurveViewer(QWidget *pParent, bool parentDrivesUpdate)
     : QOpenGLWidget(pParent)
     , m_parentDrivesUpdate(parentDrivesUpdate)
-    , m_upInitialCurve(nullptr)
+    , m_initialCurve(1)
     , m_timer()
     , m_drawGrid(true)
     , m_lookAt(0.0f, 0.0f, 0.0f)
@@ -35,8 +35,7 @@ CurveViewer::CurveViewer(QWidget* pParent, bool parentDrivesUpdate)
 
     m_pRenderTimer = new QTimer(this);
     connect(m_pRenderTimer, &QTimer::timeout, this, &CurveViewer::ForceUpdate);
-    if (!m_parentDrivesUpdate)
-    {
+    if (!m_parentDrivesUpdate) {
         m_pRenderTimer->start(16.0);
     }
 
@@ -89,11 +88,8 @@ void CurveViewer::paintGL()
     const Farlor::Vector3 eyePos(0.0f, 0.0f, 30.0f);
     const Farlor::Vector3 worldUp(0.0f, 1.0f, 0.0f);
 
-    gluLookAt(
-        eyePos.x, eyePos.y, eyePos.z,
-        m_lookAt.x, m_lookAt.y, m_lookAt.z,
-        worldUp.x, worldUp.y, worldUp.z
-    );
+    gluLookAt(eyePos.x, eyePos.y, eyePos.z, m_lookAt.x, m_lookAt.y, m_lookAt.z, worldUp.x,
+          worldUp.y, worldUp.z);
 
 
     ClampRotation();
@@ -111,15 +107,12 @@ void CurveViewer::paintGL()
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-    if (m_drawGrid)
-    {
+    if (m_drawGrid) {
         RenderGrid();
     }
 
-    if (m_upInitialCurve)
-    {
-        RenderPath(*m_upInitialCurve, Farlor::Vector3(0.0f, 1.0f, 0.0f), false);
-    }
+
+    RenderPath(m_initialCurve, Farlor::Vector3(0.0f, 1.0f, 0.0f), false);
 
     // Render look at position
     {
@@ -136,7 +129,9 @@ void CurveViewer::paintGL()
         const float radius = 0.1f;
         glPushMatrix();
         glColor3f(0.0f, 1.0f, 0.0f);
-        glTranslatef(m_upInitialCurve->m_basePos.x, m_upInitialCurve->m_basePos.y, m_upInitialCurve->m_basePos.z);
+        glTranslatef(m_initialCurve.m_boundaryConditions.m_startPos.x,
+              m_initialCurve.m_boundaryConditions.m_startPos.y,
+              m_initialCurve.m_boundaryConditions.m_startPos.z);
         gluSphere(gluNewQuadric(), radius, 20, 20);
         glPopMatrix();
     }
@@ -146,45 +141,43 @@ void CurveViewer::paintGL()
         const float radius = 0.1f;
         glPushMatrix();
         glColor3f(0.0f, 0.0f, 1.0f);
-        glTranslatef(m_upInitialCurve->m_targetPos.x, m_upInitialCurve->m_targetPos.y, m_upInitialCurve->m_basePos.z);
+        glTranslatef(m_initialCurve.m_boundaryConditions.m_endPos.x,
+              m_initialCurve.m_boundaryConditions.m_endPos.y,
+              m_initialCurve.m_boundaryConditions.m_endPos.z);
         gluSphere(gluNewQuadric(), radius, 20, 20);
         glPopMatrix();
     }
 
     // Render custom paths
-    if (m_numPaths)
-    {
+    if (m_numPaths) {
         const uint32_t numFloatsPerPath = 3 * m_numPointsPerPath;
 
         // If animated, only draw the one
-        if (m_isAnimatedPathPlayback)
-        {
-            float* pPolyStart = m_pPathData + numFloatsPerPath * m_animatedPathIdx;
+        if (m_isAnimatedPathPlayback) {
+            float *pPolyStart = m_pPathData + numFloatsPerPath * m_animatedPathIdx;
             RenderPolyline(pPolyStart, m_numPointsPerPath);
-        }
-        else
-        {
+        } else {
             // We arent animating, draw all paths
-            for (uint32_t pathIdx = 0; pathIdx < m_numPaths; pathIdx++)
-            {
-                float* pPolyStart = m_pPathData + numFloatsPerPath * pathIdx;
+            for (uint32_t pathIdx = 0; pathIdx < m_numPaths; pathIdx++) {
+                float *pPolyStart = m_pPathData + numFloatsPerPath * pathIdx;
                 RenderPolyline(pPolyStart, m_numPointsPerPath);
             }
         }
     }
 }
 
-void CurveViewer::SetInitialCurve(twisty::Curve& curve)
+void CurveViewer::SetInitialCurve(twisty::Curve &curve)
 {
-    m_upInitialCurve = std::make_unique<twisty::Curve>(curve);
-    m_lookAt = (m_upInitialCurve->m_targetPos + m_upInitialCurve->m_basePos) * 0.5;
+    m_initialCurve = curve;
+    m_lookAt = (m_initialCurve.m_boundaryConditions.m_endPos
+                     + m_initialCurve.m_boundaryConditions.m_startPos)
+          * 0.5;
 }
 
-void CurveViewer::RenderPolyline(float* pData, uint32_t numPoints)
+void CurveViewer::RenderPolyline(float *pData, uint32_t numPoints)
 {
     // User should pass in nullptr if no data
-    if (!pData)
-    {
+    if (!pData) {
         return;
     }
 
@@ -194,26 +187,18 @@ void CurveViewer::RenderPolyline(float* pData, uint32_t numPoints)
     {
         glBegin(GL_LINE_STRIP);
 
-        for (uint32_t pointIdx = 0; pointIdx < numPoints; ++pointIdx)
-        {
+        for (uint32_t pointIdx = 0; pointIdx < numPoints; ++pointIdx) {
             uint32_t leftIdx = pointIdx * 3;
-            //uint32_t rightIdx = (pointIdx + 1) * 3;
 
             {
                 glColor3f(1.0f, 0.0f, 0.0f);
 
-                Farlor::Vector3 leftPt;
-                leftPt.x = pData[leftIdx + 0];
-                leftPt.y = pData[leftIdx + 1];
-                leftPt.z = pData[leftIdx + 2];
+                Farlor::Vector3 point;
+                point.x = pData[leftIdx + 0];
+                point.y = pData[leftIdx + 1];
+                point.z = pData[leftIdx + 2];
 
-                /*Farlor::Vector3 rightPt;
-                rightPt.x = pData[rightIdx + 0];
-                rightPt.y = pData[rightIdx + 1];
-                rightPt.z = pData[rightIdx + 2];*/
-
-                glVertex3f(leftPt.x, leftPt.y, leftPt.z);
-                //glVertex3f(rightPt.x, rightPt.y, rightPt.z);
+                glVertex3f(point.x, point.y, point.z);
             }
         }
 
@@ -221,93 +206,58 @@ void CurveViewer::RenderPolyline(float* pData, uint32_t numPoints)
     }
 }
 
-void CurveViewer::RenderCurve(const twisty::Curve& curve)
+void CurveViewer::RenderCurve(const twisty::Curve &curve)
 {
     makeCurrent();
 
     std::vector<float> scales;
-    const float segmentLength = curve.m_arclength / curve.m_numSegments;
-
-
-    std::vector<Farlor::Vector3> positions;
-    std::vector<Farlor::Vector3> tangents;
-
-    curve.ReconstructCurvePositionsAndFramesFirstOrder(positions, tangents);
-    positions.push_back(m_upInitialCurve->m_targetPos);
-
-    // Single push back for first segment
-    scales.push_back(1.0f);
-    for (uint32_t i = 0; i < curve.m_numSegments; ++i)
-    {
-        // Handle calculation of draw scale
-        float curvatureScale = 1.0f;
-
-        scales.push_back(curvatureScale);
-    }
+    const float segmentLength = curve.m_ds;
 
     // Draw based on those positions and frames
     {
         glBegin(GL_LINES);
 
-        for (uint32_t i = 0; i < positions.size() - 1; ++i)
-        {
-            auto& x_j = positions[i];
-            auto& x_j_1 = positions[i+1];
-            
-            float scale = scales[i];
+        for (uint32_t i = 0; i < curve.m_positions.size() - 1; ++i) {
+            auto &x_j = curve.m_positions[i];
+            auto &x_j_1 = curve.m_positions[i + 1];
+
             {
                 glColor3f(1.0f, 0.0f, 0.0f);
                 glVertex3f(x_j.x, x_j.y, x_j.z);
-                //Farlor::Vector3 tan = x_j + t_j * segmentLength;
                 glVertex3f(x_j_1.x, x_j_1.y, x_j_1.z);
             }
         }
 
         glEnd();
     }
-
 }
 
-void CurveViewer::RenderPath(const twisty::Curve& curve, const Farlor::Vector3& color, bool renderSegmentFrames)
+void CurveViewer::RenderPath(
+      const twisty::Curve &curve, const Farlor::Vector3 &color, bool renderSegmentFrames)
 {
     makeCurrent();
 
     std::vector<float> scales;
-    const float segmentLength = curve.m_arclength / curve.m_numSegments;
-
-    std::vector<Farlor::Vector3> positions;
-    std::vector<Farlor::Vector3> tangents;
-
-    curve.ReconstructCurvePositionsAndFramesFirstOrder(positions, tangents);
-    positions.push_back(m_upInitialCurve->m_targetPos);
+    const float segmentLength = curve.m_ds;
     {
         glBegin(GL_LINES);
 
-        for (uint32_t i = 0; i < positions.size() - 1; ++i)
-        {
-            auto& x_j = positions[i];
-            auto& x_j_1 = positions[i + 1];
+        for (uint32_t i = 0; i < curve.m_positions.size() - 1; ++i) {
+            auto &x_j = curve.m_positions[i];
+            auto &x_j_1 = curve.m_positions[i + 1];
 
-            //std::cout << "Position: " << x_j << std::endl;
-            //std::cout << "Tangent: " << t_j << std::endl;
-
-            if (renderSegmentFrames)
-            {
+            if (renderSegmentFrames) {
                 glColor3f(1.0f, 0.0f, 0.0f);
-            }
-            else
-            {
+            } else {
                 glColor3f(color.x, color.y, color.z);
             }
             glVertex3f(x_j.x, x_j.y, x_j.z);
-            //Farlor::Vector3 tan = x_j + t_j * segmentLength;
             glVertex3f(x_j_1.x, x_j_1.y, x_j_1.z);
         }
         glEnd();
     }
 
     //std::cin.get();
-
 }
 
 void CurveViewer::RenderGrid()
@@ -319,10 +269,8 @@ void CurveViewer::RenderGrid()
 
     int x0 = int(-m / 2);
     int z0 = int(-n / 2);
-    for (int32_t x = 0; x < m; x++)
-    {
-        for (int32_t z = 0; z < n; z++)
-        {
+    for (int32_t x = 0; x < m; x++) {
+        for (int32_t z = 0; z < n; z++) {
             glBegin(GL_QUADS);
             glVertex3f(x0 + x, 0, z0 + z);
             glVertex3f(x0 + x + 1, 0, z0 + z);
@@ -342,7 +290,7 @@ void CurveViewer::ResetView()
     m_zoom = 50.0f;
 }
 
-void CurveViewer::mousePressEvent(QMouseEvent* pEvent)
+void CurveViewer::mousePressEvent(QMouseEvent *pEvent)
 {
     makeCurrent();
 
@@ -350,11 +298,9 @@ void CurveViewer::mousePressEvent(QMouseEvent* pEvent)
     m_cachedY = pEvent->y();
 }
 
-void CurveViewer::mouseReleaseEvent(QMouseEvent* pEvent)
-{
-}
+void CurveViewer::mouseReleaseEvent(QMouseEvent *pEvent) { }
 
-void CurveViewer::mouseMoveEvent(QMouseEvent* pEvent)
+void CurveViewer::mouseMoveEvent(QMouseEvent *pEvent)
 {
     makeCurrent();
 
@@ -367,8 +313,7 @@ void CurveViewer::mouseMoveEvent(QMouseEvent* pEvent)
     m_cachedX = newX;
     m_cachedY = newY;
 
-    if (pEvent->buttons() & Qt::MouseButton::LeftButton)
-    {
+    if (pEvent->buttons() & Qt::MouseButton::LeftButton) {
         float rotateSpeed = 1.0f;
         m_rotateX += dx * rotateSpeed;
         m_rotateY += dy * rotateSpeed;
@@ -378,7 +323,7 @@ void CurveViewer::mouseMoveEvent(QMouseEvent* pEvent)
     update();
 }
 
-void CurveViewer::wheelEvent(QWheelEvent* pEvent)
+void CurveViewer::wheelEvent(QWheelEvent *pEvent)
 {
     makeCurrent();
 
@@ -392,85 +337,64 @@ void CurveViewer::wheelEvent(QWheelEvent* pEvent)
     m_zoom = std::min(m_zoom, zoomMax);
 }
 
-void CurveViewer::keyPressEvent(QKeyEvent* pEvent)
+void CurveViewer::keyPressEvent(QKeyEvent *pEvent)
 {
     makeCurrent();
 
     const float lookAtMoveSpeed = 0.1f;
 
-    switch (pEvent->key())
-    {
-    case Qt::Key_G:
-    {
-        PrepareCurveReset();
-        emit CurveReset();
-    } break;
+    switch (pEvent->key()) {
+        case Qt::Key_G: {
+            emit CurveReset();
+        } break;
 
-    case Qt::Key_J:
-    {
-        m_lookAt.x -= lookAtMoveSpeed;
-    } break;
+        case Qt::Key_J: {
+            m_lookAt.x -= lookAtMoveSpeed;
+        } break;
 
-    case Qt::Key_L:
-    {
-        m_lookAt.x += lookAtMoveSpeed;
-    } break;
+        case Qt::Key_L: {
+            m_lookAt.x += lookAtMoveSpeed;
+        } break;
 
-    case Qt::Key_K:
-    {
-        m_lookAt.y -= lookAtMoveSpeed;
-    } break;
+        case Qt::Key_K: {
+            m_lookAt.y -= lookAtMoveSpeed;
+        } break;
 
-    case Qt::Key_I:
-    {
-        m_lookAt.y += lookAtMoveSpeed;
-    } break;
+        case Qt::Key_I: {
+            m_lookAt.y += lookAtMoveSpeed;
+        } break;
 
-    case Qt::Key_U:
-    {
-        m_lookAt.z -= lookAtMoveSpeed;
-    } break;
+        case Qt::Key_U: {
+            m_lookAt.z -= lookAtMoveSpeed;
+        } break;
 
-    case Qt::Key_O:
-    {
-        m_lookAt.z += lookAtMoveSpeed;
-    } break;
+        case Qt::Key_O: {
+            m_lookAt.z += lookAtMoveSpeed;
+        } break;
 
-    default:
-    {
-        return QWidget::keyPressEvent(pEvent);
-    } break;
+        default: {
+            return QWidget::keyPressEvent(pEvent);
+        } break;
     }
 }
 
-void CurveViewer::keyReleaseEvent(QKeyEvent* pEvent)
-{
-}
-
-void CurveViewer::PrepareCurveReset()
-{
-    m_upInitialCurve = nullptr;
-}
+void CurveViewer::keyReleaseEvent(QKeyEvent *pEvent) { }
 
 void CurveViewer::ClampRotation()
 {
-    while (m_rotateX > 360.0f)
-    {
+    while (m_rotateX > 360.0f) {
         m_rotateX -= 360.0f;
     }
 
-    while (m_rotateX < 0.0f)
-    {
+    while (m_rotateX < 0.0f) {
         m_rotateX += 360.0f;
     }
 
-    while (m_rotateY > 360.0f)
-    {
+    while (m_rotateY > 360.0f) {
         m_rotateY -= 360.0f;
     }
 
-    while (m_rotateY < 0.0f)
-    {
+    while (m_rotateY < 0.0f) {
         m_rotateY += 360.0f;
     }
 }
@@ -478,8 +402,7 @@ void CurveViewer::ClampRotation()
 void CurveViewer::DoAnimationUpdate()
 {
     m_animatedPathIdx++;
-    if (m_animatedPathIdx >= m_numPaths)
-    {
+    if (m_animatedPathIdx >= m_numPaths) {
         m_animatedPathIdx = 0;
     }
     emit AnimatedCurveIdxChanged(m_animatedPathIdx);

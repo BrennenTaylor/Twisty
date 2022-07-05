@@ -20,43 +20,42 @@ class QVBoxLayout;
 class QLineEdit;
 class QLabel;
 
-class PathBatchViewerWidget : public QWidget
-{
+class PathBatchViewerWidget : public QWidget {
     Q_OBJECT
 
-public:
-    explicit PathBatchViewerWidget(QWidget* pParent = nullptr);
+   public:
+    explicit PathBatchViewerWidget(QWidget *pParent = nullptr);
     ~PathBatchViewerWidget();
 
-    CurveViewer* GetCurveViewerWidget();
+    CurveViewer &GetCurveViewerWidget();
 
-    void RegisterRawPathDataFile (std::filesystem::path rawPathsFullpath);
+    void RegisterRawPathDataFile(std::filesystem::path rawPathsFullpath);
 
-private:
+   private:
     void SetButtonCallback();
     void ResetButtonCallback();
     void AnimatePathsCallback(bool checked);
 
     void MakeDataPresent(uint32_t startIdx, uint32_t endIdx, uint32_t numPointsPerCurve);
 
-private:
-    QHBoxLayout* m_pMainLayout = nullptr;
-    CurveViewer* m_pCurveViewer = nullptr;
+   private:
+    QHBoxLayout *m_pMainLayout = nullptr;
+    CurveViewer *m_pCurveViewer = nullptr;
 
-    QWidget* m_pPathControlContainer = nullptr;
-    QVBoxLayout* m_pPathControlLayout = nullptr;
+    QWidget *m_pPathControlContainer = nullptr;
+    QVBoxLayout *m_pPathControlLayout = nullptr;
 
-    QLineEdit* m_pStartPathIdxEdit = nullptr;
-    QLineEdit* m_pEndPathIdxEdit = nullptr;
+    QLineEdit *m_pStartPathIdxEdit = nullptr;
+    QLineEdit *m_pEndPathIdxEdit = nullptr;
 
-    QButtonGroup* m_pButtonGroup = nullptr;
-    QPushButton* m_pSetPathDataButton = nullptr;
-    QPushButton* m_pResetPathDataButton = nullptr;
+    QButtonGroup *m_pButtonGroup = nullptr;
+    QPushButton *m_pSetPathDataButton = nullptr;
+    QPushButton *m_pResetPathDataButton = nullptr;
 
-    QWidget* m_pAnimationContainer = nullptr;
-    QHBoxLayout* m_pAnimationLayout = nullptr;
-    QCheckBox* m_pAnimatePathsCB = nullptr;
-    QLineEdit* m_pCurrentAnimationIdxLabel = nullptr;
+    QWidget *m_pAnimationContainer = nullptr;
+    QHBoxLayout *m_pAnimationLayout = nullptr;
+    QCheckBox *m_pAnimatePathsCB = nullptr;
+    QLineEdit *m_pCurrentAnimationIdxLabel = nullptr;
 
     std::filesystem::path m_pathToRawPaths = "";
 

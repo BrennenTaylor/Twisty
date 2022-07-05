@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     PathBatchViewerWidget pathBatchViewerWidget;
     mainWindow.setCentralWidget(&pathBatchViewerWidget);
 
-    CurveViewer *pCurveViewer = pathBatchViewerWidget.GetCurveViewerWidget();
+    CurveViewer &curveViewer = pathBatchViewerWidget.GetCurveViewerWidget();
 
 
     //const std::string FixedBinaryFilename("Paths_FixedOrder.pbd");
@@ -78,34 +78,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    uint32_t numSegments = 0;
-    seedCurveFS.read((char *)&numSegments, sizeof(uint32_t));
-
     // We need to create an initial curve object
-    std::unique_ptr<twisty::Curve> upInitialCurve = std::make_unique<twisty::Curve>(numSegments);
-    seedCurveFS.read((char *)&upInitialCurve->m_arclength, sizeof(float));
-    seedCurveFS.read((char *)&upInitialCurve->m_basePos, sizeof(Farlor::Vector3));
-    seedCurveFS.read((char *)&upInitialCurve->m_baseTangent, sizeof(Farlor::Vector3));
-    seedCurveFS.read((char *)&upInitialCurve->m_targetPos, sizeof(Farlor::Vector3));
-    seedCurveFS.read((char *)&upInitialCurve->m_targetTangent, sizeof(Farlor::Vector3));
-
+    std::unique_ptr<twisty::Curve> upInitialCurve = twisty::Curve::LoadCurveFromStream(seedCurveFS);
     std::cout << "Base Curve Info:" << std::endl;
     std::cout << "\tNum Segements: " << upInitialCurve->m_numSegments << std::endl;
-    std::cout << "\tArclength: " << upInitialCurve->m_arclength << std::endl;
-    std::cout << "\tBase Pos: " << upInitialCurve->m_basePos << std::endl;
-    std::cout << "\tBase Tangent: " << upInitialCurve->m_baseTangent << std::endl;
-    std::cout << "\tTarget Pos: " << upInitialCurve->m_targetPos << std::endl;
-    std::cout << "\tTarget Tangent: " << upInitialCurve->m_targetTangent << std::endl;
+    std::cout << "\tDs: " << upInitialCurve->m_ds << std::endl;
+    std::cout << "\tArclength: " << upInitialCurve->m_boundaryConditions.arclength << std::endl;
+    std::cout << "\tStart Pos: " << upInitialCurve->m_boundaryConditions.m_startPos << std::endl;
+    std::cout << "\tStart Dir: " << upInitialCurve->m_boundaryConditions.m_startDir << std::endl;
+    std::cout << "\tEnd Pos: " << upInitialCurve->m_boundaryConditions.m_endPos << std::endl;
+    std::cout << "\tEnd Dir: " << upInitialCurve->m_boundaryConditions.m_endDir << std::endl;
 
-
-    seedCurveFS.read(
-          (char *)&upInitialCurve->m_curvatures[0], sizeof(float) * upInitialCurve->m_numSegments);
-    seedCurveFS.read((char *)&upInitialCurve->m_positions[0],
-          sizeof(Farlor::Vector3) * upInitialCurve->m_numSegments);
-    seedCurveFS.read((char *)&upInitialCurve->m_tangents[0],
-          sizeof(Farlor::Vector3) * upInitialCurve->m_numSegments);
-
-    pCurveViewer->SetInitialCurve(*upInitialCurve);
+    curveViewer.SetInitialCurve(*upInitialCurve);
 
     return app.exec();
 }

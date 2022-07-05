@@ -15,38 +15,33 @@
 
 class QTimer;
 
-class CurveViewer : public QOpenGLWidget, public QOpenGLFunctions
-{
+class CurveViewer
+    : public QOpenGLWidget
+    , public QOpenGLFunctions {
     Q_OBJECT
 
-public:
-    CurveViewer(QWidget* pParent = nullptr, bool parentDrivesUpdate = false);
+   public:
+    CurveViewer(QWidget *pParent = nullptr, bool parentDrivesUpdate = false);
 
     void initializeGL() override;
     void paintGL() override;
     //void resizeGL(int w, int h) override;
 
-    void SetInitialCurve(twisty::Curve& curve);
+    void SetInitialCurve(twisty::Curve &curve);
 
-    void mousePressEvent(QMouseEvent* pEvent) override;
-    void mouseReleaseEvent(QMouseEvent* pEvent) override;
-    void mouseMoveEvent(QMouseEvent* pEvent) override;
-    void wheelEvent(QWheelEvent* pEvent) override;
+    void mousePressEvent(QMouseEvent *pEvent) override;
+    void mouseReleaseEvent(QMouseEvent *pEvent) override;
+    void mouseMoveEvent(QMouseEvent *pEvent) override;
+    void wheelEvent(QWheelEvent *pEvent) override;
 
-    void keyPressEvent(QKeyEvent* pEvent) override;
-    void keyReleaseEvent(QKeyEvent* pEvent) override;
+    void keyPressEvent(QKeyEvent *pEvent) override;
+    void keyReleaseEvent(QKeyEvent *pEvent) override;
 
-    twisty::Curve& GetInitialCurve()
-    {
-        return *m_upInitialCurve;
-    }
+    twisty::Curve &GetInitialCurve() { return m_initialCurve; }
 
-    void ForceUpdate()
-    {
-        update();
-    }
+    void ForceUpdate() { update(); }
 
-    void SetPathDrawData(float* pPathData, uint32_t numPaths, uint32_t numPointsPerPath)
+    void SetPathDrawData(float *pPathData, uint32_t numPaths, uint32_t numPointsPerPath)
     {
         m_pPathData = pPathData;
         m_numPaths = numPaths;
@@ -68,26 +63,21 @@ public:
         m_animatedPathIdx = 0;
     }
 
-    void DisablePathAnimation()
-    {
-        m_isAnimatedPathPlayback = false;
-    }
+    void DisablePathAnimation() { m_isAnimatedPathPlayback = false; }
 
-    uint32_t GetCurrentAnimatedIdx()
-    {
-        return m_animatedPathIdx;
-    }
+    uint32_t GetCurrentAnimatedIdx() { return m_animatedPathIdx; }
 
 
-// Signals
-signals:
+    // Signals
+   signals:
     void CurveReset();
     void AnimatedCurveIdxChanged(uint32_t idx);
 
-private:
-    void RenderPolyline(float* pData, uint32_t numPoints);
-    void RenderCurve(const twisty::Curve& curve);
-    void RenderPath(const twisty::Curve& curve, const Farlor::Vector3& color, bool renderSegmentFrames);
+   private:
+    void RenderPolyline(float *pData, uint32_t numPoints);
+    void RenderCurve(const twisty::Curve &curve);
+    void RenderPath(
+          const twisty::Curve &curve, const Farlor::Vector3 &color, bool renderSegmentFrames);
     void RenderGrid();
 
     void ResetView();
@@ -98,12 +88,12 @@ private:
 
     void DoAnimationUpdate();
 
-private:
-    QTimer* m_pRenderTimer = nullptr;
-    QTimer* m_pAnimationTimer = nullptr;
+   private:
+    QTimer *m_pRenderTimer = nullptr;
+    QTimer *m_pAnimationTimer = nullptr;
 
     bool m_parentDrivesUpdate = false;
-    std::unique_ptr<twisty::Curve> m_upInitialCurve;
+    twisty::Curve m_initialCurve;
 
     QBasicTimer m_timer;
 
@@ -116,7 +106,7 @@ private:
     int32_t m_cachedX;
     int32_t m_cachedY;
 
-    float* m_pPathData = nullptr;
+    float *m_pPathData = nullptr;
     uint32_t m_numPaths = 0;
     uint32_t m_numPointsPerPath = 0;
 

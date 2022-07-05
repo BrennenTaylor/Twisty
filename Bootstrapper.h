@@ -88,8 +88,8 @@ class Bootstrapper {
     Farlor::Vector3 GetTargetPosition() const;
     Farlor::Vector3 GetTargetNormal() const;
 
-    std::unique_ptr<Curve> CreateCurve(
-          uint32_t numSegments, float targetArclength, uint32_t generationSeed) const;
+    // std::unique_ptr<Curve> CreateCurve(
+    //       uint32_t numSegments, float targetArclength, uint32_t generationSeed) const;
     std::unique_ptr<Curve> CreateCurveGeometricSafe(
           uint32_t numSegments, float targetArclength) const;
 
@@ -97,7 +97,7 @@ class Bootstrapper {
           const Farlor::Vector3 &startPos, const Farlor::Vector3 &endPos);
 
    private:
-    std::unique_ptr<Curve> ToDiscreteFSCurve(uint32_t m_numSegments, BezierCurve5 &curve) const;
+    // std::unique_ptr<Curve> ToDiscreteFSCurve(uint32_t m_numSegments, BezierCurve5 &curve) const;
 
    private:
     twisty::PerturbUtils::BoundaryConditions m_experimentGeometry;

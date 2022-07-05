@@ -48,10 +48,10 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::SimplifiedModel) {
         lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
-              m_experimentParams.weightingParameters, m_upInitialCurve->m_segmentLength);
+              m_experimentParams.weightingParameters, m_upInitialCurve->m_ds);
     } else {
         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
-              m_experimentParams.weightingParameters, m_upInitialCurve->m_segmentLength);
+              m_experimentParams.weightingParameters, m_upInitialCurve->m_ds);
     }
     lookupEvaluator->ExportValues(m_experimentDirPath.string());
     assert(lookupEvaluator);
@@ -185,8 +185,8 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
           = (m_experimentParams.weightingParameters.weightingMethod
                   != WeightingMethod::RadiativeTransfer)
           ? 1.0
-          : PathWeighting::NormalizerStuff::Norm(m_upInitialCurve->m_numSegments,
-                m_upInitialCurve->m_segmentLength, boundaryConditions);
+          : PathWeighting::NormalizerStuff::Norm(
+                m_upInitialCurve->m_numSegments, m_upInitialCurve->m_ds, boundaryConditions);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
 
     auto setupTimeEnd = std::chrono::high_resolution_clock::now();
@@ -247,23 +247,43 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                 for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
                     switch (m_experimentParams.perturbMethod) {
                         case ExperimentRunner::PerturbMethod::GeometricRandom: {
-                            std::thread newThread(
-                                  &FullExperimentRunnerOptimalPerturb::GeometryRandom, this,
-                                  threadIdx, pathsInCurrentDispatch, numPathsPerThread,
-                                  (dispatchIdx == 0) ? m_experimentParams.numPathsToSkip : 0,
-                                  m_experimentParams.numSegmentsPerCurve,
-                                  std::ref(perThreadRngGenerators),
-                                  std::ref(perThreadCurvePositions),
-                                  std::ref(perThreadCurveTangents),
-                                  std::ref(perThreadCurveCurvatures),
-                                  std::ref(perDispatchCombinedWeightValues),
-                                  m_upInitialCurve->m_segmentLength,
-                                  lookupEvaluator->AccessLookupTable().data(),
-                                  lookupEvaluator->AccessLookupTable().size(),
-                                  lookupEvaluator->GetDs(), lookupEvaluator->GetMinCurvature(),
-                                  lookupEvaluator->GetMaxCurvature(),
-                                  lookupEvaluator->GetCurvatureStepSize(), boundaryConditions);
-                            threads[threadIdx] = std::move(newThread);
+                            if (m_experimentParams.outputPathBatches) {
+                                std::thread newThread(&FullExperimentRunnerOptimalPerturb::
+                                                            GeometryRandom_ExportPaths,
+                                      this, threadIdx, pathsInCurrentDispatch, numPathsPerThread,
+                                      (dispatchIdx == 0) ? m_experimentParams.numPathsToSkip : 0,
+                                      m_experimentParams.numSegmentsPerCurve,
+                                      std::ref(perThreadRngGenerators),
+                                      std::ref(perThreadCurvePositions),
+                                      std::ref(perThreadCurveTangents),
+                                      std::ref(perThreadCurveCurvatures),
+                                      std::ref(perDispatchCombinedWeightValues),
+                                      m_upInitialCurve->m_ds,
+                                      lookupEvaluator->AccessLookupTable().data(),
+                                      lookupEvaluator->AccessLookupTable().size(),
+                                      lookupEvaluator->GetDs(), lookupEvaluator->GetMinCurvature(),
+                                      lookupEvaluator->GetMaxCurvature(),
+                                      lookupEvaluator->GetCurvatureStepSize(), boundaryConditions);
+                                threads[threadIdx] = std::move(newThread);
+                            } else {
+                                std::thread newThread(
+                                      &FullExperimentRunnerOptimalPerturb::GeometryRandom, this,
+                                      threadIdx, pathsInCurrentDispatch, numPathsPerThread,
+                                      (dispatchIdx == 0) ? m_experimentParams.numPathsToSkip : 0,
+                                      m_experimentParams.numSegmentsPerCurve,
+                                      std::ref(perThreadRngGenerators),
+                                      std::ref(perThreadCurvePositions),
+                                      std::ref(perThreadCurveTangents),
+                                      std::ref(perThreadCurveCurvatures),
+                                      std::ref(perDispatchCombinedWeightValues),
+                                      m_upInitialCurve->m_ds,
+                                      lookupEvaluator->AccessLookupTable().data(),
+                                      lookupEvaluator->AccessLookupTable().size(),
+                                      lookupEvaluator->GetDs(), lookupEvaluator->GetMinCurvature(),
+                                      lookupEvaluator->GetMaxCurvature(),
+                                      lookupEvaluator->GetCurvatureStepSize(), boundaryConditions);
+                                threads[threadIdx] = std::move(newThread);
+                            }
                         } break;
 
                         case ExperimentRunner::PerturbMethod::GeometricMinCurvature:
@@ -420,18 +440,19 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
             std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
             float randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
 
-            //  Rotation
+
+            // Quaternion Rotation
             {
-                float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                RotationMatrixAroundAxis_AngleAsIs_CudaSafe(
-                      randRotationAngle, N.m_data.data(), rotationMatrix);
+                const float sinRotAngle = std::sinf(randRotationAngle / 2.0f);
+                float quaternionRotation[4] = { std::cosf(randRotationAngle / 2.0f),
+                    N.x * sinRotAngle, N.y * sinRotAngle, N.z * sinRotAngle };
 
                 for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
                       ++pointIdx) {
                     Farlor::Vector3 shiftedPoint
                           = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
                     // Rotate and stuff back in shifted point
-                    RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data.data());
+                    RotateVectorByQuaternion(quaternionRotation, shiftedPoint.m_data.data());
                     // Update the point with the rotated version
                     globalPos[CurrentThreadPosStartIdx + pointIdx] = (shiftedPoint + leftPoint);
                 }
@@ -457,6 +478,45 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                           boundaryConditions);
                 }
             }
+
+
+            // // Matrix Rotation
+            // {
+            //     float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+            //     RotationMatrixAroundAxis_AngleAsIs_CudaSafe(
+            //           randRotationAngle, N.m_data.data(), rotationMatrix);
+
+            //     for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
+            //           ++pointIdx) {
+            //         Farlor::Vector3 shiftedPoint
+            //               = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
+            //         // Rotate and stuff back in shifted point
+            //         RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data.data());
+            //         // Update the point with the rotated version
+            //         globalPos[CurrentThreadPosStartIdx + pointIdx] = (shiftedPoint + leftPoint);
+            //     }
+
+            //     //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+            //     //We can do a different approach later.
+            //     // Here, we want to do a perturb update call
+            //     twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
+            //           &globalTans[CurrentThreadTanStartIdx], numSegmentsPerCurve,
+            //           boundaryConditions);
+
+
+            //     if (m_experimentParams.weightingParameters.weightingMethod
+            //           == WeightingMethod::RadiativeTransfer) {
+            //         twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+            //               &globalTans[CurrentThreadTanStartIdx],
+            //               &globalCurvatures[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve,
+            //               boundaryConditions);
+            //     } else {
+            //         twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
+            //               &globalTans[CurrentThreadTanStartIdx],
+            //               &globalCurvatures[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve,
+            //               boundaryConditions);
+            //     }
+            // }
 
 
             // Normalized version
@@ -491,6 +551,188 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                 CombinedWeightValues_C_AddValue(
                       combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10);
             }
+        }
+    }
+}
+
+void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t threadIdx,
+      uint64_t numExperimentPaths,
+      uint64_t numPathsPerThread,
+      uint32_t numPathsToSkipPerThread,
+      uint32_t numSegmentsPerCurve,
+      std::vector<std::mt19937_64> &rngGenerators,
+      std::vector<Farlor::Vector3> &globalPos,
+      std::vector<Farlor::Vector3> &globalTans,
+      std::vector<float> &globalCurvatures,
+      std::vector<CombinedWeightValues_C> &combinedWeightValues,
+      float segmentLength,
+      const float *pWeightLookupTable,
+      const uint32_t weightLookupTableSize,
+      const float ds,
+      const float minCurvature,
+      const float maxCurvature,
+      const float curvatureStepSize,
+      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions)
+{
+    const uint32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
+    const uint32_t NumTanPerCurve = numSegmentsPerCurve;
+    const uint32_t NumCurvaturesPerCurve = (numSegmentsPerCurve - 1);
+
+    const uint32_t CurrentThreadPosStartIdx = NumPosPerCurve * threadIdx;
+    const uint32_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
+    const uint32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
+
+    const uint32_t ExportPathBatchCacheSize = 1000000;
+    std::vector<Farlor::Vector3> pathBatchCache(ExportPathBatchCacheSize * NumPosPerCurve);
+
+    // Now, we can begin the actual algorithm
+    {
+        int64_t numCurvesInBatch = 0;
+        int64_t outputIdx = 0;
+
+        for (int64_t pathCount = 0; pathCount < (numPathsToSkipPerThread + numPathsPerThread);
+              ++pathCount) {
+            // Expect to go negative, thus int
+            int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount;
+
+            // We can exit once this point is reached as we have generated all the paths necessary for this thread
+            if (currentPathIdx >= (numExperimentPaths + numPathsToSkipPerThread)) {
+                printf("Exiting early\n");
+                // We dont want to continue if we have already generated the correct number of paths.
+                break;
+            }
+
+            // Do the perturb now
+
+            std::uniform_int_distribution<int> diffDist(
+                  2, std::min((int)(numSegmentsPerCurve - 2), 25));  // uniform, unbiased
+            uint32_t diff = diffDist(rngGenerators[threadIdx]);
+
+            std::uniform_int_distribution<int> leftPointIndexUniformDist(
+                  1, numSegmentsPerCurve - diff - 1);  // uniform, unbiased
+            uint32_t leftPointIndex = leftPointIndexUniformDist(rngGenerators[threadIdx]);
+            uint32_t rightPointIndex = leftPointIndex + diff;
+
+            // We need two frames for each segment to get the new curvature and torsion.
+            // we need the frame left of the segment, as well as the frame right of the segment.
+            // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
+            const Farlor::Vector3 leftPoint = globalPos[CurrentThreadPosStartIdx + leftPointIndex];
+            const Farlor::Vector3 rightPoint
+                  = globalPos[CurrentThreadPosStartIdx + rightPointIndex];
+
+            const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
+
+            std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
+            float randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
+
+
+            // Quaternion Rotation
+            {
+                const float sinRotAngle = std::sinf(randRotationAngle / 2.0f);
+                float quaternionRotation[4] = { std::cosf(randRotationAngle / 2.0f),
+                    N.x * sinRotAngle, N.y * sinRotAngle, N.z * sinRotAngle };
+
+                for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
+                      ++pointIdx) {
+                    Farlor::Vector3 shiftedPoint
+                          = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
+                    // Rotate and stuff back in shifted point
+                    RotateVectorByQuaternion(quaternionRotation, shiftedPoint.m_data.data());
+                    // Update the point with the rotated version
+                    globalPos[CurrentThreadPosStartIdx + pointIdx] = (shiftedPoint + leftPoint);
+                }
+
+                //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
+                //We can do a different approach later.
+                // Here, we want to do a perturb update call
+                twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
+                      &globalTans[CurrentThreadTanStartIdx], numSegmentsPerCurve,
+                      boundaryConditions);
+
+
+                if (m_experimentParams.weightingParameters.weightingMethod
+                      == WeightingMethod::RadiativeTransfer) {
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                          &globalTans[CurrentThreadTanStartIdx],
+                          &globalCurvatures[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve,
+                          boundaryConditions);
+                } else {
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
+                          &globalTans[CurrentThreadTanStartIdx],
+                          &globalCurvatures[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve,
+                          boundaryConditions);
+                }
+            }
+
+            // Normalized version
+            double scatteringWeightLog10
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
+                        &(globalCurvatures[CurrentThreadCurvatureStartIdx]),
+                        NumCurvaturesPerCurve,
+                        pWeightLookupTable,
+                        weightLookupTableSize,
+                        ds,
+                        minCurvature,
+                        maxCurvature,
+                        curvatureStepSize);
+
+            if (pathCount < numPathsToSkipPerThread) {
+                // Skip
+            } else {
+                // Else, contribute to the paths
+                int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount;
+                assert((currentPathIdx - numPathsToSkipPerThread) >= numPathsPerThread * threadIdx);
+
+                int combinedWeightValueIdx
+                      = ((currentPathIdx - numPathsToSkipPerThread) / MaxNumPathsPerCombinedWeight);
+
+                if (((currentPathIdx - numPathsToSkipPerThread) % MaxNumPathsPerCombinedWeight)
+                      == 0) {
+                    // printf("****************Calling reset: %d\n", combinedWeightValueIdx);
+                    CombinedWeightValues_C_Reset(combinedWeightValues[combinedWeightValueIdx]);
+                }
+
+                //printf("****************Adding Value: %d, %lf\n", combinedWeightValueIdx, scatteringWeightLog10);
+                CombinedWeightValues_C_AddValue(
+                      combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10);
+
+                // Add the path to the path batch
+                for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx) {
+                    Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                    pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
+                }
+                numCurvesInBatch++;
+
+                if (numCurvesInBatch == ExportPathBatchCacheSize) {
+                    m_exportPathBatchesMutex.lock();
+
+                    m_curvesMetadataFile << threadIdx << " ";
+                    m_curvesMetadataFile << outputIdx << " ";
+                    m_curvesMetadataFile << numCurvesInBatch << std::endl;
+
+                    m_curvesBinaryFile.write((char *)pathBatchCache.data(),
+                          sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                    numCurvesInBatch = 0;
+                    outputIdx++;
+
+                    m_exportPathBatchesMutex.unlock();
+                }
+            }
+        }
+
+        if (numCurvesInBatch > 0) {
+            m_exportPathBatchesMutex.lock();
+
+            m_curvesMetadataFile << threadIdx << " ";
+            m_curvesMetadataFile << outputIdx << " ";
+            m_curvesMetadataFile << numCurvesInBatch << std::endl;
+
+            m_curvesBinaryFile.write((char *)pathBatchCache.data(),
+                  sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+            numCurvesInBatch = 0;
+            outputIdx++;
+
+            m_exportPathBatchesMutex.unlock();
         }
     }
 }

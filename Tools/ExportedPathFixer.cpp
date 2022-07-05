@@ -1,14 +1,9 @@
 #include <boost\multiprecision\cpp_dec_float.hpp>
 
+#include "nlohmann/json.hpp"
+
 #include <Curve.h>
-
 #include <FMath/Vector3.h>
-
-#include <rapidjson/document.h>
-#include <rapidjson/istreamwrapper.h>
-#include <rapidjson/prettywriter.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
 
 #include <chrono>
 #include <cstdint>
@@ -69,19 +64,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    rapidjson::IStreamWrapper indexFS_wrapper(indexFS);
-    rapidjson::Document indexDocument;
-    indexDocument.ParseStream(indexFS_wrapper);
+    nlohmann::json indexDocument;
+    indexFS >> indexDocument;
+    assert(!indexDocument["experiment_name"].empty());
+    std::string experimentName = indexDocument["experiment_name"];
 
-    assert(indexDocument.IsObject());
-
-    assert(indexDocument.HasMember("experiment_name"));
-    assert(indexDocument["experiment_name"].IsString());
-    std::string experimentName = indexDocument["experiment_name"].GetString();
-
-    assert(indexDocument.HasMember("seed_curve"));
-    assert(indexDocument["seed_curve"].IsString());
-    std::string seedCurveFilename = indexDocument["seed_curve"].GetString();
+    assert(!indexDocument["seed_curve"].empty());
+    std::string seedCurveFilename = indexDocument["seed_curve"];
     std::filesystem::path seedCurvePath = pathsDirectoryPath;
     seedCurvePath.append(seedCurveFilename);
 
@@ -89,7 +78,7 @@ int main(int argc, char *argv[])
 
     std::ifstream seedCurveFS(seedCurvePath, std::ios::binary);
     if (!seedCurveFS.is_open()) {
-        printf("Failed to open %s\n", seedCurvePath.string());
+        std::cout << "Failed to open: " << seedCurvePath.string() << std::endl;
         return false;
     }
 
@@ -141,7 +130,6 @@ int main(int argc, char *argv[])
     const uint32_t bytesPerCurve = sizeof(Farlor::Vector3) * (upInitialCurve->m_numSegments + 1);
     std::vector<Farlor::Vector3> tempStorage(upInitialCurve->m_numSegments + 1);
     std::cout << "Bytes per curve: " << bytesPerCurve << std::endl;
-
 
     uint64_t numRead = 0;
     for (auto &entry : pathMetadata) {

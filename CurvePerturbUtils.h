@@ -46,6 +46,11 @@ __device__ __host__ void RotationMatrixAroundAxis_MultiplyAngleByPi_CudaSafe(
 __device__ __host__ float DotVector3fVector3f(float *lhs, float *rhs);
 __device__ __host__ float MagVector3f(float *pVec);
 __device__ __host__ void RotateVectorByMatrix(float *pRotationMatrix, float *pVector);
+
+__host__ __device__ void RotateQuatByQuat(
+      float const *const pRotatedQuat, float const *const pRotateByQuat, float *const pResult);
+__host__ __device__ void RotateVectorByQuaternion(float *pQuaternionRotation, float *pVector);
+
 }  // namespace twisty
 
 namespace twisty {

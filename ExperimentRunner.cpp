@@ -149,7 +149,6 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
 bool ExperimentRunner::BeginPathBatchOutput()
 {
     std::filesystem::path generatedCurvesDirPath = m_experimentDirPath;
-    generatedCurvesDirPath /= m_experimentParams.perExperimentDirSubfolder;
     generatedCurvesDirPath /= "GeneratedCurves";
     if (!std::filesystem::exists(generatedCurvesDirPath)) {
         std::filesystem::create_directories(generatedCurvesDirPath);

@@ -48,5 +48,25 @@ class FullExperimentRunnerOptimalPerturb : public ExperimentRunner {
           const float maxCurvature,
           const float curvatureStepSize,
           const twisty::PerturbUtils::BoundaryConditions &boundaryConditions);
+
+
+    void GeometryRandom_ExportPaths(int64_t threadIdx,
+          uint64_t numExperimentPaths,
+          uint64_t numPathsPerThread,
+          uint32_t numPathsToSkipPerThread,
+          uint32_t numSegmentsPerCurve,
+          std::vector<std::mt19937_64> &rngGenerators,
+          std::vector<Farlor::Vector3> &globalPos,
+          std::vector<Farlor::Vector3> &globalTans,
+          std::vector<float> &globalCurvatures,
+          std::vector<CombinedWeightValues_C> &perThreadCombinedWeightValues,
+          float segmentLength,
+          const float *pWeightLookupTable,
+          const uint32_t weightLookupTableSize,
+          const float ds,
+          const float minCurvature,
+          const float maxCurvature,
+          const float curvatureStepSize,
+          const twisty::PerturbUtils::BoundaryConditions &boundaryConditions);
 };
 }
