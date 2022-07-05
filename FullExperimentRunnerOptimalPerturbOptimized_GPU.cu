@@ -135,7 +135,6 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
 
     // Calculate number of paths needed to generate
     // Each warp is responsible for calculating a combined weight at a time
-    const uint32_t warpPathCount = MaxNumPathsPerCombinedWeight;
     const uint64_t numGlobalPerturbThreads = PerturbGridSize * PerturbBlockSize;
 
     const uint32_t numDispatchedWarps = PerturbGridSize;
@@ -760,40 +759,71 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
 
                     // Rotation
                     {
-                        float rotationMatrix[9]
-                              = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-                        RotationMatrixAroundAxis_MultiplyAngleByPi_CudaSafe(
-                              randRotationAngleNeedsPi, (float *)N, (float *)rotationMatrix);
+                        // Rotation by quaternion
+                        {
+                            const float sinRotAngle = sinpif(randRotationAngleNeedsPi / 2.0f);
+                            float quaternionRotation[4] = { cospif(randRotationAngleNeedsPi / 2.0f),
+                                N[0] * sinRotAngle, N[1] * sinRotAngle, N[2] * sinRotAngle };
 
-                        for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
-                              ++pointIdx) {
-                            float shiftedPoint[3];
-                            shiftedPoint[0]
-                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                          + pointIdx * 3 + 0]
-                                  - leftPoint_x;
-                            shiftedPoint[1]
-                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                          + pointIdx * 3 + 1]
-                                  - leftPoint_y;
-                            shiftedPoint[2]
-                                  = pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                          + pointIdx * 3 + 2]
-                                  - leftPoint_z;
+                            for (uint32_t pointIdx = (leftPointIndex + 1);
+                                  pointIdx < rightPointIndex;
+                                  ++pointIdx) {
+                                float *const currentPoint
+                                      = &pPerGlobalThreadScratchSpacePositions
+                                              [CurrentThreadPosStartIdx + pointIdx * 3];
+                                currentPoint[0] -= leftPoint_x;
+                                currentPoint[1] -= leftPoint_y;
+                                currentPoint[2] -= leftPoint_z;
 
-                            // Rotate and stuff back in shifted point
-                            RotateVectorByMatrix((float *)rotationMatrix, (float *)shiftedPoint);
-                            // Update the point with the rotated version
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                  + pointIdx * 3 + 0]
-                                  = shiftedPoint[0] + leftPoint_x;
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                  + pointIdx * 3 + 1]
-                                  = shiftedPoint[1] + leftPoint_y;
-                            pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
-                                  + pointIdx * 3 + 2]
-                                  = shiftedPoint[2] + leftPoint_z;
+                                // Rotate and stuff back in shifted point
+                                RotateVectorByQuaternion(
+                                      (float *)quaternionRotation, (float *)currentPoint);
+                                // Update the point with the rotated version
+                                currentPoint[0] += leftPoint_x;
+                                currentPoint[1] += leftPoint_y;
+                                currentPoint[2] += leftPoint_z;
+                            }
                         }
+
+                        // Rotation by Matrix
+                        // {
+                        //     float rotationMatrix[9]
+                        //           = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+                        //     RotationMatrixAroundAxis_MultiplyAngleByPi_CudaSafe(
+                        //           randRotationAngleNeedsPi, (float *)N, (float *)rotationMatrix);
+
+                        //     for (uint32_t pointIdx = (leftPointIndex + 1);
+                        //           pointIdx < rightPointIndex;
+                        //           ++pointIdx) {
+                        //         float shiftedPoint[3];
+                        //         shiftedPoint[0]
+                        //               = pPerGlobalThreadScratchSpacePositions
+                        //                       [CurrentThreadPosStartIdx + pointIdx * 3 + 0]
+                        //               - leftPoint_x;
+                        //         shiftedPoint[1]
+                        //               = pPerGlobalThreadScratchSpacePositions
+                        //                       [CurrentThreadPosStartIdx + pointIdx * 3 + 1]
+                        //               - leftPoint_y;
+                        //         shiftedPoint[2]
+                        //               = pPerGlobalThreadScratchSpacePositions
+                        //                       [CurrentThreadPosStartIdx + pointIdx * 3 + 2]
+                        //               - leftPoint_z;
+
+                        //         // Rotate and stuff back in shifted point
+                        //         RotateVectorByMatrix(
+                        //               (float *)rotationMatrix, (float *)shiftedPoint);
+                        //         // Update the point with the rotated version
+                        //         pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                        //               + pointIdx * 3 + 0]
+                        //               = shiftedPoint[0] + leftPoint_x;
+                        //         pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                        //               + pointIdx * 3 + 1]
+                        //               = shiftedPoint[1] + leftPoint_y;
+                        //         pPerGlobalThreadScratchSpacePositions[CurrentThreadPosStartIdx
+                        //               + pointIdx * 3 + 2]
+                        //               = shiftedPoint[2] + leftPoint_z;
+                        //     }
+                        // }
 
                         // Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
                         // We can do a different approach later.

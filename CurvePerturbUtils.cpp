@@ -90,6 +90,44 @@ __host__ __device__ float MagVector3f(float *pVec)
     return sqrt(pVec[0] * pVec[0] + pVec[1] * pVec[1] + pVec[2] * pVec[2]);
 }
 
+__host__ __device__ void RotateQuatByQuat(
+      float const *const pRotatedQuat, float const *const pRotateByQuat, float *const pResult)
+{
+    // https://danceswithcode.net/engineeringnotes/quaternions/quaternions.html
+    const float t0 = (pRotatedQuat[0] * pRotateByQuat[0] - pRotatedQuat[1] * pRotateByQuat[1]
+          - pRotatedQuat[2] * pRotateByQuat[2] - pRotatedQuat[3] * pRotateByQuat[3]);
+
+    const float t1 = (pRotatedQuat[0] * pRotateByQuat[1] + pRotatedQuat[1] * pRotateByQuat[0]
+          - pRotatedQuat[2] * pRotateByQuat[3] + pRotatedQuat[3] * pRotateByQuat[2]);
+
+    const float t2 = (pRotatedQuat[0] * pRotateByQuat[2] + pRotatedQuat[1] * pRotateByQuat[3]
+          + pRotatedQuat[2] * pRotateByQuat[0] - pRotatedQuat[3] * pRotateByQuat[1]);
+
+    const float t3 = (pRotatedQuat[0] * pRotateByQuat[3] - pRotatedQuat[1] * pRotateByQuat[2]
+          + pRotatedQuat[2] * pRotateByQuat[1] + pRotatedQuat[3] * pRotateByQuat[0]);
+
+    pResult[0] = t0;
+    pResult[1] = t1;
+    pResult[2] = t2;
+    pResult[3] = t3;
+}
+
+__host__ __device__ void RotateVectorByQuaternion(float *pQuaternionRotation, float *pVector)
+{
+    float pointQuat[4] = { 0.0f, pVector[0], pVector[1], pVector[2] };
+
+    float invQuat[4] = { pQuaternionRotation[0], -pQuaternionRotation[1], -pQuaternionRotation[2],
+        -pQuaternionRotation[3] };
+
+    RotateQuatByQuat(pointQuat, pQuaternionRotation, pointQuat);
+    RotateQuatByQuat(invQuat, pointQuat, pointQuat);
+
+    // Extract from quaternion
+    pVector[0] = pointQuat[1];
+    pVector[1] = pointQuat[2];
+    pVector[2] = pointQuat[3];
+}
+
 __host__ __device__ void RotateVectorByMatrix(float *pRotationMatrix, float *pVector)
 {
     float val[3];
