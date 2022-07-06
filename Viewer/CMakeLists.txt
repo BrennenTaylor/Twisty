@@ -7,11 +7,11 @@ set(CMAKE_AUTOUIC ON)
 add_library(CurveViewer
     CurveViewer.cpp
     MainWindow.cpp
-    RunningCurveViewer.cpp
+    # RunningCurveViewer.cpp
 
     CurveViewer.h
     MainWindow.h
-    RunningCurveViewer.h
+    # RunningCurveViewer.h  
 )
 
 target_include_directories(CurveViewer

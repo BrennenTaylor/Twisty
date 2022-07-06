@@ -584,6 +584,9 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
 
     const uint32_t ExportPathBatchCacheSize = 1000000;
     std::vector<Farlor::Vector3> pathBatchCache(ExportPathBatchCacheSize * NumPosPerCurve);
+    std::vector<double> log10PathWeightCache(ExportPathBatchCacheSize);
+    std::vector<Farlor::Vector3> fiveSegmentPathCache(ExportPathBatchCacheSize);
+
 
     // Now, we can begin the actual algorithm
     {
@@ -701,6 +704,10 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
                     pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
                 }
+                log10PathWeightCache[numCurvesInBatch] = scatteringWeightLog10;
+
+                // TODO: Extract out the three angles for 5 segment paths here
+
                 numCurvesInBatch++;
 
                 if (numCurvesInBatch == ExportPathBatchCacheSize) {
@@ -712,6 +719,14 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
 
                     m_curvesBinaryFile.write((char *)pathBatchCache.data(),
                           sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+
+                    m_log10PathWeightsBinaryFile.write(
+                          (char *)log10PathWeightCache.data(), sizeof(double) * numCurvesInBatch);
+
+                    m_fiveSegmentBinaryFile.write((char *)fiveSegmentPathCache.data(),
+                          sizeof(Farlor::Vector3) * numCurvesInBatch);
+
+
                     numCurvesInBatch = 0;
                     outputIdx++;
 
@@ -729,6 +744,13 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
 
             m_curvesBinaryFile.write((char *)pathBatchCache.data(),
                   sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+
+            m_log10PathWeightsBinaryFile.write(
+                  (char *)log10PathWeightCache.data(), sizeof(double) * numCurvesInBatch);
+
+            m_fiveSegmentBinaryFile.write(
+                  (char *)fiveSegmentPathCache.data(), sizeof(Farlor::Vector3) * numCurvesInBatch);
+
             numCurvesInBatch = 0;
             outputIdx++;
 

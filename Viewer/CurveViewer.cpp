@@ -112,7 +112,7 @@ void CurveViewer::paintGL()
     }
 
 
-    RenderPath(m_initialCurve, Farlor::Vector3(0.0f, 1.0f, 0.0f), false);
+    RenderPath(m_initialCurve, Farlor::Vector3(0.0f, 1.0f, 1.0f), false);
 
     // Render look at position
     {
@@ -148,19 +148,28 @@ void CurveViewer::paintGL()
         glPopMatrix();
     }
 
+    Farlor::Vector3 LowColor(0.0f, 1.0f, 0.0f);
+    Farlor::Vector3 HighColor(1.0f, 0.0f, 0.0f);
+
     // Render custom paths
     if (m_numPaths) {
         const uint32_t numFloatsPerPath = 3 * m_numPointsPerPath;
 
         // If animated, only draw the one
         if (m_isAnimatedPathPlayback) {
+            float interpVal = *(m_pInterpData + m_animatedPathIdx);
+            Farlor::Vector3 interpColor = (1.0f - interpVal) * HighColor + interpVal * LowColor;
+
             float *pPolyStart = m_pPathData + numFloatsPerPath * m_animatedPathIdx;
-            RenderPolyline(pPolyStart, m_numPointsPerPath);
+            RenderPolyline(pPolyStart, m_numPointsPerPath, interpColor);
         } else {
             // We arent animating, draw all paths
             for (uint32_t pathIdx = 0; pathIdx < m_numPaths; pathIdx++) {
+                float interpVal = *(m_pInterpData + pathIdx);
+                Farlor::Vector3 interpColor = (1.0f - interpVal) * HighColor + interpVal * LowColor;
+
                 float *pPolyStart = m_pPathData + numFloatsPerPath * pathIdx;
-                RenderPolyline(pPolyStart, m_numPointsPerPath);
+                RenderPolyline(pPolyStart, m_numPointsPerPath, interpColor);
             }
         }
     }
@@ -174,7 +183,7 @@ void CurveViewer::SetInitialCurve(twisty::Curve &curve)
           * 0.5;
 }
 
-void CurveViewer::RenderPolyline(float *pData, uint32_t numPoints)
+void CurveViewer::RenderPolyline(float *pData, uint32_t numPoints, const Farlor::Vector3 &color)
 {
     // User should pass in nullptr if no data
     if (!pData) {
@@ -191,7 +200,7 @@ void CurveViewer::RenderPolyline(float *pData, uint32_t numPoints)
             uint32_t leftIdx = pointIdx * 3;
 
             {
-                glColor3f(1.0f, 0.0f, 0.0f);
+                glColor3f(color.x, color.y, color.z);
 
                 Farlor::Vector3 point;
                 point.x = pData[leftIdx + 0];

@@ -29,7 +29,8 @@ class PathBatchViewerWidget : public QWidget {
 
     CurveViewer &GetCurveViewerWidget();
 
-    void RegisterRawPathDataFile(std::filesystem::path rawPathsFullpath);
+    void RegisterRawPathDataFile(
+          std::filesystem::path rawPathsFullpath, std::filesystem::path rawWeightsFullpath);
 
    private:
     void SetButtonCallback();
@@ -56,10 +57,14 @@ class PathBatchViewerWidget : public QWidget {
     QHBoxLayout *m_pAnimationLayout = nullptr;
     QCheckBox *m_pAnimatePathsCB = nullptr;
     QLineEdit *m_pCurrentAnimationIdxLabel = nullptr;
+    QLineEdit *m_pCurrentAnimationCurveWeightLable = nullptr;
 
     std::filesystem::path m_pathToRawPaths = "";
+    std::filesystem::path m_pathToRawWeights = "";
 
     std::vector<float> m_loadedCurvePoints;
+    std::vector<boost::multiprecision::cpp_dec_float_100> m_loadedCurveWeights;
+    std::vector<float> m_curveInterpolationValues;
     uint32_t m_numLoadedCurves = 0;
     uint32_t m_drawIdx = 0;
 };

@@ -117,10 +117,10 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::SimplifiedModel) {
         lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
-              m_experimentParams.weightingParameters, m_upInitialCurve->m_segmentLength);
+              m_experimentParams.weightingParameters, m_upInitialCurve->m_ds);
     } else {
         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
-              m_experimentParams.weightingParameters, m_upInitialCurve->m_segmentLength);
+              m_experimentParams.weightingParameters, m_upInitialCurve->m_ds);
     }
     lookupEvaluator->ExportValues(m_experimentDirPath.string());
 
@@ -200,8 +200,8 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
           = (m_experimentParams.weightingParameters.weightingMethod
                   != WeightingMethod::RadiativeTransfer)
           ? 1.0
-          : PathWeighting::NormalizerStuff::Norm(m_upInitialCurve->m_numSegments,
-                m_upInitialCurve->m_segmentLength, boundaryConditions);
+          : PathWeighting::NormalizerStuff::Norm(
+                m_upInitialCurve->m_numSegments, m_upInitialCurve->m_ds, boundaryConditions);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
     auto setupTimeEnd = std::chrono::high_resolution_clock::now();
     /* --------------------- */

@@ -88,15 +88,6 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
     if (m_experimentParams.outputPathBatches) {
         BeginPathBatchOutput();
 
-        std::stringstream pathBinaryFilenameSS;
-        pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
-        pathBinaryFilenameSS << "Paths_Binary"
-                             << ".pbd";
-
-        std::filesystem::path binaryFilePath = m_pathBatchOutputPath;
-        binaryFilePath.append(pathBinaryFilenameSS.str());
-        m_curvesBinaryFile.open(binaryFilePath, std::ios::binary);
-
         std::stringstream pathMetadataFilenameSS;
         pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
         pathMetadataFilenameSS << "Paths_Metadata"
@@ -105,6 +96,37 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
         std::filesystem::path metadataFilePath = m_pathBatchOutputPath;
         metadataFilePath.append(pathMetadataFilenameSS.str());
         m_curvesMetadataFile.open(metadataFilePath);
+
+        std::stringstream pathBinaryFilenameSS;
+        pathBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
+        pathBinaryFilenameSS << "Paths_Binary"
+                             << ".pbd";
+
+        {
+            std::filesystem::path binaryFilePath = m_pathBatchOutputPath;
+            binaryFilePath.append(pathBinaryFilenameSS.str());
+            m_curvesBinaryFile.open(binaryFilePath, std::ios::binary);
+        }
+
+        std::stringstream log10PathWeightsBinaryFilenameSS;
+        log10PathWeightsBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
+        log10PathWeightsBinaryFilenameSS << "Log10PathWeights_Binary"
+                                         << ".bdt";
+        {
+            std::filesystem::path binaryFilePath = m_pathBatchOutputPath;
+            binaryFilePath.append(log10PathWeightsBinaryFilenameSS.str());
+            m_log10PathWeightsBinaryFile.open(binaryFilePath, std::ios::binary);
+        }
+
+        std::stringstream fiveSegmentBinaryFilenameSS;
+        fiveSegmentBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
+        fiveSegmentBinaryFilenameSS << "FiveSegment_Binary"
+                                    << ".bdt";
+        {
+            std::filesystem::path binaryFilePath = m_pathBatchOutputPath;
+            binaryFilePath.append(fiveSegmentBinaryFilenameSS.str());
+            m_fiveSegmentBinaryFile.open(binaryFilePath, std::ios::binary);
+        }
     }
 
     RunnerSpecificResults runnerSpecificResult = RunnerSpecificRunExperiment();

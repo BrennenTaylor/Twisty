@@ -137,8 +137,8 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(
     std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
 
     // End targets of purturbation
-    Farlor::Vector3 targetN = m_upInitialCurve->m_targetTangent;
-    Farlor::Vector3 targetP = m_upInitialCurve->m_targetPos;
+    Farlor::Vector3 targetN = m_upInitialCurve->m_boundaryConditions.m_endDir;
+    Farlor::Vector3 targetP = m_upInitialCurve->m_boundaryConditions.m_endPos;
 
 
     /** This is where the fun begins **/
@@ -188,7 +188,7 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(
     for (uint32_t pointIdx = rightPointIndex; pointIdx < points.size(); pointIdx++) {
         updatedPolyline.push_back(points[pointIdx]);
     }
-    updatedPolyline.push_back(m_upInitialCurve->m_targetPos);
+    updatedPolyline.push_back(m_upInitialCurve->m_boundaryConditions.m_endPos);
 
     assert(points.size() + 1 == updatedPolyline.size());
 
@@ -207,14 +207,13 @@ std::unique_ptr<twisty::Curve> RunningCurveViewer::SimpleGeometryCurvePerturb(
     // End Frame
     // We only really need the tangent for it
     {
-        tangents.push_back(m_upInitialCurve->m_targetTangent);
+        tangents.push_back(m_upInitialCurve->m_boundaryConditions.m_endDir);
     }
 
     assert(tangents.size() == upNewCurve->m_numSegments + 1);
 
     for (uint32_t i = 0; i < upNewCurve->m_numSegments; ++i) {
-        float curvature = ((tangents[i + 1] - tangents[i]) * (1.0f / upNewCurve->m_segmentLength))
-                                .Magnitude();
+        float curvature = ((tangents[i + 1] - tangents[i]) * (1.0f / upNewCurve->m_ds)).Magnitude();
         upNewCurve->m_curvatures[i] = curvature;
         upNewCurve->m_positions[i] = updatedPolyline[i];
         upNewCurve->m_tangents[i] = tangents[i];

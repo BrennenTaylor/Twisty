@@ -133,6 +133,32 @@ target_link_libraries(ExportedPathFixer
     PUBLIC nlohmann_json::nlohmann_json
 )
 
+add_executable(ExportedPathWeightsFixer
+    ExportedPathWeightsFixer.cpp
+)
+
+target_include_directories(ExportedPathWeightsFixer
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(ExportedPathWeightsFixer
+    PUBLIC Twisty
+    PUBLIC nlohmann_json::nlohmann_json
+)
+
+add_executable(ExportedFiveSegmentsFixer
+    ExportedFiveSegmentsFixer.cpp
+)
+
+target_include_directories(ExportedFiveSegmentsFixer
+    PUBLIC ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries(ExportedFiveSegmentsFixer
+    PUBLIC Twisty
+    PUBLIC nlohmann_json::nlohmann_json
+)
+
 # add_executable(ExtractProblemPaths
 #     ExtractProblemPaths.cpp
 # )

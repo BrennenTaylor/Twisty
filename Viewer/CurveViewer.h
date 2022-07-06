@@ -41,9 +41,11 @@ class CurveViewer
 
     void ForceUpdate() { update(); }
 
-    void SetPathDrawData(float *pPathData, uint32_t numPaths, uint32_t numPointsPerPath)
+    void SetPathDrawData(
+          float *pPathData, float *pInterpData, uint32_t numPaths, uint32_t numPointsPerPath)
     {
         m_pPathData = pPathData;
+        m_pInterpData = pInterpData;
         m_numPaths = numPaths;
         m_numPointsPerPath = numPointsPerPath;
         m_animatedPathIdx = 0;
@@ -74,7 +76,7 @@ class CurveViewer
     void AnimatedCurveIdxChanged(uint32_t idx);
 
    private:
-    void RenderPolyline(float *pData, uint32_t numPoints);
+    void RenderPolyline(float *pData, uint32_t numPoints, const Farlor::Vector3 &color);
     void RenderCurve(const twisty::Curve &curve);
     void RenderPath(
           const twisty::Curve &curve, const Farlor::Vector3 &color, bool renderSegmentFrames);
@@ -107,6 +109,7 @@ class CurveViewer
     int32_t m_cachedY;
 
     float *m_pPathData = nullptr;
+    float *m_pInterpData = nullptr;
     uint32_t m_numPaths = 0;
     uint32_t m_numPointsPerPath = 0;
 

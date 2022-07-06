@@ -117,8 +117,11 @@ class ExperimentRunner {
     std::filesystem::path m_experimentDirPath;
 
     std::mutex m_exportPathBatchesMutex;
-    std::ofstream m_curvesBinaryFile;
     std::ofstream m_curvesMetadataFile;
+    std::ofstream m_curvesBinaryFile;
+    std::ofstream m_log10PathWeightsBinaryFile;
+    std::ofstream m_fiveSegmentBinaryFile;
+
 
     std::ofstream m_weightConvergenceFile;
     uint64_t m_numWeightConvergencePaths = 0;
