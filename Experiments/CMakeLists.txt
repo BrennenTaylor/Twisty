@@ -57,3 +57,18 @@ target_link_libraries(NoisyCircleExperiment
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )
+
+add_executable(RingBenchmark
+    RingBenchmark.cpp
+)
+
+target_compile_features(RingBenchmark
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+target_link_libraries(RingBenchmark
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
