@@ -84,7 +84,6 @@ int main(int argc, char *argv[])
         experimentParams.numSegmentsPerCurve = numExperimentSegments;
         experimentParams.bootstrapSeed = bootstrapperSeed;
         experimentParams.curvePurturbSeed = perturbSeed;
-        experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
         experimentParams.weightingParameters.mu = 0.1;
         experimentParams.weightingParameters.eps = 0.1;

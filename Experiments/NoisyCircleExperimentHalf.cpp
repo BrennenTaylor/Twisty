@@ -22,9 +22,6 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 {
     twisty::ExperimentRunner::ExperimentParameters experimentParams;
 
-    // Hardocded values
-    experimentParams.rotateInitialSeedCurveRadians = 0.0f;
-
     // Values loaded from the config file
     experimentParams.numPathsInExperiment
           = experimentConfig["experiment"]["experimentParams"]["pathsToGenerate"];

@@ -72,3 +72,18 @@ target_link_libraries(RingBenchmark
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )
+
+add_executable(FiveSegmentExploreDoF
+    FiveSegmentExploreDoF.cpp
+)
+
+target_compile_features(FiveSegmentExploreDoF
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+target_link_libraries(FiveSegmentExploreDoF
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)

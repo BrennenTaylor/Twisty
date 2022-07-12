@@ -707,6 +707,25 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                 log10PathWeightCache[numCurvesInBatch] = scatteringWeightLog10;
 
                 // TODO: Extract out the three angles for 5 segment paths here
+                // Get the five points
+                const Farlor::Vector3 point0 = globalPos[CurrentThreadPosStartIdx + 0];
+                const Farlor::Vector3 point1 = globalPos[CurrentThreadPosStartIdx + 1];
+                const Farlor::Vector3 point2 = globalPos[CurrentThreadPosStartIdx + 2];
+                const Farlor::Vector3 point3 = globalPos[CurrentThreadPosStartIdx + 3];
+                const Farlor::Vector3 point4 = globalPos[CurrentThreadPosStartIdx + 4];
+                const Farlor::Vector3 point5 = globalPos[CurrentThreadPosStartIdx + 5];
+
+                const Farlor::Vector3 xDir = (point4 - point1).Normalized();
+                const Farlor::Vector3 seg1Dir = (point2 - point1).Normalized();
+                const float theta1 = xDir.Dot(seg1Dir);
+                const Farlor::Vector3 phi1ReferenceDir
+                      = ((point1 - point0).Normalized()).Cross(xDir).Normalized();
+                const float phi1 = phi1ReferenceDir.Dot(seg1Dir);
+
+                const Farlor::Vector3 phi2ReferenceDir
+                      = ((point5 - point4).Normalized()).Cross(xDir).Normalized();
+                const Farlor::Vector3 seg3BackDir = (point3 - point4).Normalized();
+                const float phi2 = phi2ReferenceDir.Dot(seg3BackDir);
 
                 numCurvesInBatch++;
 

@@ -199,7 +199,6 @@ int main(int argc, char *argv[])
                         experimentParams.numSegmentsPerCurve = NumSegmentsPerCurve;
                         experimentParams.bootstrapSeed = initialCurveSeed;
                         experimentParams.curvePurturbSeed = perCurveSeed;
-                        experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
                         // Use a big mu value
                         experimentParams.weightingParameters.mu = 99.0;
@@ -215,8 +214,6 @@ int main(int argc, char *argv[])
                         experimentParams.weightingParameters.absorbtion
                               = 1.0 - experimentParams.weightingParameters.scatter;
 
-
-                        experimentParams.rotateInitialSeedCurveRadians = 0.0f;
 
                         twisty::RayGeometry rayReciever(recieverPos, targetNormal);
                         twisty::Bootstrapper bootstrapper(rayEmitter, rayReciever);

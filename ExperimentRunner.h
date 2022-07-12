@@ -57,7 +57,6 @@ class ExperimentRunner {
         uint32_t bootstrapSeed = 0;
         uint32_t curvePurturbSeed = 0;
         twisty::WeightingParameters weightingParameters;
-        float rotateInitialSeedCurveRadians = 0.0f;
 
         PerturbMethod perturbMethod = PerturbMethod::GeometricRandom;
 
