@@ -87,3 +87,7 @@ target_link_libraries(FiveSegmentExploreDoF
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )
+
+target_include_directories(FiveSegmentExploreDoF
+    PUBLIC ../stb
+)

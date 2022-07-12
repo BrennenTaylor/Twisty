@@ -5,6 +5,10 @@
 #include <FMath/FMath.h>
 
 #include <nlohmann/json.hpp>
+#include <string>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
       const nlohmann::json &experimentConfig)
@@ -200,17 +204,17 @@ int main(int argc, char *argv[])
 
     const float phi1Min = 0.0f;
     const float phi1Max = twisty::TwistyPi;
-    const uint32_t numPhi1Vals = 10;
+    const uint32_t numPhi1Vals = 100;
     const float dPhi1 = (phi1Max - phi1Min) / numPhi1Vals;
 
     const float theta1Min = 0.0f;
     const float theta1Max = 2.0f * twisty::TwistyPi;
-    const uint32_t numTheta1Vals = 10;
+    const uint32_t numTheta1Vals = 100;
     const float dTheta1 = (theta1Max - theta1Min) / numTheta1Vals;
 
     const float theta2Min = 0.0f;
     const float theta2Max = 2.0f * twisty::TwistyPi;
-    const uint32_t numTheta2Vals = 10;
+    const uint32_t numTheta2Vals = 100;
     const float dTheta2 = (theta2Max - theta2Min) / numTheta2Vals;
 
     std::vector<std::vector<Farlor::Vector3>> gridOfImages(numPhi1Vals);
@@ -221,6 +225,8 @@ int main(int argc, char *argv[])
 
     for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
         const float phi1 = phi1Min + phi1Idx * dPhi1;
+
+        std::vector<Farlor::Vector3> &currentImage = gridOfImages.at(phi1Idx);
 
         for (int theta1Idx = 0; theta1Idx < numTheta1Vals; theta1Idx++) {
             const float theta1 = theta1Min + theta1Idx * dTheta1;
@@ -285,7 +291,32 @@ int main(int argc, char *argv[])
                     x_t = shiftedPoint + point2;
                 }
                 const Farlor::Vector3 point3 = x_t;
+
+                currentImage[theta2Idx + numTheta2Vals * theta1Idx]
+                      = Farlor::Vector3(1.0f, 1.0f, 1.0f);
             }
+        }
+
+        std::filesystem::path imagePath = experimentParams.experimentDirPath;
+        const std::string imageFilename = std::string(experimentParams.experimentDirPath) + "/"
+              + std::to_string(phi1Idx) + ".png";
+
+        const int comp = 3;  // RGB
+        std::vector<uint8_t> actualPixels(numTheta1Vals * numTheta2Vals * comp);
+        for (uint32_t pixelIdx = 0; pixelIdx < actualPixels.size(); pixelIdx += comp) {
+            uint32_t vectorPixelIdx = pixelIdx / 3;
+
+            actualPixels[pixelIdx] = static_cast<uint8_t>(currentImage[vectorPixelIdx].x * 255.0f);
+            actualPixels[pixelIdx + 1]
+                  = static_cast<uint8_t>(currentImage[vectorPixelIdx].y * 255.0f);
+            actualPixels[pixelIdx + 2]
+                  = static_cast<uint8_t>(currentImage[vectorPixelIdx].z * 255.0f);
+        }
+
+        int errorCode = stbi_write_bmp(
+              imageFilename.c_str(), numTheta1Vals, numTheta2Vals, comp, actualPixels.data());
+        if (errorCode == 0) {
+            std::cout << "Error out for some reason" << std::endl;
         }
     }
 }
