@@ -18,8 +18,8 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc < 4) {
-        printf("Call as: %s PathDirectory RawPathFilename RawWeightFilename", argv[0]);
+    if (argc < 3) {
+        printf("Call as: %s PathDirectory RawPathFilename", argv[0]);
         return 1;
     }
 
@@ -38,7 +38,6 @@ int main(int argc, char *argv[])
     //const std::string FixedBinaryFilename("Paths_FixedOrder.pbd");
     std::string pathsDirectory(argv[1]);
     std::string rawPathFilename(argv[2]);
-    std::string rawWeightFilename(argv[3]);
 
     std::filesystem::path pathsDirectoryPath = pathsDirectory;
     std::cout << "pathsDirectoryPath: " << pathsDirectoryPath << std::endl;
@@ -47,11 +46,7 @@ int main(int argc, char *argv[])
     fixedBinaryFullPath.append(rawPathFilename);
     std::cout << "rawPathsPath: " << fixedBinaryFullPath << std::endl;
 
-    std::filesystem::path fixedWeightsBinaryFullPath(pathsDirectoryPath);
-    fixedWeightsBinaryFullPath.append(rawWeightFilename);
-    std::cout << "fixedWeightsBinaryFullPath: " << fixedWeightsBinaryFullPath << std::endl;
-
-    pathBatchViewerWidget.RegisterRawPathDataFile(fixedBinaryFullPath, fixedWeightsBinaryFullPath);
+    pathBatchViewerWidget.RegisterRawPathDataFile(fixedBinaryFullPath);
 
     std::filesystem::path indexPath = pathsDirectoryPath;
     indexPath.append("index.json");

@@ -96,20 +96,20 @@ PathBatchViewerWidget::PathBatchViewerWidget(QWidget *pParent)
     connect(m_pCurveViewer, &CurveViewer::AnimatedCurveIdxChanged, this, [this](uint32_t idx) {
         const int idxOffset = idx - m_pStartPathIdxEdit->text().toInt();
 
-        if (m_loadedCurveWeights.size() <= idxOffset) {
-            m_pCurrentAnimationCurveWeightLable->setReadOnly(false);
-            m_pCurrentAnimationCurveWeightLable->setText("");
-            m_pCurrentAnimationCurveWeightLable->setReadOnly(true);
-            return;
-        }
+        // if (m_loadedCurveWeights.size() <= idxOffset) {
+        //     m_pCurrentAnimationCurveWeightLable->setReadOnly(false);
+        //     m_pCurrentAnimationCurveWeightLable->setText("");
+        //     m_pCurrentAnimationCurveWeightLable->setReadOnly(true);
+        //     return;
+        // }
 
 
-        std::ostringstream weightSS;
-        weightSS << m_loadedCurveWeights[idxOffset];
+        // std::ostringstream weightSS;
+        // weightSS << m_loadedCurveWeights[idxOffset];
 
-        m_pCurrentAnimationCurveWeightLable->setReadOnly(false);
-        m_pCurrentAnimationCurveWeightLable->setText(QString::fromStdString(weightSS.str()));
-        m_pCurrentAnimationCurveWeightLable->setReadOnly(true);
+        // m_pCurrentAnimationCurveWeightLable->setReadOnly(false);
+        // m_pCurrentAnimationCurveWeightLable->setText(QString::fromStdString(weightSS.str()));
+        // m_pCurrentAnimationCurveWeightLable->setReadOnly(true);
     });
 
     ResetButtonCallback();
@@ -119,11 +119,9 @@ PathBatchViewerWidget::~PathBatchViewerWidget() { }
 
 CurveViewer &PathBatchViewerWidget::GetCurveViewerWidget() { return (*m_pCurveViewer); }
 
-void PathBatchViewerWidget::RegisterRawPathDataFile(
-      std::filesystem::path rawPathsFullpath, std::filesystem::path rawWeightsFullpath)
+void PathBatchViewerWidget::RegisterRawPathDataFile(std::filesystem::path rawPathsFullpath)
 {
     m_pathToRawPaths = rawPathsFullpath;
-    m_pathToRawWeights = rawWeightsFullpath;
 }
 
 void PathBatchViewerWidget::SetButtonCallback()
@@ -135,8 +133,8 @@ void PathBatchViewerWidget::SetButtonCallback()
     // Here, we want to make present the data from the file
     MakeDataPresent(startIdx, endIdx, numPointsPerCurve);
 
-    m_pCurveViewer->SetPathDrawData(m_loadedCurvePoints.data(), m_curveInterpolationValues.data(),
-          endIdx - startIdx, numPointsPerCurve);
+    m_pCurveViewer->SetPathDrawData(
+          m_loadedCurvePoints.data(), endIdx - startIdx, numPointsPerCurve);
 }
 
 void PathBatchViewerWidget::ResetButtonCallback()
@@ -181,42 +179,5 @@ void PathBatchViewerWidget::MakeDataPresent(
         uint64_t startSeekIdx = (uint64_t)(bytesPerCurve) * (uint64_t)(startIdx);
         rawDataFile.seekg(startSeekIdx, std::ios::beg);
         rawDataFile.read((char *)m_loadedCurvePoints.data(), numBytesToRead);
-    }
-    // Path weights
-    {
-        const boost::multiprecision::cpp_dec_float_100 minPossibleValue = 2.75308e-16;
-        const boost::multiprecision::cpp_dec_float_100 maxPossibleValue = 8.88178e-14;
-
-        std::ifstream curveWeightsFile(m_pathToRawWeights, std::ios::binary | std::ios::in);
-        if (!curveWeightsFile.is_open()) {
-            std::cout << "Couldnt open raw weight file for some reason: " << m_pathToRawWeights
-                      << std::endl;
-        }
-
-        uint64_t numPathsToReadIn = endIdx - startIdx;
-        uint64_t numFloatsNeeded = numPathsToReadIn;
-        const uint64_t bytesPerCurve = sizeof(double);
-        const uint64_t numBytesToRead = bytesPerCurve * numPathsToReadIn;
-
-        // Always resize to the required larger size
-        if (m_loadedCurveWeights.size() < numFloatsNeeded) {
-            m_loadedCurveWeights.resize(numFloatsNeeded);
-            m_curveInterpolationValues.resize(numFloatsNeeded);
-        }
-
-        std::vector<double> loadedCompressedWeights(m_loadedCurveWeights.size());
-
-        uint64_t startSeekIdx = (uint64_t)(bytesPerCurve) * (uint64_t)(startIdx);
-        curveWeightsFile.seekg(startSeekIdx, std::ios::beg);
-        curveWeightsFile.read((char *)loadedCompressedWeights.data(), numBytesToRead);
-
-        for (int i = 0; i < loadedCompressedWeights.size(); i++) {
-            m_loadedCurveWeights[i] = loadedCompressedWeights[i];
-            m_loadedCurveWeights[i] = boost::multiprecision::pow(10.0, m_loadedCurveWeights[i]);
-
-            m_curveInterpolationValues[i] = (float)((m_loadedCurveWeights[i] - minPossibleValue)
-                  / (maxPossibleValue - minPossibleValue));
-            m_loadedCurveWeights[i] = m_curveInterpolationValues[i];
-        }
     }
 }

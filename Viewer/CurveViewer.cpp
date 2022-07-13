@@ -157,19 +157,13 @@ void CurveViewer::paintGL()
 
         // If animated, only draw the one
         if (m_isAnimatedPathPlayback) {
-            float interpVal = *(m_pInterpData + m_animatedPathIdx);
-            Farlor::Vector3 interpColor = (1.0f - interpVal) * HighColor + interpVal * LowColor;
-
             float *pPolyStart = m_pPathData + numFloatsPerPath * m_animatedPathIdx;
-            RenderPolyline(pPolyStart, m_numPointsPerPath, interpColor);
+            RenderPolyline(pPolyStart, m_numPointsPerPath, HighColor);
         } else {
             // We arent animating, draw all paths
             for (uint32_t pathIdx = 0; pathIdx < m_numPaths; pathIdx++) {
-                float interpVal = *(m_pInterpData + pathIdx);
-                Farlor::Vector3 interpColor = (1.0f - interpVal) * HighColor + interpVal * LowColor;
-
                 float *pPolyStart = m_pPathData + numFloatsPerPath * pathIdx;
-                RenderPolyline(pPolyStart, m_numPointsPerPath, interpColor);
+                RenderPolyline(pPolyStart, m_numPointsPerPath, HighColor);
             }
         }
     }

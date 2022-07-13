@@ -1,4 +1,5 @@
 #include <ExperimentRunner.h>
+#include <PathWeighters.h>
 
 #include "MathConsts.h"
 
@@ -193,6 +194,29 @@ int main(int argc, char *argv[])
     std::cout << "Arclength: " << experimentGeometry.arclength << std::endl;
 
     const float ds = experimentGeometry.arclength / experimentParams.numSegmentsPerCurve;
+    
+    std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
+    if (experimentParams.weightingParameters.weightingMethod
+          == twisty::WeightingMethod::SimplifiedModel) {
+        lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
+              experimentParams.weightingParameters, ds);
+    } else {
+        lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
+              experimentParams.weightingParameters, ds);
+    }
+    lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
+    assert(lookupEvaluator);
+    twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
+    
+    const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
+          = (experimentParams.weightingParameters.weightingMethod
+                  != twisty::WeightingMethod::RadiativeTransfer)
+          ? 1.0
+          : twisty::PathWeighting::NormalizerStuff::Norm(
+                experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
+    std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
+    const double pathNormaizerLog10 = static_cast<double>(boost::multiprecision::log10(pathNormalizer));
+    
     // Ok, generate the curve.
     Farlor::Vector3 point0 = experimentGeometry.m_startPos;
     Farlor::Vector3 point1 = point0 + experimentGeometry.m_startDir * ds;
@@ -202,26 +226,43 @@ int main(int argc, char *argv[])
 
     // Calculate the second point using theta and cos values.
 
+    // Polar angle
     const float phi1Min = 0.0f;
     const float phi1Max = twisty::TwistyPi;
     const uint32_t numPhi1Vals = 100;
     const float dPhi1 = (phi1Max - phi1Min) / numPhi1Vals;
 
-    const float theta1Min = 0.0f;
-    const float theta1Max = 2.0f * twisty::TwistyPi;
-    const uint32_t numTheta1Vals = 100;
+    // Azimuthal
+    const float theta1Min = -twisty::TwistyPi;
+    const float theta1Max = twisty::TwistyPi;
+    const uint32_t numTheta1Vals = 1024;
     const float dTheta1 = (theta1Max - theta1Min) / numTheta1Vals;
 
-    const float theta2Min = 0.0f;
-    const float theta2Max = 2.0f * twisty::TwistyPi;
-    const uint32_t numTheta2Vals = 100;
+    // Azimuthal
+    const float theta2Min = -twisty::TwistyPi;
+    const float theta2Max = twisty::TwistyPi;
+    const uint32_t numTheta2Vals = 1024;
     const float dTheta2 = (theta2Max - theta2Min) / numTheta2Vals;
-
     std::vector<std::vector<Farlor::Vector3>> gridOfImages(numPhi1Vals);
 
     for (auto &image : gridOfImages) {
         image.resize(numTheta1Vals * numTheta2Vals);
     }
+
+    double minVal = 100000000;
+    double maxValue = -10000000;
+
+    struct SortStruct {
+        double value = -10000000;
+        Farlor::Vector3 point0;
+        Farlor::Vector3 point1;
+        Farlor::Vector3 point2;
+        Farlor::Vector3 point3;
+        Farlor::Vector3 point4;
+        Farlor::Vector3 point5;
+    };
+    std::vector<SortStruct> unsortedPaths(numPhi1Vals * numTheta1Vals * numTheta2Vals);
+    int count = 0;
 
     for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
         const float phi1 = phi1Min + phi1Idx * dPhi1;
@@ -292,10 +333,87 @@ int main(int argc, char *argv[])
                 }
                 const Farlor::Vector3 point3 = x_t;
 
+                std::array<Farlor::Vector3, 6> points
+                      = { point0, point1, point2, point3, point4, point5 };
+                std::array<Farlor::Vector3, 5> tangents;
+                std::array<float, 4> curvatures;
+
+                twisty::PerturbUtils::UpdateTangentsFromPos(
+                      points.data(), tangents.data(), 5, experimentGeometry);
+                twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                      tangents.data(), curvatures.data(), 5, experimentGeometry);
+
+                 double scatteringWeightLog10
+                      = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
+                            curvatures.data(),
+                            4,
+                            weightingIntegralsRawPointer);
+                double normalizedPathWeightLog10
+                      = std::pow(10.0, scatteringWeightLog10 + pathNormaizerLog10);
+                 /*double normalizedPathWeightLog10
+                       = scatteringWeightLog10 + pathNormaizerLog10;*/
+
+
+                if (normalizedPathWeightLog10 > maxValue) {
+                    maxValue = normalizedPathWeightLog10;
+                }
+
+                if (normalizedPathWeightLog10 < minVal) {
+                    minVal = normalizedPathWeightLog10;
+                }
+
+                unsortedPaths[count].value = normalizedPathWeightLog10;
+                unsortedPaths[count].point0 = point0;
+                unsortedPaths[count].point1 = point1;
+                unsortedPaths[count].point2 = point2;
+                unsortedPaths[count].point3 = point3;
+                unsortedPaths[count].point4 = point4;
+                unsortedPaths[count].point5 = point5;
+
                 currentImage[theta2Idx + numTheta2Vals * theta1Idx]
-                      = Farlor::Vector3(1.0f, 1.0f, 1.0f);
+                      = Farlor::Vector3(0.1f, normalizedPathWeightLog10, 0.1f);
             }
         }
+    }
+
+    std::filesystem::path generatedCurvesDirPath = experimentParams.experimentDirPath;
+    generatedCurvesDirPath /= "GeneratedCurves";
+    if (!std::filesystem::exists(generatedCurvesDirPath)) {
+        std::filesystem::create_directories(generatedCurvesDirPath);
+    }
+
+    
+    std::stringstream pathBinaryFilenameSS;
+    pathBinaryFilenameSS << experimentParams.pathBatchPrepend;
+    pathBinaryFilenameSS << "Paths_Binary"
+                         << ".pbd";
+    std::filesystem::path binaryFilePath = generatedCurvesDirPath;
+    binaryFilePath.append(pathBinaryFilenameSS.str());
+
+
+    std::sort(unsortedPaths.begin(), unsortedPaths.end(),
+          [](const SortStruct &l, const SortStruct &r) { return l.value > r.value; });
+    std::vector<Farlor::Vector3> sortedPaths(count * 5);
+
+    int idx = 0;
+    for (int i = 0; i < count; i++) {
+        sortedPaths[idx + 0] = unsortedPaths[i].point0;
+        sortedPaths[idx + 1] = unsortedPaths[i].point1;
+        sortedPaths[idx + 2] = unsortedPaths[i].point2;
+        sortedPaths[idx + 3] = unsortedPaths[i].point3;
+        sortedPaths[idx + 4] = unsortedPaths[i].point4;
+        sortedPaths[idx + 5] = unsortedPaths[i].point5;
+        idx += 6;
+    }
+
+    std::ofstream curvesBinaryFile(binaryFilePath, std::ios::binary);
+    curvesBinaryFile.write(
+          (char *)sortedPaths.data(),
+          sizeof(Farlor::Vector3) * count * 5);
+
+    for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
+
+        std::vector<Farlor::Vector3> &currentImage = gridOfImages.at(phi1Idx);
 
         std::filesystem::path imagePath = experimentParams.experimentDirPath;
         const std::string imageFilename = std::string(experimentParams.experimentDirPath) + "/"
@@ -307,10 +425,13 @@ int main(int argc, char *argv[])
             uint32_t vectorPixelIdx = pixelIdx / 3;
 
             actualPixels[pixelIdx] = static_cast<uint8_t>(currentImage[vectorPixelIdx].x * 255.0f);
-            actualPixels[pixelIdx + 1]
-                  = static_cast<uint8_t>(currentImage[vectorPixelIdx].y * 255.0f);
-            actualPixels[pixelIdx + 2]
-                  = static_cast<uint8_t>(currentImage[vectorPixelIdx].z * 255.0f);
+
+            if (actualPixels[pixelIdx] != 0) {
+                actualPixels[pixelIdx + 1] = static_cast<uint8_t>(
+                      (currentImage[vectorPixelIdx].y - minVal) / (maxValue - minVal) * 255.0f);
+                actualPixels[pixelIdx + 2]
+                      = static_cast<uint8_t>(currentImage[vectorPixelIdx].z * 255.0f);
+            }
         }
 
         int errorCode = stbi_write_bmp(
@@ -319,4 +440,6 @@ int main(int argc, char *argv[])
             std::cout << "Error out for some reason" << std::endl;
         }
     }
+
+    std::cout << "Done" << std::endl;
 }
