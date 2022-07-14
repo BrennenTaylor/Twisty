@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::fstream bcFS(bcPath, std::ios::binary);
+    std::ifstream bcFS(bcPath, std::ios::binary);
     if (!bcFS.is_open()) {
         std::cout << "Failed to open: " << bcPath << std::endl;
         return 1;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::fstream indexFS(indexPath);
+    std::ifstream indexFS(indexPath);
     if (!indexFS.is_open()) {
         std::cout << "Failed to open: " << indexPath << std::endl;
         return 1;

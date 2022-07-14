@@ -202,7 +202,8 @@ int main(int argc, char *argv[])
         // Force to a value
 
 
-        experimentGeometry.arclength = experimentParams.arclength = 11.0f;
+        experimentGeometry.arclength = experimentParams.arclength
+              = experimentConfig["experiment"]["basicExperiment"]["arclength"];
         //   = twisty::Bootstrapper::CalculateMinimumArclength(
         //         experimentParams.numSegmentsPerCurve, experimentGeometry.m_startPos,
         //         experimentGeometry.m_endPos);

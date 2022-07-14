@@ -91,3 +91,22 @@ target_link_libraries(FiveSegmentExploreDoF
 target_include_directories(FiveSegmentExploreDoF
     PUBLIC ../stb
 )
+
+add_executable(FiveSegmentHeatmap
+    FiveSegmentHeatmap.cpp
+)
+
+target_compile_features(FiveSegmentHeatmap
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+target_link_libraries(FiveSegmentHeatmap
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+target_include_directories(FiveSegmentHeatmap
+    PUBLIC ../stb
+)

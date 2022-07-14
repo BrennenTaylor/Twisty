@@ -446,7 +446,7 @@ int main(int argc, char *argv[])
         std::stringstream indexJsonSS;
         indexJsonSS << "index.json";
 
-        nlohmann::json experimentJson;
+        nlohmann::json experimentJson = "{}";
 
         std::filesystem::path indexJsonPath = generatedCurvesDirPath;
         indexJsonPath.append(indexJsonSS.str());
