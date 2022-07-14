@@ -11,6 +11,7 @@
 #include "PathBatchViewerWidget.h"
 
 #include <filesystem>
+#include <memory>
 #include <vector>
 
 class QTimer;
@@ -25,9 +26,9 @@ class CurveViewer
 
     void initializeGL() override;
     void paintGL() override;
-    //void resizeGL(int w, int h) override;
 
-    void SetInitialCurve(twisty::Curve &curve);
+    void SetExperimentConditions(const twisty::PerturbUtils::BoundaryConditions &bc, const uint32_t numSegments);
+    void SetInitialCurve(std::unique_ptr<twisty::Curve> &&upInitialCurve);
 
     void mousePressEvent(QMouseEvent *pEvent) override;
     void mouseReleaseEvent(QMouseEvent *pEvent) override;
@@ -37,7 +38,9 @@ class CurveViewer
     void keyPressEvent(QKeyEvent *pEvent) override;
     void keyReleaseEvent(QKeyEvent *pEvent) override;
 
-    twisty::Curve &GetInitialCurve() { return m_initialCurve; }
+    inline uint32_t GetNumSegments() const { return m_numSegments; }
+    inline twisty::PerturbUtils::BoundaryConditions GetBoundaryConditions() const { return m_boundaryConditions; }
+    inline twisty::Curve const *const GetInitialCurve() const { return m_upInitialCurve.get(); }
 
     void ForceUpdate() { update(); }
 
@@ -93,11 +96,13 @@ class CurveViewer
     QTimer *m_pAnimationTimer = nullptr;
 
     bool m_parentDrivesUpdate = false;
-    twisty::Curve m_initialCurve;
+    std::unique_ptr<twisty::Curve> m_upInitialCurve = nullptr;
+    twisty::PerturbUtils::BoundaryConditions m_boundaryConditions;
+    uint32_t m_numSegments = 1;
 
     QBasicTimer m_timer;
 
-    bool m_drawGrid;
+    bool m_drawGrid = true;
 
     Farlor::Vector3 m_lookAt;
     float m_rotateX;

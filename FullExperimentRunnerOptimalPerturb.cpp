@@ -723,9 +723,29 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     const float y = segment1Dir.Dot(Farlor::Vector3(0.0f, 1.0f, 0.0f));
                     const float theta1 = std::atan2f(y, x);
 
+
+                    // Extract the theta2 value
+                    const Farlor::Vector3 theta2_Z = (point4 - point2).Normalized();
+                    Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
+                    if (abs(theta2_Z.Dot(otherCrossVec)) >= 0.99) {
+                        otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
+                    }
+
+                    const Farlor::Vector3 theta2_X = theta2_Z.Cross(otherCrossVec).Normalized();
+                    const Farlor::Vector3 theta2_Y = theta2_Z.Cross(theta2_X);
+
+                    const Farlor::Vector3 vectorInQuestion = (point3 - point2).Normalized();
+
+                    const float theta2_x = vectorInQuestion.Dot(theta2_X);
+                    const float theta2_y = vectorInQuestion.Dot(theta2_Y);
+
+                    const float theta2 = std::atan2f(theta2_y, theta2_x);
+
+
                     // Save off the values
                     fiveSegmentPathCache[numCurvesInBatch].x = phi1;
                     fiveSegmentPathCache[numCurvesInBatch].y = theta1;
+                    fiveSegmentPathCache[numCurvesInBatch].z = theta2;
                 }
 
                 numCurvesInBatch++;

@@ -67,7 +67,6 @@ ExperimentRunner::~ExperimentRunner() { }
 std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperiment()
 {
     auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
-
     /* --------------------- */
 
     std::cout << "Random Seeds: " << std::endl;
@@ -177,6 +176,33 @@ bool ExperimentRunner::BeginPathBatchOutput()
     }
 
     m_pathBatchOutputPath = generatedCurvesDirPath.string();
+
+
+    // Export geometry
+    {
+        const auto &boundaryConditions = m_upInitialCurve->GetBoundaryConditions();
+
+        std::filesystem::path outputDirectoryPath
+              = std::filesystem::path(m_pathBatchOutputPath) / "BoundaryConditions.bcf";
+
+        std::ofstream boundaryConditionFile(outputDirectoryPath.string(), std::ios::binary);
+        if (!boundaryConditionFile.is_open()) {
+            std::cout << "Failed to open " << outputDirectoryPath.string() << std::endl;
+            return false;
+        }
+
+        boundaryConditionFile.write(
+              (char *)boundaryConditions.m_startPos.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write(
+              (char *)boundaryConditions.m_startDir.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write(
+              (char *)boundaryConditions.m_endPos.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write(
+              (char *)boundaryConditions.m_endDir.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write((char *)&boundaryConditions.arclength, sizeof(float));
+        boundaryConditionFile.write((char *)&m_upInitialCurve->m_numSegments, sizeof(uint32_t));
+    }
+
 
     m_pathBatchJsonIndex.clear();
 

@@ -230,7 +230,7 @@ int main(int argc, char *argv[])
     // Polar angle
     const float phi1Min = 0.0f;
     const float phi1Max = twisty::TwistyPi;
-    const uint32_t numPhi1Vals = 512;
+    const uint32_t numPhi1Vals = 100;
     const float dPhi1 = (phi1Max - phi1Min) / numPhi1Vals;
 
     // Azimuthal
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
     const float theta2Max = twisty::TwistyPi;
     const uint32_t numTheta2Vals = 1024;
     const float dTheta2 = (theta2Max - theta2Min) / numTheta2Vals;
-    
+
     struct Pixel {
         bool validPath = false;
         double weight = 0.0f;
@@ -396,10 +396,10 @@ int main(int argc, char *argv[])
             actualPixels[pixelIdx] = currentImage[vectorPixelIdx].weight ? 255 : 0;
 
             if (actualPixels[pixelIdx] != 0) {
-                actualPixels[pixelIdx + 1] = static_cast<uint8_t>(
-                      (currentImage[vectorPixelIdx].weight - minVal) / (maxValue - minVal) * 255.0f);
-                actualPixels[pixelIdx + 2]
-                      = 255;
+                actualPixels[pixelIdx + 1]
+                      = static_cast<uint8_t>((currentImage[vectorPixelIdx].weight - minVal)
+                            / (maxValue - minVal) * 255.0f);
+                actualPixels[pixelIdx + 2] = 255;
             }
         }
 
@@ -415,6 +415,46 @@ int main(int argc, char *argv[])
     generatedCurvesDirPath /= "GeneratedCurves";
     if (!std::filesystem::exists(generatedCurvesDirPath)) {
         std::filesystem::create_directories(generatedCurvesDirPath);
+    }
+
+    // First, we need to write the boundary conditions here
+    // Export geometry
+    {
+        std::filesystem::path outputDirectoryPath
+              = std::filesystem::path(generatedCurvesDirPath) / "BoundaryConditions.bcf";
+
+        std::ofstream boundaryConditionFile(outputDirectoryPath.string(), std::ios::binary);
+        if (!boundaryConditionFile.is_open()) {
+            std::cout << "Failed to open " << outputDirectoryPath.string() << std::endl;
+            return false;
+        }
+
+        boundaryConditionFile.write(
+              (char *)experimentGeometry.m_startPos.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write(
+              (char *)experimentGeometry.m_startDir.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write(
+              (char *)experimentGeometry.m_endPos.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write(
+              (char *)experimentGeometry.m_endDir.m_data.data(), sizeof(Farlor::Vector3));
+        boundaryConditionFile.write((char *)&experimentGeometry.arclength, sizeof(float));
+        boundaryConditionFile.write(
+              (char *)&experimentParams.numSegmentsPerCurve, sizeof(uint32_t));
+    }
+
+    {
+        std::stringstream indexJsonSS;
+        indexJsonSS << "index.json";
+
+        nlohmann::json experimentJson;
+
+        std::filesystem::path indexJsonPath = generatedCurvesDirPath;
+        indexJsonPath.append(indexJsonSS.str());
+
+
+        std::ofstream jsonOfstream(indexJsonPath.string());
+        jsonOfstream << std::setw(4) << experimentJson << std::endl;
+        jsonOfstream.close();
     }
 
     std::stringstream pathBinaryFilenameSS;
@@ -444,7 +484,8 @@ int main(int argc, char *argv[])
 
     std::cout << "Writing num paths: " << unsortedPaths.size() << std::endl;
     std::ofstream curvesBinaryFile(binaryFilePath, std::ios::binary);
-    curvesBinaryFile.write((char *)sortedPaths.data(), sizeof(Farlor::Vector3) * sortedPaths.size());
+    curvesBinaryFile.write(
+          (char *)sortedPaths.data(), sizeof(Farlor::Vector3) * sortedPaths.size());
 
     std::cout << "Done" << std::endl;
 }

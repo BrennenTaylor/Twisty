@@ -128,7 +128,9 @@ void PathBatchViewerWidget::SetButtonCallback()
 {
     const uint32_t startIdx = m_pStartPathIdxEdit->text().toInt();
     const uint32_t endIdx = m_pEndPathIdxEdit->text().toInt() + 1;
-    const uint32_t numPointsPerCurve = m_pCurveViewer->GetInitialCurve().m_numSegments + 1;
+
+    // TODO: FIX Unsafe!!!!!
+    const uint32_t numPointsPerCurve = m_pCurveViewer->GetNumSegments() + 1;
 
     // Here, we want to make present the data from the file
     MakeDataPresent(startIdx, endIdx, numPointsPerCurve);

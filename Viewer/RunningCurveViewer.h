@@ -16,12 +16,14 @@
 #include <random>
 #include <vector>
 
-class RunningCurveViewer : public QOpenGLWidget, public QOpenGLFunctions
-{
+class RunningCurveViewer
+    : public QOpenGLWidget
+    , public QOpenGLFunctions {
     Q_OBJECT
 
-public:
-    RunningCurveViewer(PathPerturbViewerWidget& pathPerturbViewerWidget, QWidget* pParent = nullptr);
+   public:
+    RunningCurveViewer(
+          PathPerturbViewerWidget &pathPerturbViewerWidget, QWidget *pParent = nullptr);
 
     void InitializeExperiment();
 
@@ -30,35 +32,33 @@ public:
 
     //void resizeGL(int w, int h) override;
 
-    void SetInitialCurve(twisty::Curve& curve);
-    void SetBezierInfo(twisty::Bootstrapper::BezierInfo& bezierInfo);
+    void SetInitialCurve(twisty::Curve &curve);
+    void SetBezierInfo(twisty::Bootstrapper::BezierInfo &bezierInfo);
 
     void SetCurveCacheSize(uint32_t newSize);
 
-    void SetGtPositions(std::vector<Farlor::Vector3>& gtPositions);
-    void SetGtFrames(std::vector<Farlor::Matrix3x3>& gtFrames);
+    void SetGtPositions(std::vector<Farlor::Vector3> &gtPositions);
+    void SetGtFrames(std::vector<Farlor::Matrix3x3> &gtFrames);
 
-    void mousePressEvent(QMouseEvent* pEvent) override;
-    void mouseReleaseEvent(QMouseEvent* pEvent) override;
-    void mouseMoveEvent(QMouseEvent* pEvent) override;
-    void wheelEvent(QWheelEvent* pEvent) override;
+    void mousePressEvent(QMouseEvent *pEvent) override;
+    void mouseReleaseEvent(QMouseEvent *pEvent) override;
+    void mouseMoveEvent(QMouseEvent *pEvent) override;
+    void wheelEvent(QWheelEvent *pEvent) override;
 
-    void keyPressEvent(QKeyEvent* pEvent) override;
-    void keyReleaseEvent(QKeyEvent* pEvent) override;
+    void keyPressEvent(QKeyEvent *pEvent) override;
+    void keyReleaseEvent(QKeyEvent *pEvent) override;
 
-    twisty::Curve& GetInitialCurve()
-    {
-        return *m_upInitialCurve;
-    }
+    twisty::Curve &GetInitialCurve() { return *m_upInitialCurve; }
 
-// Signals
-signals:
+    // Signals
+   signals:
     void CurveReset();
 
-private:
-    void RenderCurve(const twisty::Curve& curve);
-    void RenderPath(const twisty::Curve& curve, const Farlor::Vector3& color, bool renderSegmentFrames, float transparency = 1.0f);
-    void RenderBezierInfo(const twisty::Bootstrapper::BezierInfo& bezierInfo);
+   private:
+    void RenderCurve(const twisty::Curve &curve);
+    void RenderPath(const twisty::Curve &curve, const Farlor::Vector3 &color,
+          bool renderSegmentFrames, float transparency = 1.0f);
+    void RenderBezierInfo(const twisty::Bootstrapper::BezierInfo &bezierInfo);
     void RenderBezierPositions();
     void RenderBezierFrames();
     void RenderGrid();
@@ -71,11 +71,12 @@ private:
 
     void UpdateWorkaround() { update(); }
 
-    std::unique_ptr<twisty::Curve> SimpleGeometryCurvePerturb(const twisty::Curve& curve, uint32_t& flag);
-    std::unique_ptr<twisty::Curve> PurturbCurve(const twisty::Curve& curve, uint32_t& flag);
+    std::unique_ptr<twisty::Curve> SimpleGeometryCurvePerturb(
+          const twisty::Curve &curve, uint32_t &flag);
+    std::unique_ptr<twisty::Curve> PurturbCurve(const twisty::Curve &curve, uint32_t &flag);
 
-private:
-    PathPerturbViewerWidget& m_pathPerturbViewerWidget;
+   private:
+    PathPerturbViewerWidget &m_pathPerturbViewerWidget;
 
     std::unique_ptr<twisty::Curve> m_upInitialCurve;
     std::vector<twisty::Curve> m_curveCache;
@@ -92,11 +93,10 @@ private:
 
     bool m_drawGrid;
     bool m_scaledCurvature;
-    
+
     bool m_drawPoints;
 
     Farlor::Vector3 m_lookAt;
-
 
     float m_rotateX;
     float m_rotateY;
@@ -106,7 +106,6 @@ private:
     int m_cachedY;
 
     bool m_isInitialized;
-
 
     twisty::Curve m_curveToBend;
 

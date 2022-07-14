@@ -19,7 +19,7 @@
 CurveViewer::CurveViewer(QWidget *pParent, bool parentDrivesUpdate)
     : QOpenGLWidget(pParent)
     , m_parentDrivesUpdate(parentDrivesUpdate)
-    , m_initialCurve(1)
+    , m_upInitialCurve(nullptr)
     , m_timer()
     , m_drawGrid(true)
     , m_lookAt(0.0f, 0.0f, 0.0f)
@@ -111,9 +111,6 @@ void CurveViewer::paintGL()
         RenderGrid();
     }
 
-
-    RenderPath(m_initialCurve, Farlor::Vector3(0.0f, 1.0f, 1.0f), false);
-
     // Render look at position
     {
         const float radius = 0.07f;
@@ -129,9 +126,9 @@ void CurveViewer::paintGL()
         const float radius = 0.1f;
         glPushMatrix();
         glColor3f(0.0f, 1.0f, 0.0f);
-        glTranslatef(m_initialCurve.m_boundaryConditions.m_startPos.x,
-              m_initialCurve.m_boundaryConditions.m_startPos.y,
-              m_initialCurve.m_boundaryConditions.m_startPos.z);
+        glTranslatef(m_boundaryConditions.m_startPos.x,
+              m_boundaryConditions.m_startPos.y,
+              m_boundaryConditions.m_startPos.z);
         gluSphere(gluNewQuadric(), radius, 20, 20);
         glPopMatrix();
     }
@@ -141,11 +138,15 @@ void CurveViewer::paintGL()
         const float radius = 0.1f;
         glPushMatrix();
         glColor3f(0.0f, 0.0f, 1.0f);
-        glTranslatef(m_initialCurve.m_boundaryConditions.m_endPos.x,
-              m_initialCurve.m_boundaryConditions.m_endPos.y,
-              m_initialCurve.m_boundaryConditions.m_endPos.z);
+        glTranslatef(m_boundaryConditions.m_endPos.x,
+              m_boundaryConditions.m_endPos.y,
+              m_boundaryConditions.m_endPos.z);
         gluSphere(gluNewQuadric(), radius, 20, 20);
         glPopMatrix();
+    }
+
+    if (m_upInitialCurve) {
+        RenderPath(*m_upInitialCurve, Farlor::Vector3(0.0f, 1.0f, 1.0f), false);
     }
 
     Farlor::Vector3 LowColor(0.0f, 1.0f, 0.0f);
@@ -169,12 +170,16 @@ void CurveViewer::paintGL()
     }
 }
 
-void CurveViewer::SetInitialCurve(twisty::Curve &curve)
+void CurveViewer::SetExperimentConditions(const twisty::PerturbUtils::BoundaryConditions &bc, const uint32_t numSegments)
 {
-    m_initialCurve = curve;
-    m_lookAt = (m_initialCurve.m_boundaryConditions.m_endPos
-                     + m_initialCurve.m_boundaryConditions.m_startPos)
-          * 0.5;
+    m_boundaryConditions = bc;
+    m_numSegments = numSegments;
+    m_lookAt = (m_boundaryConditions.m_endPos + m_boundaryConditions.m_startPos) * 0.5;
+}
+
+void CurveViewer::SetInitialCurve(std::unique_ptr<twisty::Curve> &&upInitialCurve)
+{
+    m_upInitialCurve = std::move(upInitialCurve);
 }
 
 void CurveViewer::RenderPolyline(float *pData, uint32_t numPoints, const Farlor::Vector3 &color)
