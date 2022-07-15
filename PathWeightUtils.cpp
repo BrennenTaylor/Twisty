@@ -538,6 +538,29 @@ namespace PathWeighting {
             return result;
         }
 
+        NormalizerDoubleType K6(const double &z, const double ds)
+        {
+            std::cout << "K6" << std::endl;
+            NormalizerDoubleType result = 0.0;
+            const uint32_t numSteps = 10000;
+
+            const float xMin = -1.0;
+            const float xMax = 1.0;
+            const float dx = (xMax - xMin) / numSteps;
+
+            // Phi is vertical Component
+            // Theta is angle around the axis
+
+            for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
+                const float xVal = xMin + xIdx * dx;
+                const NormalizerDoubleType val = F6(xVal, z, ds);
+                result += val;
+            }
+            result *= (2.0 * TwistyPi) * dx;
+
+            return result;
+        }
+
         // Calculate the overall normalization
         NormalizerDoubleType Norm(int numberOfSegments, float ds,
               twisty::PerturbUtils::BoundaryConditions boundaryConditions)
@@ -559,6 +582,10 @@ namespace PathWeighting {
 
             if (numberOfSegments == 5) {
                 return K5(z, ds);
+            }
+
+            if (numberOfSegments == 6) {
+                return K6(z, ds);
             }
 
             std::cout << "Invalid number of segments, currently cannot calculate normalizer"
