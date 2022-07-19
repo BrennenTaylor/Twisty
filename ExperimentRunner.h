@@ -71,7 +71,7 @@ class ExperimentRunner {
 
     struct ExperimentResults {
         // Double, float, whatever, weight value
-        std::vector<boost::multiprecision::cpp_dec_float_100> experimentWeights;
+        boost::multiprecision::cpp_dec_float_100 experimentWeight;
         uint64_t totalPathsGenerated = 0;
         uint64_t numFailedPaths = 0;
         std::chrono::milliseconds::rep totalExperimentMs = 0;

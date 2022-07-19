@@ -113,14 +113,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.weightingParameters.absorbtion
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorbtion"];
 
-
-    auto &scatterValuesLookup
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatterValues"];
-
-    std::vector<float> scatterValues;
-    for (auto &elem : scatterValuesLookup)
-        scatterValues.push_back(elem);
-    experimentParams.weightingParameters.scatterValues = scatterValues;
+    experimentParams.weightingParameters.scatter
+          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];
 
     // TODO: Should these be configurable in the file?
     experimentParams.weightingParameters.minBound = 0.0;
@@ -373,8 +367,8 @@ int main(int argc, char *argv[])
                         }
                         const twisty::ExperimentRunner::ExperimentResults &results
                               = optionalResults.value();
-                        if (results.experimentWeights[0] > maxResult) {
-                            maxResult = results.experimentWeights[0];
+                        if (results.experimentWeight > maxResult) {
+                            maxResult = results.experimentWeight;
                         }
                     }
 

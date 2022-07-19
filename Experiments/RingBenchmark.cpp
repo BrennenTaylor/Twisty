@@ -119,15 +119,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
           experimentConfig["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
     experimentParams.weightingParameters.absorbtion
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorbtion"];
-
-
-    auto &scatterValuesLookup
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatterValues"];
-
-    std::vector<float> scatterValues;
-    for (auto &elem : scatterValuesLookup)
-        scatterValues.push_back(elem);
-    experimentParams.weightingParameters.scatterValues = scatterValues;
+    experimentParams.weightingParameters.scatter
+          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];
 
     // TODO: Should these be configurable in the file?
     experimentParams.weightingParameters.minBound = 0.0;
@@ -258,39 +251,26 @@ int main(int argc, char *argv[])
 
         std::cout << "Paths Generated: " << results.totalPathsGenerated << std::endl;
 
-        auto experimentWeights = results.experimentWeights;
-
-        for (int scatterIdx = 0; scatterIdx < results.experimentWeights.size(); scatterIdx++) {
-            std::cout << "\tTotal experiment weight " << scatterIdx << ": "
-                      << results.experimentWeights[scatterIdx] << std::endl;
-            std::cout << "\tAvg path weight " << scatterIdx << ": "
-                      << results.experimentWeights[scatterIdx] / results.totalPathsGenerated
-                      << std::endl;
-            std::cout << "Scatter value: "
-                      << experimentParams.weightingParameters.scatterValues[scatterIdx]
-                      << std::endl;
-            std::cout << "\tTotal experiment weight " << scatterIdx << ": "
-                      << results.experimentWeights[scatterIdx] << std::endl;
-            std::cout << "\tAvg path weight " << scatterIdx << ": "
-                      << results.experimentWeights[scatterIdx] / results.totalPathsGenerated
-                      << std::endl;
-            std::cout << "\tTotal experiment time (ms) "
-                      << twisty::format_duration(
-                               std::chrono::milliseconds(results.totalExperimentMs))
-                      << std::endl;
-            std::cout << "\tSetup time (ms) "
-                      << twisty::format_duration(
-                               std::chrono::milliseconds(results.setupExperimentMs))
-                      << std::endl;
-            std::cout << "\tPerturb time (ms) "
-                      << twisty::format_duration(
-                               std::chrono::milliseconds(results.perturbExperimentMs))
-                      << std::endl;
-            std::cout << "\tWeighting time (ms) "
-                      << twisty::format_duration(
-                               std::chrono::milliseconds(results.weightingExperimentMs))
-                      << std::endl;
-        }
+        std::cout << "\tTotal experiment weight: " << results.experimentWeight << std::endl;
+        std::cout << "\tAvg path weight: " << results.experimentWeight / results.totalPathsGenerated
+                  << std::endl;
+        std::cout << "Scatter value: " << experimentParams.weightingParameters.scatter << std::endl;
+        std::cout << "\tTotal experiment weight: " << results.experimentWeight << std::endl;
+        std::cout << "\tAvg path weight: " << results.experimentWeight / results.totalPathsGenerated
+                  << std::endl;
+        std::cout << "\tTotal experiment time (ms) "
+                  << twisty::format_duration(std::chrono::milliseconds(results.totalExperimentMs))
+                  << std::endl;
+        std::cout << "\tSetup time (ms) "
+                  << twisty::format_duration(std::chrono::milliseconds(results.setupExperimentMs))
+                  << std::endl;
+        std::cout << "\tPerturb time (ms) "
+                  << twisty::format_duration(std::chrono::milliseconds(results.perturbExperimentMs))
+                  << std::endl;
+        std::cout << "\tWeighting time (ms) "
+                  << twisty::format_duration(
+                           std::chrono::milliseconds(results.weightingExperimentMs))
+                  << std::endl;
         std::cout << std::endl;
 
         // Retrieve Data we want from experiment

@@ -102,17 +102,6 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
     auto setupTimeStart = std::chrono::high_resolution_clock::now();
     /* --------------------- */
 
-    assert(m_experimentParams.weightingParameters.scatterValues.size() > 0);
-
-    // TODO: For now, we simply will support one scattering value
-    if (m_experimentParams.weightingParameters.scatterValues.size() > 1) {
-        std::cout << "WARNING: Only one scatter value supported, defaulting to first specified "
-                     "scatter parameter"
-                  << std::endl;
-    }
-    m_experimentParams.weightingParameters.scatter
-          = m_experimentParams.weightingParameters.scatterValues[0];
-
     std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::SimplifiedModel) {
@@ -355,7 +344,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
           = std::chrono::duration_cast<std::chrono::milliseconds>(setupTimeEnd - setupTimeStart);
 
     ExperimentResults results;
-    results.experimentWeights.push_back(bigTotalExperimentWeight);
+    results.experimentWeight = bigTotalExperimentWeight;
     results.totalPathsGenerated = numWeightsGenerated;
     results.numFailedPaths = 0;
 

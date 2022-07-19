@@ -105,15 +105,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
           experimentConfig["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
     experimentParams.weightingParameters.absorbtion
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorbtion"];
-
-
-    auto &scatterValuesLookup
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatterValues"];
-
-    std::vector<float> scatterValues;
-    for (auto &elem : scatterValuesLookup)
-        scatterValues.push_back(elem);
-    experimentParams.weightingParameters.scatterValues = scatterValues;
+    experimentParams.weightingParameters.scatter
+          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];
 
     // TODO: Should these be configurable in the file?
     experimentParams.weightingParameters.minBound = 0.0f;
@@ -289,6 +282,9 @@ int main(int argc, char *argv[])
     };
     std::vector<SortStruct> unsortedPaths;
 
+    boost::multiprecision::cpp_dec_float_100 pathIntegralResult = 0.0;
+    uint64_t numValidPaths = 0;
+
     for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
         const float phi1 = phi1Min + phi1Idx * dPhi1;
 
@@ -394,19 +390,19 @@ int main(int argc, char *argv[])
                               = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
                                     curvatures.data(), RequiredNumSegments - 1,
                                     weightingIntegralsRawPointer);
-                        double normalizedPathWeightLog10
+                        double normalizedPathWeight
                               = std::pow(10.0, scatteringWeightLog10 + pathNormaizerLog10);
 
-                        if (normalizedPathWeightLog10 > maxValue) {
-                            maxValue = normalizedPathWeightLog10;
+                        if (normalizedPathWeight > maxValue) {
+                            maxValue = normalizedPathWeight;
                         }
 
-                        if (normalizedPathWeightLog10 < minVal) {
-                            minVal = normalizedPathWeightLog10;
+                        if (normalizedPathWeight < minVal) {
+                            minVal = normalizedPathWeight;
                         }
 
                         SortStruct newValue;
-                        newValue.value = normalizedPathWeightLog10;
+                        newValue.value = normalizedPathWeight;
                         newValue.point0 = point0;
                         newValue.point1 = point1;
                         newValue.point2 = point2;
@@ -418,11 +414,22 @@ int main(int argc, char *argv[])
 
                         values[phi1Idx][theta1Idx][phi2Idx][theta2Idx][theta3Idx].validPath = true;
                         values[phi1Idx][theta1Idx][phi2Idx][theta2Idx][theta3Idx].weight
-                              = normalizedPathWeightLog10;
+                              = normalizedPathWeight;
+                        pathIntegralResult += normalizedPathWeight;
+                        numValidPaths++;
                     }
                 }
             }
         }
+    }
+
+    std::cout << "Converged final weight: " << (pathIntegralResult / numValidPaths) << std::endl;
+    {
+        const std::string resultsFilepath
+              = std::string(experimentParams.experimentDirPath) + "/Results.dat";
+        std::ofstream resultsOFS(resultsFilepath);
+        resultsOFS << "Converged final weight: " << (pathIntegralResult / numValidPaths)
+                   << std::endl;
     }
 
     std::filesystem::path generatedCurvesDirPath = experimentParams.experimentDirPath;

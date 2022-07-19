@@ -24,7 +24,6 @@ namespace PathWeighting {
     // Switched to version found in "A leading order approximation of the path integral for radiative transfer"
     float GaussianPhase(float evalLocation, float mu)
     {
-        // 8.0 is 2.0^3
         const float Np
               = sqrtf(8.0f * TwistyPi * TwistyPi * TwistyPi * mu) / (1.0f - expf(-2.0f / mu));
         return Np * SimpleGaussianPhase(evalLocation, mu);
@@ -182,8 +181,9 @@ namespace PathWeighting {
         const float cds = (weightingParams.absorbtion + weightingParams.scatter) * ds;
         const float transmissionFalloff = std::exp(-cds) / (2.0 * TwistyPi * TwistyPi);
 
-        auto Integrand = [this, weightingParams](float p, float kds, float bds) -> float {
-            float phaseFunction = GaussianPhase(p, weightingParams.mu);
+        auto Integrand = [this, weightingParams](
+                               const double p, const double kds, const double bds) -> double {
+            double phaseFunction = GaussianPhase(p, weightingParams.mu);
 
             float scatteringTerm = p
                   * std::exp(bds * phaseFunction  // scatter piece
@@ -212,14 +212,14 @@ namespace PathWeighting {
         // However, as we already are using a big float library, do we even need to
         // deal with this?
 
-        const float stepSize = (weightingParams.maxBound - weightingParams.minBound)
+        const double stepSize = (weightingParams.maxBound - weightingParams.minBound)
               / (weightingParams.numStepsInt);
 
-        float firstVal = 0.0f;
-        float normalizerWithZeroCurvature = 0.0f;
+        double firstVal = 0.0f;
+        double normalizerWithZeroCurvature = 0.0f;
         {
             for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i) {
-                const float p = weightingParams.minBound + (i * stepSize);
+                const double p = weightingParams.minBound + (i * stepSize);
                 firstVal += Integrand(p, kds, bds) * stepSize;
                 normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
             }

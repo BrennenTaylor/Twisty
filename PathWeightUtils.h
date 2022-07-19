@@ -40,18 +40,11 @@ struct WeightingParameters {
     float eps = 0.01f;
 
     float scatter = 0.0f;
-    std::vector<float> scatterValues;
     float absorbtion = 0.0f;
 
     uint32_t numCurvatureSteps = 10000;
 
     WeightingMethod weightingMethod = WeightingMethod::RadiativeTransfer;
-
-    WeightingParameters()
-        : scatterValues()
-    {
-        scatterValues.push_back(0.0f);
-    }
 };
 
 namespace PathWeighting {
