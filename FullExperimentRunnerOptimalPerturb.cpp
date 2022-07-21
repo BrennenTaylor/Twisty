@@ -178,6 +178,9 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
           : PathWeighting::NormalizerStuff::Norm(
                 m_upInitialCurve->m_numSegments, m_upInitialCurve->m_ds, boundaryConditions);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
+    const double pathNormalizerLog10
+          = static_cast<double>(boost::multiprecision::log10(pathNormalizer));
+    std::cout << "PathNormalizer Log 10: " << pathNormalizerLog10 << std::endl;
 
     auto setupTimeEnd = std::chrono::high_resolution_clock::now();
 
@@ -253,7 +256,8 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                                       lookupEvaluator->AccessLookupTable().size(),
                                       lookupEvaluator->GetDs(), lookupEvaluator->GetMinCurvature(),
                                       lookupEvaluator->GetMaxCurvature(),
-                                      lookupEvaluator->GetCurvatureStepSize(), boundaryConditions);
+                                      lookupEvaluator->GetCurvatureStepSize(), boundaryConditions,
+                                      pathNormalizerLog10);
                                 threads[threadIdx] = std::move(newThread);
                             } else {
                                 std::thread newThread(
@@ -562,7 +566,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
       const float minCurvature,
       const float maxCurvature,
       const float curvatureStepSize,
-      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions)
+      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
+      const double pathNormalizerLog10)
 {
     const uint32_t NumPosPerCurve = (numSegmentsPerCurve + 1);
     const uint32_t NumTanPerCurve = numSegmentsPerCurve;
@@ -685,7 +690,6 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     CombinedWeightValues_C_Reset(combinedWeightValues[combinedWeightValueIdx]);
                 }
 
-                //printf("****************Adding Value: %d, %lf\n", combinedWeightValueIdx, scatteringWeightLog10);
                 CombinedWeightValues_C_AddValue(
                       combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10);
 
@@ -694,7 +698,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
                     pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
                 }
-                log10PathWeightCache[numCurvesInBatch] = scatteringWeightLog10;
+                log10PathWeightCache[numCurvesInBatch]
+                      = std::pow(10.0, (scatteringWeightLog10 + pathNormalizerLog10));
 
                 if (m_experimentParams.numSegmentsPerCurve == 5) {
                     // TODO: Extract out the three angles for 5 segment paths here
@@ -753,6 +758,13 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     m_log10PathWeightsBinaryFile.write(
                           (char *)log10PathWeightCache.data(), sizeof(double) * numCurvesInBatch);
 
+                    for (int i = 0; i < numCurvesInBatch; i++) {
+                        if ((static_cast<uint32_t>(i + threadIdx * (10000.0 / 12.0)) % 10000)
+                              == 0) {
+                            m_log10PathWeightsTextFile << log10PathWeightCache[i] << std::endl;
+                        }
+                    }
+
                     m_fiveSegmentBinaryFile.write((char *)fiveSegmentPathCache.data(),
                           sizeof(Farlor::Vector3) * numCurvesInBatch);
 
@@ -777,6 +789,12 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
 
             m_log10PathWeightsBinaryFile.write(
                   (char *)log10PathWeightCache.data(), sizeof(double) * numCurvesInBatch);
+
+            for (int i = 0; i < numCurvesInBatch; i++) {
+                if ((static_cast<uint32_t>(i + threadIdx * (10000.0 / 12.0)) % 10000) == 0) {
+                    m_log10PathWeightsTextFile << log10PathWeightCache[i] << std::endl;
+                }
+            }
 
             m_fiveSegmentBinaryFile.write(
                   (char *)fiveSegmentPathCache.data(), sizeof(Farlor::Vector3) * numCurvesInBatch);

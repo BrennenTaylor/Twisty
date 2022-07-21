@@ -11,6 +11,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
+#define TEXT_WRITE
+
 twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
       const nlohmann::json &experimentConfig)
 {
@@ -149,6 +151,20 @@ int main(int argc, char *argv[])
               std::filesystem::copy_options::overwrite_existing);
     }
 
+    std::ofstream weightsOFST(experimentParams.experimentDirPath + "/Weights.pwt");
+    if (!weightsOFST.is_open()) {
+        std::cout << "Failed to open weight file: " << experimentParams.experimentDirPath
+                  << "/Weights.pwt" << std::endl;
+        return 1;
+    }
+    std::ofstream weightsOFSB(
+          experimentParams.experimentDirPath + "/Weights.pwb", std::ios::binary);
+    if (!weightsOFSB.is_open()) {
+        std::cout << "Failed to open weight file: " << experimentParams.experimentDirPath
+                  << "/Weights.pwb" << std::endl;
+        return 1;
+    }
+
     twisty::PerturbUtils::BoundaryConditions experimentGeometry;
     {
         float x = experimentConfig["experiment"]["fiveSegmentDoF"]["startPos"][0];
@@ -217,19 +233,19 @@ int main(int argc, char *argv[])
     // Polar angle
     const float phi1Min = 0.0f;
     const float phi1Max = twisty::TwistyPi;
-    const uint32_t numPhi1Vals = 1024;
+    const uint32_t numPhi1Vals = 100;
     const float dPhi1 = (phi1Max - phi1Min) / numPhi1Vals;
 
     // Azimuthal
     const float theta1Min = -twisty::TwistyPi;
     const float theta1Max = twisty::TwistyPi;
-    const uint32_t numTheta1Vals = 500;
+    const uint32_t numTheta1Vals = 100;
     const float dTheta1 = (theta1Max - theta1Min) / numTheta1Vals;
 
     // Azimuthal
     const float theta2Min = -twisty::TwistyPi;
     const float theta2Max = twisty::TwistyPi;
-    const uint32_t numTheta2Vals = 500;
+    const uint32_t numTheta2Vals = 100;
     const float dTheta2 = (theta2Max - theta2Min) / numTheta2Vals;
 
     struct Pixel {
@@ -258,6 +274,8 @@ int main(int argc, char *argv[])
 
     boost::multiprecision::cpp_dec_float_100 pathIntegralResult = 0.0;
     uint64_t numValidPaths = 0;
+
+    std::vector<double> log10WeightValues;
 
     for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
         const float phi1 = phi1Min + phi1Idx * dPhi1;
@@ -343,6 +361,10 @@ int main(int argc, char *argv[])
                 double normalizedPathWeight
                       = std::pow(10.0, scatteringWeightLog10 + pathNormaizerLog10);
 
+                weightsOFST << normalizedPathWeight << std::endl;
+
+                log10WeightValues.push_back(normalizedPathWeight);
+
                 if (normalizedPathWeight > maxValue) {
                     maxValue = normalizedPathWeight;
                 }
@@ -367,6 +389,10 @@ int main(int argc, char *argv[])
                 numValidPaths++;
             }
         }
+
+        weightsOFSB.write(
+              (char *)log10WeightValues.data(), sizeof(double) * log10WeightValues.size());
+        log10WeightValues.clear();
     }
 
     std::cout << "Converged final weight: " << (pathIntegralResult / numValidPaths) << std::endl;

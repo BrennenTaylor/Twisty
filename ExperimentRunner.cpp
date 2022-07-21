@@ -117,6 +117,16 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
             m_log10PathWeightsBinaryFile.open(binaryFilePath, std::ios::binary);
         }
 
+        std::stringstream log10PathWeightsTextFilenameSS;
+        log10PathWeightsTextFilenameSS << m_experimentParams.pathBatchPrepend;
+        log10PathWeightsTextFilenameSS << "Log10PathWeights_Text"
+                                       << ".pwt";
+        {
+            std::filesystem::path textFilePath = m_pathBatchOutputPath;
+            textFilePath.append(log10PathWeightsTextFilenameSS.str());
+            m_log10PathWeightsTextFile.open(textFilePath);
+        }
+
         std::stringstream fiveSegmentBinaryFilenameSS;
         fiveSegmentBinaryFilenameSS << m_experimentParams.pathBatchPrepend;
         fiveSegmentBinaryFilenameSS << "FiveSegment_Binary"

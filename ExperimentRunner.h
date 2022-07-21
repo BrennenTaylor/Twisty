@@ -119,6 +119,7 @@ class ExperimentRunner {
     std::ofstream m_curvesMetadataFile;
     std::ofstream m_curvesBinaryFile;
     std::ofstream m_log10PathWeightsBinaryFile;
+    std::ofstream m_log10PathWeightsTextFile;
     std::ofstream m_fiveSegmentBinaryFile;
 
 

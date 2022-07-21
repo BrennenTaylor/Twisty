@@ -67,6 +67,7 @@ class FullExperimentRunnerOptimalPerturb : public ExperimentRunner {
           const float minCurvature,
           const float maxCurvature,
           const float curvatureStepSize,
-          const twisty::PerturbUtils::BoundaryConditions &boundaryConditions);
+          const twisty::PerturbUtils::BoundaryConditions &boundaryConditions,
+          const double pathNormalizerLog10);
 };
 }
