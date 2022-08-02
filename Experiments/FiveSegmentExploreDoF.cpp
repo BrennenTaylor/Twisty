@@ -11,8 +11,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
-#define TEXT_WRITE
-
 twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
       const nlohmann::json &experimentConfig)
 {

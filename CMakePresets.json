@@ -49,20 +49,6 @@
                 "BUILD_SHARED_LIBS": "OFF"
             },
             "toolchainFile": "$env{VCPKG_INSTALL_DIR}/scripts/buildsystems/vcpkg.cmake"
-        },
-        {
-            "name": "Ninja22_CPU",
-            "displayName": "Ninja w/ Visual Studio 2022 - amd64 CPU Only",
-            "description": "Ninja using compilers for Visual Studio 17 2022 (x64 architecture) CPU Only",
-            "generator": "Ninja Multi-Config",
-            "binaryDir": "${sourceDir}/build_ninja_cpu/",
-            "cacheVariables": {
-                "USE_CUDA": "OFF",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
-                "BUILD_SHARED_LIBS": "OFF"
-            },
-            "toolchainFile": "$env{VCPKG_INSTALL_DIR}/scripts/buildsystems/vcpkg.cmake"
         }
     ]
 }
