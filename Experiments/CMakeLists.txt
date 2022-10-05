@@ -6,6 +6,15 @@ target_link_libraries(FullExperiment
     PUBLIC Twisty
 )
 
+add_executable(StressTestCombinedWeights
+    StressTestCombinedWeights.cpp
+)
+
+target_link_libraries(StressTestCombinedWeights
+    PUBLIC Twisty
+)
+
+
 add_executable(NoisyCircleExperimentHalf
     NoisyCircleExperimentHalf.cpp
 )

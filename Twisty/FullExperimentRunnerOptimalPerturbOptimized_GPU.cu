@@ -13,6 +13,8 @@
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 #include "PathWeighters.h"
+#include "cuda_runtime.h"
+#include "cuda_runtime_api.h"
 
 #include <curand.h>
 
@@ -49,6 +51,34 @@ static void CudaSafeErrorCheck(cudaError_t error, std::string message)
         fprintf(stdout, "ERROR: %s : %s\n", message.c_str(), errorString.c_str());
     }
 }
+
+template<class T>
+class ManagedPinnedMemory {
+   public:
+    ManagedPinnedMemory(size_t numType) { Alloc(numType); }
+
+    void Alloc(size_t numType)
+    {
+        if (m_pData) {
+            Free(m_pData);
+        }
+        m_numElements = numType;
+        cudaMallocHost(&m_pData, numType * sizeof(T), 0);
+    }
+
+    ~ManagedPinnedMemory() { cudaFreeHost(m_pData); }
+
+    T *Data() const { return m_pData; }
+    size_t NumElements() { return m_numElements; }
+    size_t NumBytes() { return m_numElements * sizeof(T); }
+
+   private:
+    void Free(void *ptr) { cudaFreeHost(ptr); }
+
+   private:
+    T *m_pData = nullptr;
+    size_t m_numElements = 0;
+};
 
 __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
       FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_RadiativeTransfer(
@@ -538,31 +568,34 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
     twisty::PerturbUtils::BoundaryConditions_CudaSafe boundaryConditionsCudaSafe
           = m_upInitialCurve->GetBoundaryConditionsCudaSafe();
 
-    // Setup data structures
-    float *pInitialCurvePositions = nullptr;
-    float *pInitialCurveTangents = nullptr;
-    float *pInitialCurveCurvatures = nullptr;
-    cudaMallocHost(&pInitialCurvePositions, (numSegments + 1) * sizeof(float) * 3);
-    cudaMallocHost(&pInitialCurveTangents, numSegments * sizeof(float) * 3);
-    cudaMallocHost(&pInitialCurveCurvatures, (numSegments - 1) * sizeof(float));
 
-    memcpy(pInitialCurvePositions, (float *)m_upInitialCurve->m_positions.data(),
-          (numSegments + 1) * sizeof(float) * 3);
+    // These are page locked since we use: cudaMallocHost
+    // This is a speed boost as these MUST be present in ram and cant paged
+    // off to a drive
+
+    ManagedPinnedMemory<float> managedInitialCurvePositions((numSegments + 1) * 3);
+    ManagedPinnedMemory<float> managedInitialCurveTangents(numSegments * 3);
+    ManagedPinnedMemory<float> managedInitialCurveCurvatures((numSegments - 1));
+
+    memcpy(managedInitialCurvePositions.Data(), (float *)m_upInitialCurve->m_positions.data(),
+          managedInitialCurvePositions.NumBytes());
 
     // Update and curvature
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::RadiativeTransfer) {
-        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(pInitialCurvePositions,
-              pInitialCurveTangents, m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe);
+        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(managedInitialCurvePositions.Data(),
+              managedInitialCurveTangents.Data(), m_upInitialCurve->m_numSegments,
+              boundaryConditionsCudaSafe);
         twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
-              pInitialCurveTangents, pInitialCurveCurvatures, m_upInitialCurve->m_numSegments,
-              boundaryConditionsCudaSafe);
+              managedInitialCurveTangents.Data(), managedInitialCurveCurvatures.Data(),
+              m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe);
     } else {
-        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(pInitialCurvePositions,
-              pInitialCurveTangents, m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe);
-        twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel_CudaSafe(
-              pInitialCurveTangents, pInitialCurveCurvatures, m_upInitialCurve->m_numSegments,
+        twisty::PerturbUtils::UpdateTangentsFromPos_CudaSafe(managedInitialCurvePositions.Data(),
+              managedInitialCurveTangents.Data(), m_upInitialCurve->m_numSegments,
               boundaryConditionsCudaSafe);
+        twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel_CudaSafe(
+              managedInitialCurveTangents.Data(), managedInitialCurveCurvatures.Data(),
+              m_upInitialCurve->m_numSegments, boundaryConditionsCudaSafe);
     }
 
     // TODO: Should this be intermixed somehow for better performance?
@@ -573,8 +606,8 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
         uint64_t idx = 0;
         for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx) {
             CudaSafeErrorCheck(cudaMemcpy((void *)&(m_pPerGlobalThreadScratchSpacePositions[idx]),
-                                     (void *)pInitialCurvePositions,
-                                     (numSegments + 1) * sizeof(float) * 3,
+                                     (void *)managedInitialCurvePositions.Data(),
+                                     managedInitialCurvePositions.NumBytes(),
                                      cudaMemcpyHostToDevice),
                   "Copy inital positions to per thread scratch space");
             idx += (numSegments + 1) * 3;
@@ -585,8 +618,8 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
         uint64_t idx = 0;
         for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx) {
             CudaSafeErrorCheck(cudaMemcpy((void *)&(m_pPerGlobalThreadScratchSpaceTangents[idx]),
-                                     (void *)pInitialCurveTangents,
-                                     numSegments * sizeof(float) * 3,
+                                     (void *)managedInitialCurveTangents.Data(),
+                                     managedInitialCurveTangents.NumBytes(),
                                      cudaMemcpyHostToDevice),
                   "Copy inital tangents to per thread scratch space");
             idx += numSegments * 3;
@@ -597,14 +630,15 @@ bool FullExperimentRunnerOptimalPerturbOptimized_GPU::SetupCudaPerturb(
         uint64_t idx = 0;
         for (int64_t threadIdx = 0; threadIdx < numGlobalPerturbThreads; ++threadIdx) {
             CudaSafeErrorCheck(cudaMemcpy((void *)&(m_pPerGlobalThreadScratchSpaceCurvatures[idx]),
-                                     (void *)pInitialCurveCurvatures,
-                                     (numSegments - 1) * sizeof(float),
+                                     (void *)managedInitialCurveCurvatures.Data(),
+                                     managedInitialCurveTangents.NumBytes(),
                                      cudaMemcpyHostToDevice),
                   "Copy inital curvatures to per thread scratch space");
             idx += (numSegments - 1);
         }
     }
 
+    // TODO: Make these paged memory for faster potentially transfer!
     std::vector<CombinedWeightValues_C> finalCombinedWeights(numCombinedWeightValues);
     for (int i = 0; i < finalCombinedWeights.size(); i++) {
         CombinedWeightValues_C_Reset(finalCombinedWeights[i]);
@@ -622,6 +656,9 @@ void FullExperimentRunnerOptimalPerturbOptimized_GPU::CleanupCudaPerturb()
 {
     CudaSafeErrorCheck(cudaFree((void *)m_pFinalCombinedValues),
           "Cuda free combined weight values for final answer");
+
+    CudaSafeErrorCheck(
+          cudaFree((void *)m_pDeviceWeightLookupTable), "Cuda free device weight table");
 
     CudaSafeErrorCheck(cudaFree((void *)m_pPerGlobalThreadScratchSpaceCurvatures),
           "Cuda free Left Scratch Space Curvatures");

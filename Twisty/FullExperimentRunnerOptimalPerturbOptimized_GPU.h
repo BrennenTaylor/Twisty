@@ -27,6 +27,7 @@
 #include <optional>
 
 namespace twisty {
+
 /**
      * @brief Implements the ExperimentRunner interface for running the experiment on the CPU
      *
@@ -82,6 +83,7 @@ class FullExperimentRunnerOptimalPerturbOptimized_GPU : public ExperimentRunner 
 
     CombinedWeightValues_C *m_pPerThreadCombinedWeightValues = nullptr;
     CombinedWeightValues_C *m_pFinalCombinedValues = nullptr;
+
     float *m_pDeviceWeightLookupTable = nullptr;
 };
 
