@@ -7,15 +7,18 @@
 // We parameterize to allow exploration over different weight tables, as well as different numbers of segments
 // i.e. differet order of magnitude ranges of the final combined values
 
+#include "Curve.h"
 #include "FMath/Quaternion.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "boost/multiprecision/cpp_dec_float.hpp"
 #include <corecrt_math_defines.h>
+#include <random>
 #include <stdexcept>
 
 #include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
+#include "boost/multiprecision/detail/default_ops.hpp"
 
 #include <FMath/Vector3.h>
 
@@ -163,116 +166,168 @@ int main(int argc, char *argv[])
     uint32_t targetSeed = experimentConfig["experiment"]["stressTestCombinedWeights"]["seed"];
     twisty::ProcessRandomSeed(targetSeed);
 
-    uint32_t numCombinedWeightValues
-          = experimentConfig["experiment"]["stressTestCombinedWeights"]["numCombinedWeightValues"];
+    const uint32_t numPaths
+          = experimentConfig["experiment"]["stressTestCombinedWeights"]["numPaths"];
+
+    const float arclength
+          = experimentConfig["experiment"]["stressTestCombinedWeights"]["arclength"];
+    const float ds = arclength / experimentParams.numSegmentsPerCurve;
+
+    std::filesystem::path experimentDirPath
+          = std::filesystem::path(experimentParams.experimentDirPath);
+    if (!experimentParams.perExperimentDirSubfolder.empty()) {
+        experimentDirPath /= experimentParams.perExperimentDirSubfolder;
+    }
+    if (!std::filesystem::exists(experimentDirPath)) {
+        std::filesystem::create_directories(experimentDirPath);
+    }
+
+
+    std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
+    if (experimentParams.weightingParameters.weightingMethod
+          == twisty::WeightingMethod::SimplifiedModel) {
+        lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
+              experimentParams.weightingParameters, ds);
+    } else {
+        lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
+              experimentParams.weightingParameters, ds);
+    }
+    lookupEvaluator->ExportValues(experimentDirPath.string());
+    assert(lookupEvaluator);
+    twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
 
     std::mt19937 randomGenerator(targetSeed);
-    std::uniform_real_distribution<float> uniformFloatGen(0.0f, 1.0f);
+    std::uniform_int_distribution<int> weightIdxSampleDist(
+          0, weightingIntegralsRawPointer.AccessLookupTable().size() - 1);
 
-    const float n1 = (uniformFloatGen(randomGenerator) * 2.0f) - 1.0f;
-    const float e1 = uniformFloatGen(randomGenerator);
+    boost::multiprecision::cpp_dec_float_100 test1_min_absolute_error = 100.0;
+    boost::multiprecision::cpp_dec_float_100 test2_min_absolute_error = 100.0;
+    boost::multiprecision::cpp_dec_float_100 test3_min_absolute_error = 100.0;
 
-    Farlor::Vector3 endDir(n1,
-          std::cos(2 * M_PI * e1) * std::sqrt(1 - (n1 * n1)),
-          std::sin(2 * M_PI * e1) * std::sqrt(1 - (n1 * n1)));
-    Farlor::Vector3 endPos = startPos + sphereRadius * endDir;
+    boost::multiprecision::cpp_dec_float_100 test1_max_absolute_error = -100.0;
+    boost::multiprecision::cpp_dec_float_100 test2_max_absolute_error = -100.0;
+    boost::multiprecision::cpp_dec_float_100 test3_max_absolute_error = -100.0;
 
-    const float minArclength = twisty::Bootstrapper::CalculateMinimumArclength(
-                                     experimentParams.numSegmentsPerCurve, startPos, endPos)
-          * 1.01f;
-    std::cout << "Min arclength: " << minArclength << std::endl;
 
-    const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
+    boost::multiprecision::cpp_dec_float_100 test1_min_relative_error = 100.0;
+    boost::multiprecision::cpp_dec_float_100 test2_min_relative_error = 100.0;
+    boost::multiprecision::cpp_dec_float_100 test3_min_relative_error = 100.0;
 
-    boost::multiprecision::cpp_dec_float_100 outputValue = 0.0f;
+    boost::multiprecision::cpp_dec_float_100 test1_max_relative_error = -100.0;
+    boost::multiprecision::cpp_dec_float_100 test2_max_relative_error = -100.0;
+    boost::multiprecision::cpp_dec_float_100 test3_max_relative_error = -100.0;
 
-    for (uint32_t arclengthIdx = 0; arclengthIdx < numArclengths; ++arclengthIdx) {
-        double targetArclength = minArclength + arclengthStepSize * arclengthIdx;
+    // Ok, we want to generate a number of weighted paths
+    // Note, these do NOT need to be valid paths
+    std::vector<float> weights;
+    weights.resize(experimentParams.numSegmentsPerCurve - 1);
+    for (uint32_t pathIdx = 0; pathIdx < numPaths; pathIdx++) {
+        // Randomly sample table.
+        double pathWeightDoubles = 1.0;
+        double pathWeightLog10Doubles = 0.0;
+        boost::multiprecision::cpp_dec_float_100 pathWeightBigFloat = 1.0;
+        boost::multiprecision::cpp_dec_float_100 pathWeightLog10BigFloat = 0.0;
 
-        boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
+        for (uint32_t weightIdx = 0; weightIdx < weights.size(); weightIdx++) {
+            weights[weightIdx] = weightingIntegralsRawPointer
+                                       .AccessLookupTable()[weightIdxSampleDist(randomGenerator)];
+            pathWeightDoubles *= static_cast<double>(weights[weightIdx]);
+            pathWeightLog10Doubles += static_cast<double>(std::log10f(weights[weightIdx]));
 
-        std::mt19937 initialCurveGen(experimentParams.bootstrapSeed);
-        for (uint32_t initialCurveIdx = 0; initialCurveIdx < numInitialCurves; ++initialCurveIdx) {
-            uint32_t initialCurveSeed = 0;
-            do {
-                initialCurveSeed = initialCurveGen();
-            } while (initialCurveSeed == 0);
-
-            boost::multiprecision::cpp_dec_float_100 maxResult = 0.0;
-
-            std::mt19937 perCurveGen(experimentParams.curvePurturbSeed);
-            for (uint32_t perInitialCurveIdx = 0; perInitialCurveIdx < numPerInitialCurve;
-                  ++perInitialCurveIdx) {
-                uint32_t perCurveSeed = 0;
-                do {
-                    perCurveSeed = perCurveGen();
-                } while (perCurveSeed == 0);
-
-                twisty::PerturbUtils::BoundaryConditions experimentGeometry;
-                experimentGeometry.m_startPos = startPos;
-                experimentGeometry.m_startDir = startDir;
-                experimentGeometry.m_endPos = endPos;
-                experimentGeometry.m_endDir = endDir;
-                experimentGeometry.arclength = targetArclength;
-
-                experimentParams.arclength = experimentGeometry.arclength;
-
-                twisty::Bootstrapper bootstrapper(experimentGeometry);
-
-                std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
-#if defined(USE_CUDA)
-                if (experimentParams.useGpu) {
-                    upExperimentRunner = std::make_unique<
-                          twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU>(
-                          experimentParams, bootstrapper);
-                    std::cout << "Selected Runner Method: "
-                                 "FullExperimentRunnerOptimalPerturb_Gpu"
-                              << std::endl;
-                } else {
-                    upExperimentRunner
-                          = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                                experimentParams, bootstrapper);
-                    std::cout << "Selected Runner Method: "
-                                 "FullExperimentRunnerOptimalPerturb"
-                              << std::endl;
-                }
-#else
-                if (experimentParams.useGpu) {
-                    std::cout << "Error, gpu requested but not supported on this "
-                                 "platform; defaulting "
-                                 "to CPU"
-                              << std::endl;
-                }
-                upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                      experimentParams, bootstrapper);
-#endif
-
-                std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults
-                      = upExperimentRunner->RunExperiment();
-                if (!optionalResults.has_value()) {
-                    std::cout << "Experiment failed: no results returned." << std::endl;
-                    return 1;
-                }
-                const twisty::ExperimentRunner::ExperimentResults &results
-                      = optionalResults.value();
-                if (results.experimentWeight > maxResult) {
-                    maxResult = results.experimentWeight;
-                }
-            }
-
-            averagedResult += (maxResult * (1.0 / numInitialCurves));
+            pathWeightBigFloat *= boost::multiprecision::cpp_dec_float_100(weights[weightIdx]);
+            pathWeightLog10BigFloat += boost::multiprecision::log10(
+                  boost::multiprecision::cpp_dec_float_100(weights[weightIdx]));
         }
-        outputValue += averagedResult * (1.0 / (numArclengths));
+
+        // Convert all to big float, decompress, and calculate error
+        const boost::multiprecision::cpp_dec_float_100 groundTruth = pathWeightBigFloat;
+        const boost::multiprecision::cpp_dec_float_100 test1_pathWeightDoubles
+              = boost::multiprecision::cpp_dec_float_100(pathWeightDoubles);
+        const boost::multiprecision::cpp_dec_float_100 test2_pathWeightLog10Doubles
+              = boost::multiprecision::pow(
+                    10.0, boost::multiprecision::cpp_dec_float_100(pathWeightLog10Doubles));
+        const boost::multiprecision::cpp_dec_float_100 test3_pathWeightLog10BigFloat
+              = boost::multiprecision::pow(10.0, pathWeightLog10BigFloat);
+
+        const boost::multiprecision::cpp_dec_float_100 test1_absolute_error
+              = groundTruth - test1_pathWeightDoubles;
+        const boost::multiprecision::cpp_dec_float_100 test1_relative_error
+              = test1_absolute_error / groundTruth;
+
+        const boost::multiprecision::cpp_dec_float_100 test2_absolute_error
+              = groundTruth - test2_pathWeightLog10Doubles;
+        const boost::multiprecision::cpp_dec_float_100 test2_relative_error
+              = test2_absolute_error / groundTruth;
+
+        const boost::multiprecision::cpp_dec_float_100 test3_absolute_error
+              = groundTruth - test3_pathWeightLog10BigFloat;
+        const boost::multiprecision::cpp_dec_float_100 test3_relative_error
+              = test3_absolute_error / groundTruth;
+
+        if (test1_absolute_error < test1_min_absolute_error)
+            test1_min_absolute_error = test1_absolute_error;
+
+        if (test2_absolute_error < test2_min_absolute_error)
+            test2_min_absolute_error = test2_absolute_error;
+
+        if (test3_absolute_error < test3_min_absolute_error)
+            test3_min_absolute_error = test3_absolute_error;
+
+        if (test1_absolute_error > test1_max_absolute_error)
+            test1_max_absolute_error = test1_absolute_error;
+
+        if (test2_absolute_error > test2_max_absolute_error)
+            test2_max_absolute_error = test2_absolute_error;
+
+        if (test3_absolute_error > test3_max_absolute_error)
+            test3_max_absolute_error = test3_absolute_error;
+
+
+        if (test1_relative_error < test1_min_relative_error)
+            test1_min_relative_error = test1_relative_error;
+
+        if (test2_relative_error < test2_min_relative_error)
+            test2_min_relative_error = test2_relative_error;
+
+        if (test3_relative_error < test3_min_relative_error)
+            test3_min_relative_error = test3_relative_error;
+
+        if (test1_relative_error > test1_max_relative_error)
+            test1_max_relative_error = test1_relative_error;
+
+        if (test2_relative_error > test2_max_relative_error)
+            test2_max_relative_error = test2_relative_error;
+
+        if (test3_relative_error > test3_max_relative_error)
+            test3_max_relative_error = test3_relative_error;
+
+        //   std::cout << "Path: " << pathIdx << "\n";
+        //   std::cout << "\tGround Truth: " << groundTruth << "\n";
+        //   std::cout << "\tTest 1 Value: " << test1_pathWeightDoubles << "\n";
+        //   std::cout << "\tTest 1 Absolute Error: " << test1_absolute_error << "\n";
+        //   std::cout << "\tTest 1 Relative Error: " << test1_relative_error << "\n";
+        //   std::cout << "\tTest 2 Value: " << test2_pathWeightLog10Doubles << "\n";
+        //   std::cout << "\tTest 2 Absolute Error: " << test2_absolute_error << "\n";
+        //   std::cout << "\tTest 2 Relative Error: " << test2_relative_error << "\n";
+        //   std::cout << "\tTest 3 Value: " << test3_pathWeightLog10BigFloat << "\n";
+        //   std::cout << "\tTest 3 Absolute Error: " << test3_absolute_error << "\n";
+        //   std::cout << "\tTest 3 Relative Error: " << test3_relative_error << "\n";
     }
 
-    std::filesystem::path outputFilePath = outputDirectoryPath;
-    outputFilePath.append("beamSpreadValues.dat");
+    std::cout << "Test 1 Min Absolute Error: " << test1_min_absolute_error << "\n";
+    std::cout << "Test 1 Max Absolute Error: " << test1_max_absolute_error << "\n";
+    std::cout << "Test 1 Min Relative Error: " << test1_min_relative_error << "\n";
+    std::cout << "Test 1 Max Relative Error: " << test1_max_relative_error << "\n";
 
-    std::ofstream outputFile(outputFilePath.string());
-    if (!outputFile.is_open()) {
-        std::cout << "Failed to create output file: " << outputFilePath.string() << std::endl;
-        throw std::runtime_error("Failed to create output file: " + outputFilePath.string());
-    }
+    std::cout << "Test 2 Min Absolute Error: " << test2_min_absolute_error << "\n";
+    std::cout << "Test 2 Max Absolute Error: " << test2_max_absolute_error << "\n";
+    std::cout << "Test 2 Min Relative Error: " << test2_min_relative_error << "\n";
+    std::cout << "Test 2 Max Relative Error: " << test2_max_relative_error << "\n";
+
+    std::cout << "Test 3 Min Absolute Error: " << test3_min_absolute_error << "\n";
+    std::cout << "Test 3 Max Absolute Error: " << test3_max_absolute_error << "\n";
+    std::cout << "Test 3 Min Relative Error: " << test3_min_relative_error << "\n";
+    std::cout << "Test 3 Max Relative Error: " << test3_max_relative_error << "\n";
 
     std::cout << "Experiment done" << std::endl;
 
