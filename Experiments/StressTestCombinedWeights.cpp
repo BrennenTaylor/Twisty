@@ -200,6 +200,7 @@ int main(int argc, char *argv[])
     std::uniform_int_distribution<int> weightIdxSampleDist(
           0, weightingIntegralsRawPointer.AccessLookupTable().size() - 1);
 
+
     boost::multiprecision::cpp_dec_float_100 test1_min_absolute_error = 100.0;
     boost::multiprecision::cpp_dec_float_100 test2_min_absolute_error = 100.0;
     boost::multiprecision::cpp_dec_float_100 test3_min_absolute_error = 100.0;

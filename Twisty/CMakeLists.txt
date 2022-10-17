@@ -48,15 +48,14 @@ target_include_directories(Twisty
 )
 
 target_compile_options(Twisty
-    PUBLIC $<$<COMPILE_LANGUAGE:CXX>:$<$<CXX_COMPILER_ID:MSVC>:/openmp>>
     PUBLIC $<$<NOT:$<BOOL:${WIN32}>>:"-lstdc++fs">
 )
 
 # We dont want to generate this on windows atm. Linker is only non-windows platforms
 if(NOT WIN32)
-target_link_options(Twisty  
-    PUBLIC "-pthread -lstdc++fs">
-)
+    target_link_options(Twisty
+        PUBLIC "-pthread -lstdc++fs" >
+    )
 endif()
 
 if(USE_CUDA)
