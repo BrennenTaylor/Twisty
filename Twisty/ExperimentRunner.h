@@ -69,6 +69,9 @@ class ExperimentRunner {
         bool useGpu = false;
     };
 
+    static ExperimentParameters ParseExperimentParamsFromConfig(
+          const nlohmann::json &experimentConfig);
+
     struct ExperimentResults {
         // Double, float, whatever, weight value
         boost::multiprecision::cpp_dec_float_100 experimentWeight;

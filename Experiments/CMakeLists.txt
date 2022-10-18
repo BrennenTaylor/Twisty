@@ -14,7 +14,15 @@ target_link_libraries(StressTestCombinedWeights
     PUBLIC Twisty
 )
 
+add_executable(NoisyCircleAngleIntegration
+    NoisyCircleAngleIntegration.cpp
+)
 
+target_link_libraries(NoisyCircleAngleIntegration
+    PUBLIC Twisty
+)
+
+# Refactor below
 add_executable(NoisyCircleExperimentHalf
     NoisyCircleExperimentHalf.cpp
 )

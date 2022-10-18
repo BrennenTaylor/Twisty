@@ -23,9 +23,6 @@
 #include <memory>
 #include <filesystem>
 
-twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
-      const nlohmann::json &experimentConfig);
-
 std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
 
@@ -44,6 +41,54 @@ void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
       const int32_t framePixelCount);
 
+struct NoisyCircleAngleIntegrationParams {
+    int startX = 0;
+    int startY = 0;
+
+    float frameLength = 1.0;
+    uint32_t framePixelCount = 1;
+
+    // Ok, we want to kick off an experiment per pixel.
+    uint32_t numDirections = 1;
+    float arclengthStepSize = 1.0f;
+    float distanceFromPlane = 1.0f;
+
+    uint32_t numPhi1Vals = 1;
+    uint32_t numTheta1Vals = 1;
+    uint32_t numTheta2Vals = 1;
+};
+
+NoisyCircleAngleIntegrationParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
+{
+    NoisyCircleAngleIntegrationParams params;
+    params.startX = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"];
+    params.startY = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"];
+
+    params.frameLength
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"];
+    params.framePixelCount
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"];
+
+    // Ok, we want to kick off an experiment per pixel.
+    params.numDirections
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
+    params.arclengthStepSize
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["arclengthStepSize"];
+    params.distanceFromPlane
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
+
+    assert(params.startX < params.framePixelCount);
+    assert(params.startY < params.framePixelCount);
+
+    params.numPhi1Vals
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numPhi1Vals"];
+    params.numTheta1Vals
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta1Vals"];
+    params.numTheta2Vals
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta2Vals"];
+    return params;
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -61,89 +106,82 @@ int main(int argc, char *argv[])
     configFile >> experimentConfig;
 
     twisty::ExperimentRunner::ExperimentParameters experimentParams
-          = ParseExperimentParamsFromConfig(experimentConfig);
+          = twisty::ExperimentRunner::ParseExperimentParamsFromConfig(experimentConfig);
 
-    const int startX = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"];
-    const int startY = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"];
-
-    const float frameLength
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"];
-    const uint32_t framePixelCount
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"];
-
-    // Ok, we want to kick off an experiment per pixel.
-    const uint32_t numDirections
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
-    const float arclengthStepSize
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["arclengthStepSize"];
-    const float distanceFromPlane
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
-
-    assert(startX < framePixelCount);
-    assert(startY < framePixelCount);
-
-    const uint32_t numPhi1Vals
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numPhi1Vals"];
-    const uint32_t numTheta1Vals
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta1Vals"];
-    const uint32_t numTheta2Vals
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta2Vals"];
+    NoisyCircleAngleIntegrationParams experimentSpecificParams
+          = ParseExperimentSpecificParams(experimentConfig);
 
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
     std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(
-          framePixelCount * framePixelCount);
+          experimentSpecificParams.framePixelCount * experimentSpecificParams.framePixelCount);
 
     std::vector<boost::multiprecision::cpp_dec_float_100> combinedPixels(
-          framePixelCount * framePixelCount);
+          experimentSpecificParams.framePixelCount * experimentSpecificParams.framePixelCount);
 
-    const float pixelLength = frameLength / static_cast<float>(framePixelCount);
-    Farlor::Vector3 center(distanceFromPlane, 0.0f, 0.0f);
+    const float pixelLength = experimentSpecificParams.frameLength
+          / static_cast<float>(experimentSpecificParams.framePixelCount);
+    Farlor::Vector3 centerOfFrame(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
 
     // Bootstrap method
     const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
     const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
 
     // First, we calculate the minimum possible arclength
-    float minMinFrameArclength = distanceFromPlane * 2.0f;
+    float minMinFrameArclength = experimentSpecificParams.distanceFromPlane * 2.0f;
     float maxMinFrameArclength = 0.0f;
-    int32_t halfFrameWidth = framePixelCount / 2;
+    int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
     for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
         for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
-            const Farlor::Vector3 recieverPos = center
+            const Farlor::Vector3 recieverPos = centerOfFrame
                   + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
-
             float minArclength = 0.0f;
-            if (experimentParams.numSegmentsPerCurve == 5) {
-                const float l = distanceFromPlane;
-                const float x
-                      = std::sqrt(abs(pixelIdxZ) * pixelLength * abs(pixelIdxZ) * pixelLength
-                            + abs(pixelIdxY) * pixelLength * abs(pixelIdxY) * pixelLength);
-                float minimumDs = (x * x) / ((double)experimentParams.numSegmentsPerCurve * l)
-                      + (l / (double)experimentParams.numSegmentsPerCurve);
-                minArclength = minimumDs * (double)experimentParams.numSegmentsPerCurve * 1.001f;
-            } else {
-                minArclength = (recieverPos - emitterStart).Magnitude() + 1.1;
+            switch (experimentParams.numSegmentsPerCurve) {
+                case 5: {
+                    const float l = experimentSpecificParams.distanceFromPlane;
+                    const float x
+                          = std::sqrt(abs(pixelIdxZ) * pixelLength * abs(pixelIdxZ) * pixelLength
+                                + abs(pixelIdxY) * pixelLength * abs(pixelIdxY) * pixelLength);
+                    float minimumDs = (x * x) / ((double)experimentParams.numSegmentsPerCurve * l)
+                          + (l / (double)experimentParams.numSegmentsPerCurve);
+                    minArclength
+                          = minimumDs * (double)experimentParams.numSegmentsPerCurve * 1.001f;
+                } break;
+                default: {
+                    // Give an extra nubmer of segments
+                    const uint32_t numExtraSegments = 1;
+                    minArclength = (recieverPos - emitterStart).Magnitude()
+                          * (static_cast<float>(
+                                   experimentParams.numSegmentsPerCurve + numExtraSegments)
+                                / static_cast<float>(experimentParams.numSegmentsPerCurve));
+                } break;
             }
-            if (minArclength < minMinFrameArclength) {
-                minMinFrameArclength = minArclength;
-            }
-            if (minArclength > maxMinFrameArclength) {
-                maxMinFrameArclength = minArclength;
-            }
+            minMinFrameArclength = std::min(minMinFrameArclength, minArclength);
+            maxMinFrameArclength = std::max(maxMinFrameArclength, minArclength);
         }
     }
 
     std::cout << "Min Pixel Minimuim Arclength For Frame: " << minMinFrameArclength << std::endl;
     std::cout << "Max Pixel Minimuim Arclength For Frame: " << maxMinFrameArclength << std::endl;
 
+    // TODO: Should we target the number of arclengths per pixel?
+    // Currently, the minimum distance pixel gets twice the arclength exploration as the furthermost pixels
     const float minArclength = minMinFrameArclength;
     const float maxArclength = maxMinFrameArclength + (maxMinFrameArclength - minArclength);
+    std::cout << "Min arclength: " << minArclength << std::endl;
+    std::cout << "Max arclength: " << maxArclength << std::endl;
 
-    const uint32_t numArclengths = ceil((maxArclength - minArclength) / arclengthStepSize);
+
+    uint32_t numArclengths
+          = ceil((maxArclength - minArclength) / experimentSpecificParams.arclengthStepSize);
+    if (numArclengths == 0) {
+        numArclengths = 1;
+        experimentSpecificParams.arclengthStepSize = (maxArclength - minArclength);
+    }
     std::cout << "Num arclengths: " << numArclengths << std::endl;
 
     for (size_t arclengthIdx = 0; arclengthIdx < numArclengths; arclengthIdx++) {
-        const float currentArclength = minArclength + arclengthStepSize * arclengthIdx;
+        const float currentArclength
+              = minArclength + experimentSpecificParams.arclengthStepSize * arclengthIdx;
 
         const float ds = currentArclength / experimentParams.numSegmentsPerCurve;
 
@@ -163,9 +201,9 @@ int main(int argc, char *argv[])
         std::string currentArclengthString = std::to_string(currentArclength);
         std::replace(currentArclengthString.begin(), currentArclengthString.end(), '.', '_');
 
-        for (uint32_t r = 0; r < framePixelCount; r++) {
-            for (uint32_t c = 0; c < framePixelCount; c++) {
-                const uint32_t frameIdx = r * framePixelCount + c;
+        for (uint32_t r = 0; r < experimentSpecificParams.framePixelCount; r++) {
+            for (uint32_t c = 0; c < experimentSpecificParams.framePixelCount; c++) {
+                const uint32_t frameIdx = r * experimentSpecificParams.framePixelCount + c;
                 framePixels[frameIdx] = 0.0;
             }
         }
@@ -175,13 +213,13 @@ int main(int argc, char *argv[])
             for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
                 std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
 
-                const Farlor::Vector3 recieverPos = center
+                const Farlor::Vector3 recieverPos = centerOfFrame
                       + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
                 const Farlor::Vector3 recieverDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
 
                 float testMinArclength = 0.0f;
                 if (experimentParams.numSegmentsPerCurve == 5) {
-                    const float l = distanceFromPlane;
+                    const float l = experimentSpecificParams.distanceFromPlane;
                     const float x
                           = std::sqrt(abs(pixelIdxZ) * pixelLength * abs(pixelIdxZ) * pixelLength
                                 + abs(pixelIdxY) * pixelLength * abs(pixelIdxY) * pixelLength);
@@ -212,10 +250,13 @@ int main(int argc, char *argv[])
                       : twisty::PathWeighting::NormalizerStuff::Norm(
                             experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
 
-                const uint32_t frameIdx = (pixelIdxY + halfFrameWidth) * framePixelCount
+                const uint32_t frameIdx
+                      = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
                       + (pixelIdxZ + halfFrameWidth);
-                framePixels[frameIdx] = AngleIntegration(numPhi1Vals, numTheta1Vals, numTheta2Vals,
-                      experimentParams, experimentGeometry, pathNormalizer, weightLookupTable);
+                framePixels[frameIdx] = AngleIntegration(experimentSpecificParams.numPhi1Vals,
+                      experimentSpecificParams.numTheta1Vals,
+                      experimentSpecificParams.numTheta2Vals, experimentParams, experimentGeometry,
+                      pathNormalizer, weightLookupTable);
 
                 std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
             }
@@ -244,13 +285,17 @@ int main(int argc, char *argv[])
             }
 
             // X
-            rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+            rawDataOutfile << experimentSpecificParams.framePixelCount << " "
+                           << experimentSpecificParams.framePixelCount << std::endl;
 
             // Write out the pixel data
-            for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-                for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+            for (uint32_t pixelIdxZ = 0; pixelIdxZ < experimentSpecificParams.framePixelCount;
+                  ++pixelIdxZ) {
+                for (uint32_t pixelIdxY = 0; pixelIdxY < experimentSpecificParams.framePixelCount;
+                      ++pixelIdxY) {
                     // Output pixel
-                    const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+                    const uint32_t frameIdx
+                          = pixelIdxY * experimentSpecificParams.framePixelCount + pixelIdxZ;
                     rawDataOutfile << framePixels[frameIdx] << " ";
                     combinedPixels[frameIdx] += framePixels[frameIdx] * (1.0f / numArclengths);
                 }
@@ -279,13 +324,17 @@ int main(int argc, char *argv[])
             }
 
             // X
-            rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+            rawDataOutfile << experimentSpecificParams.framePixelCount << " "
+                           << experimentSpecificParams.framePixelCount << std::endl;
 
             // Write out the pixel data
-            for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-                for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+            for (uint32_t pixelIdxZ = 0; pixelIdxZ < experimentSpecificParams.framePixelCount;
+                  ++pixelIdxZ) {
+                for (uint32_t pixelIdxY = 0; pixelIdxY < experimentSpecificParams.framePixelCount;
+                      ++pixelIdxY) {
                     // Output pixel
-                    const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+                    const uint32_t frameIdx
+                          = pixelIdxY * experimentSpecificParams.framePixelCount + pixelIdxZ;
                     rawDataOutfile << normalizedFrames[frameIdx] << " ";
                 }
                 rawDataOutfile << std::endl;
@@ -301,119 +350,13 @@ int main(int argc, char *argv[])
         std::filesystem::create_directories(outputDirectoryPath);
     }
 
-    OutputRawData(outputDirectoryPath, combinedPixels, framePixelCount);
-    OutputNormalizedData(outputDirectoryPath, normalizedCombined, framePixelCount);
+    OutputRawData(outputDirectoryPath, combinedPixels, experimentSpecificParams.framePixelCount);
+    OutputNormalizedData(
+          outputDirectoryPath, normalizedCombined, experimentSpecificParams.framePixelCount);
 
     std::cout << "Experiment done" << std::endl;
 
     return 0;
-}
-
-twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
-      const nlohmann::json &experimentConfig)
-{
-    twisty::ExperimentRunner::ExperimentParameters experimentParams;
-
-    // Values loaded from the config file
-    experimentParams.numPathsInExperiment
-          = experimentConfig["experiment"]["experimentParams"]["pathsToGenerate"];
-
-
-    experimentParams.numPathsToSkip
-          = experimentConfig["experiment"]["experimentParams"]["pathsToSkip"];
-    experimentParams.experimentName = experimentConfig["experiment"]["experimentParams"]["name"];
-    experimentParams.experimentDirPath
-          = experimentConfig["experiment"]["experimentParams"]["experimentDir"];
-    experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-    experimentParams.experimentDirPath += "/" + twisty::GetCurrentTimeForFileName() + "/";
-
-    experimentParams.maxPerturbThreads
-          = experimentConfig["experiment"]["experimentParams"]["maxPerturbThreads"];
-    experimentParams.maxWeightThreads
-          = experimentConfig["experiment"]["experimentParams"]["maxWeightThreads"];
-
-    experimentParams.outputBigFloatWeights
-          = experimentConfig["experiment"]["experimentParams"]["outputBigFloatWeights"];
-    experimentParams.outputPathBatches
-          = experimentConfig["experiment"]["experimentParams"]["outputPathBatches"];
-    experimentParams.useGpu = experimentConfig["experiment"]["experimentParams"]["useGpu"];
-
-    experimentParams.numSegmentsPerCurve
-          = experimentConfig["experiment"]["experimentParams"]["numSegments"];
-
-    // Seeds
-    experimentParams.bootstrapSeed
-          = experimentConfig["experiment"]["experimentParams"]["random"]["bootstrapSeed"];
-    experimentParams.curvePurturbSeed
-          = experimentConfig["experiment"]["experimentParams"]["random"]["perturbSeed"];
-
-    // Weighting parameter stuff
-    int weightFunction
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["weightFunction"];
-    switch (weightFunction) {
-        // Radiative Transfer weight function
-        case 0: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::RadiativeTransfer;
-        } break;
-
-        // Simplified Model
-        case 1: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::SimplifiedModel;
-        } break;
-
-        // Default to the simplified model
-        default: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::RadiativeTransfer;
-        } break;
-    }
-
-    // Perturb method stuff
-    int perturbMethod = experimentConfig["experiment"]["experimentParams"]["perturbMethod"];
-    switch (perturbMethod) {
-        // Simplified Model
-        case 1: {
-            experimentParams.perturbMethod
-                  = twisty::ExperimentRunner::PerturbMethod::GeometricMinCurvature;
-        } break;
-
-        // Simplified Model
-        case 2: {
-            experimentParams.perturbMethod
-                  = twisty::ExperimentRunner::PerturbMethod::GeometricCombined;
-        } break;
-
-        // Default to the simplified model
-        case 0:
-        default: {
-            experimentParams.perturbMethod
-                  = twisty::ExperimentRunner::PerturbMethod::GeometricRandom;
-        } break;
-    }
-
-    // Weighting parameter stuff
-    experimentParams.weightingParameters.mu
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["mu"];
-    experimentParams.weightingParameters.eps
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["eps"];
-    experimentParams.weightingParameters.numStepsInt
-          = (int)experimentConfig["experiment"]["experimentParams"]["weighting"]["numStepsInt"];
-    experimentParams.weightingParameters.numCurvatureSteps = (int)
-          experimentConfig["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
-    experimentParams.weightingParameters.absorbtion
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorbtion"];
-
-    experimentParams.weightingParameters.scatter
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];
-
-    // TODO: Should these be configurable in the file?
-    experimentParams.weightingParameters.minBound = 0.0f;
-    experimentParams.weightingParameters.maxBound
-          = 10.0f / experimentParams.weightingParameters.eps;
-
-    return experimentParams;
 }
 
 boost::multiprecision::cpp_dec_float_100 AngleIntegration(const uint32_t numPhi1Vals,
