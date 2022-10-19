@@ -31,6 +31,7 @@ endif(USE_CUDA)
 
 add_subdirectory(dependencies)
 
+add_subdirectory(Neural)
 add_subdirectory(Twisty)
 
 if(WIN32)
