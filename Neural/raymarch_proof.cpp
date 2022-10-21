@@ -1,3 +1,4 @@
+#include "FMath/Vector3.h"
 #include <FMath/FMath.h>
 
 #include <chrono>
@@ -9,6 +10,8 @@
 
 const float DefaultAbsorbtion = 0.1f;
 const float DefaultScattering = 0.1f;
+const float DefaultDensity = 1.0f;
+const float CubeSize = 19.0f;
 
 struct VolumeData {
     bool inVolume = false;
@@ -36,45 +39,70 @@ VolumeData Cube(
     return { true, DefaultAbsorbtion, DefaultScattering };
 }
 
-float BeerLambert(float absorptionCoefficient, float distanceTraveled)
+// TODO: Modify to include scattering?
+float BeerLambert(float absorptionCoefficient, float scatteringCoefficient, float distanceTraveled)
 {
-    return std::exp(-absorptionCoefficient * distanceTraveled);
+    return std::exp(
+          -distanceTraveled * DefaultDensity * (absorptionCoefficient + scatteringCoefficient));
+}
+
+float PhaseFunction(const Farlor::Vector3 &wo, const Farlor::Vector3 &wi)
+{
+    return 1.0f / (4.0f * std::numbers::pi_v<float>);
 }
 
 Farlor::Vector3 RayMarchToLight(const Farlor::Vector3 &rayOrigin, const Farlor::Vector3 &lightPos)
 {
-    const float stepSize = 0.1f;
-}
+    const uint32_t resolution = 1024;
+    const Farlor::Vector3 traceDir = (lightPos - rayOrigin).Normalized();
+    const float stepSize = (lightPos - rayOrigin).Magnitude() / (resolution - 1);
+    const Farlor::Vector3 stepVec = traceDir * stepSize;
+    Farlor::Vector3 currentPos = rayOrigin;
 
-Farlor::Vector3 RayMarchSingleScatter(
-      const Farlor::Vector3 &rayOrigin, const Farlor::Vector3 &rayDir)
-{
-    const int maxStepsRM = 1000;
-    const float stepSize = 0.1f;
+    float distanceTraveledInMaterial = 0.0f;
 
-    float opaqueVisiblity = 1.0f;
-    float volumeDepth = 0.0f;
-
-    for (int i = 0; i < maxStepsRM; i++) {
-        volumeDepth += stepSize;
-        if (volumeDepth > opaqueDepth)
-            break;
-
-        Farlor::Vector3 position = rayOrigin + volumeDepth * rayDir;
-        bool isInVolume = QueryVolumetricDistanceField(position) < 0.0f;
-        if (isInVolume) {
-            float previousOpaqueVisiblity = opaqueVisiblity;
-            opaqueVisiblity *= BeerLambert(ABSORPTION_COEFFICIENT, marchSize);
-            float absorptionFromMarch = previousOpaqueVisiblity - opaqueVisiblity;
-            for (int lightIndex = 0; lightIndex < NUM_LIGHTS; lightIndex++) {
-                float lightDistance = length((GetLight(lightIndex).Position - position));
-                Farlor::Vector3 lightColor
-                      = GetLight(lightIndex).LightColor * GetLightAttenuation(lightDistance);
-                volumetricColor += absorptionFromMarch * volumeAlbedo * lightColor;
-            }
-            volumetricColor += absorptionFromMarch * volumeAlbedo * GetAmbientLight();
+    for (uint32_t i = 0; i < resolution; i++) {
+        currentPos += stepVec;
+        bool currentInMaterial
+              = Cube(currentPos, Farlor::Vector3(0.0f, 0.0f, 0.0f), CubeSize).inVolume;
+        if (currentInMaterial) {
+            distanceTraveledInMaterial += stepSize;
         }
     }
+    const float transmittence
+          = BeerLambert(DefaultAbsorbtion, DefaultScattering, distanceTraveledInMaterial);
+    return Farlor::Vector3 { transmittence, transmittence, transmittence };
+}
+
+Farlor::Vector3 RayMarchSingleScatter(const Farlor::Vector3 &rayOrigin,
+      const Farlor::Vector3 &rayDir,
+      const Farlor::Vector3 &lightPos)
+{
+    const float maxTraceDistance = 20.0f;
+    const uint32_t resolution = 1024;
+    const Farlor::Vector3 traceDir = rayDir.Normalized();
+    const float stepSize = maxTraceDistance / (resolution - 1);
+    const Farlor::Vector3 stepVec = traceDir * stepSize;
+    Farlor::Vector3 currentPos = rayOrigin;
+
+    float distanceTraveledInMaterial = 0.0f;
+    Farlor::Vector3 accumulatedColor(0.0f, 0.0f, 0.0f);
+
+    for (uint32_t i = 0; i < resolution; i++) {
+        currentPos += stepVec;
+        bool currentInMaterial
+              = Cube(currentPos, Farlor::Vector3(0.0f, 0.0f, 0.0f), CubeSize).inVolume;
+        if (currentInMaterial) {
+            distanceTraveledInMaterial += stepSize;
+            const float transmittence
+                  = BeerLambert(DefaultAbsorbtion, DefaultScattering, distanceTraveledInMaterial);
+            const float phaseWeight = PhaseFunction(traceDir, (lightPos - currentPos).Normalized());
+            const Farlor::Vector3 colorUpdate = DefaultDensity * DefaultScattering * phaseWeight
+                  * transmittence * RayMarchToLight(currentPos, lightPos);
+            accumulatedColor += colorUpdate;
+        }
+    }
+    return accumulatedColor;
 }
 
 int main()
@@ -113,14 +141,24 @@ int main()
         inputPoint = inputPoint.Normalized() * sphereRadius;
 
         Farlor::Vector3 lightPos;
-        lightPos.x = uniform01(generator);
-        lightPos.y = uniform01(generator);
-        lightPos.z = uniform01(generator);
+        // lightPos.x = uniform01(generator);
+        // lightPos.y = uniform01(generator);
+        // lightPos.z = uniform01(generator);
 
+        lightPos.x = 0.0f;
+        lightPos.y = 20.0f;
+        lightPos.z = 0.0f;
 
-        // Parallelize this?
         for (int sampleIdx = 0; sampleIdx < numDirectionsPerSample; sampleIdx++) {
-            perSampleColorRM[sampleIdx] = RayMarch(inputPoint, sampledDirections[sampleIdx]);
+            printf("\tData Pair %d, Sample %d\n", dataPairIdx, sampleIdx);
+            Farlor::Vector3 &sampleDir = sampledDirections[sampleIdx];
+            if (sampleDir.Dot((-1.0f * inputPoint).Normalized()) < 0.0f) {
+                sampleDir *= -1.0f;
+            }
+
+            perSampleColorRM[sampleIdx] = RayMarchSingleScatter(inputPoint, sampleDir, lightPos);
+            std::cout << "\tSample Color: " << perSampleColorRM[sampleIdx] << std::endl;
         }
     }
+    std::cout << "Done" << std::endl;
 }
