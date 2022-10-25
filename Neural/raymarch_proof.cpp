@@ -273,90 +273,92 @@ int main()
 
     const float rasterSphereRadius = 10.0f;
 
+    // Render data pairs
+
     const uint32_t numDataSetPairs = 10;
     const uint32_t numDirectionsPerSample = 10;
     std::vector<Farlor::Vector3> sampledDirections(numDirectionsPerSample);
     std::vector<Farlor::Vector3> perSampleColorRM(numDirectionsPerSample);
 
-    // for (int dataPairIdx = 0; dataPairIdx < numDataSetPairs; dataPairIdx++) {
-    //     for (auto &dir : sampledDirections) {
-    //         // incorrect way
-    //         float theta = 2.0f * std::numbers::pi_v<float> * uniform01(generator);
-    //         float phi = std::acos(1.0f - 2.0f * uniform01(generator));
-    //         dir.x = std::sin(phi) * std::cos(theta);
-    //         dir.y = std::sin(phi) * std::sin(theta);
-    //         dir.z = std::cos(phi);
-    //         dir = dir.Normalized();
-    //     }
+    for (int dataPairIdx = 0; dataPairIdx < numDataSetPairs; dataPairIdx++) {
+        for (auto &dir : sampledDirections) {
+            // incorrect way
+            float theta = std::acos(1.0f - 2.0f * uniform01(generator));
+            float phi = 2.0f * std::numbers::pi_v<float> * uniform01(generator);
+            dir.x = std::sin(theta) * std::cos(phi);
+            dir.y = std::sin(theta) * std::sin(phi);
+            dir.z = std::cos(theta);
+            dir = dir.Normalized();
+        }
 
-    //     // Now we have samples, go ahead and ray march and raymarch
+        // Now we have samples, go ahead and ray march and raymarch
 
-    //     // Generate the input vector
-    //     float theta = 2.0f * std::numbers::pi_v<float> * uniform01(generator);
-    //     float phi = std::acos(1.0f - 2.0f * uniform01(generator));
-    //     Farlor::Vector3 inputPoint;
-    //     inputPoint.x = std::sin(phi) * std::cos(theta);
-    //     inputPoint.y = std::sin(phi) * std::sin(theta);
-    //     inputPoint.z = std::cos(phi);
-    //     inputPoint = inputPoint.Normalized() * sphereRadius;
+        // Generate the input vector
+        float theta = std::acos(1.0f - 2.0f * uniform01(generator));
+        float phi = 2.0f * std::numbers::pi_v<float> * uniform01(generator);
+        Farlor::Vector3 inputPoint;
+        inputPoint.x = std::sin(theta) * std::cos(phi);
+        inputPoint.y = std::sin(theta) * std::sin(phi);
+        inputPoint.z = std::cos(theta);
+        inputPoint = inputPoint.Normalized() * VolumeSphereRadius;
 
-    //     Farlor::Vector3 lightPos;
-    //     // lightPos.x = uniform01(generator);
-    //     // lightPos.y = uniform01(generator);
-    //     // lightPos.z = uniform01(generator);
+        Farlor::Vector3 lightPos;
+        // lightPos.x = uniform01(generator);
+        // lightPos.y = uniform01(generator);
+        // lightPos.z = uniform01(generator);
 
-    //     lightPos.x = 0.0f;
-    //     lightPos.y = 20.0f;
-    //     lightPos.z = 0.0f;
+        lightPos.x = 0.0f;
+        lightPos.y = 20.0f;
+        lightPos.z = 0.0f;
 
-    //     for (int sampleIdx = 0; sampleIdx < numDirectionsPerSample; sampleIdx++) {
-    //         printf("\tData Pair %d, Sample %d\n", dataPairIdx, sampleIdx);
-    //         Farlor::Vector3 &sampleDir = sampledDirections[sampleIdx];
-    //         if (sampleDir.Dot((-1.0f * inputPoint).Normalized()) < 0.0f) {
-    //             sampleDir *= -1.0f;
-    //         }
-
-    //         perSampleColorRM[sampleIdx] = RayMarchSingleScatter(inputPoint, sampleDir, lightPos);
-    //         std::cout << "\tSample Color: " << perSampleColorRM[sampleIdx] << std::endl;
-    //     }
-    // }
-
-
-    Farlor::Vector3 lightPos;
-    lightPos.x = 0.0f;
-    lightPos.y = 40.0f;
-    lightPos.z = 40.0f;
-    Farlor::Vector3 lightIntensity(50.0f, 50.0f, 50.0f);
-
-    int numPixelsLit = 0;
-
-    std::ofstream testFile("Temp.txt");
-
-
-    Image img;
-    for (uint32_t yIdx = 0; yIdx < img.DimY(); yIdx++) {
-        std::cout << "Row: " << yIdx << "\n";
-        for (uint32_t xIdx = 0; xIdx < img.DimX(); xIdx++) {
-            for (uint32_t sampleIdx = 0; sampleIdx < img.Spp(); sampleIdx++) {
-                const float e0 = uniform01(generator);
-                const float e1 = uniform01(generator);
-
-                Ray sampleRay = img.GetRay(xIdx, yIdx, e0, e1);
-                // std::cout << "Sample ray: " << sampleRay.origin << ", " << sampleRay.dir << std::endl;
-                img.AccessPixel(xIdx, yIdx, sampleIdx)
-                      = RayMarchSingleScatter(sampleRay.origin, sampleRay.dir, lightPos)
-                      * lightIntensity;
-                if (img.AccessPixel(xIdx, yIdx, sampleIdx).Magnitude() > 0.0f)
-                    numPixelsLit++;
-                testFile << img.AccessPixel(xIdx, yIdx, sampleIdx) << std::endl;
+        for (int sampleIdx = 0; sampleIdx < numDirectionsPerSample; sampleIdx++) {
+            printf("\tData Pair %d, Sample %d\n", dataPairIdx, sampleIdx);
+            Farlor::Vector3 &sampleDir = sampledDirections[sampleIdx];
+            if (sampleDir.Dot((-1.0f * inputPoint).Normalized()) < 0.0f) {
+                sampleDir *= -1.0f;
             }
+
+            perSampleColorRM[sampleIdx] = RayMarchSingleScatter(inputPoint, sampleDir, lightPos);
+            std::cout << "\tSample Color: " << perSampleColorRM[sampleIdx] << std::endl;
         }
     }
-    img.Resolve();
-    img.WriteExr("RayMarchTest.exr");
-    std::cout << "Num lit: " << numPixelsLit << std::endl;
-    std::cout << "Percent lit: "
-              << 100.0f * static_cast<float>(numPixelsLit) / (img.DimX() * img.DimY()) << std::endl;
+
+    // Render image stuff
+    // Farlor::Vector3 lightPos;
+    // lightPos.x = 0.0f;
+    // lightPos.y = 40.0f;
+    // lightPos.z = 40.0f;
+    // Farlor::Vector3 lightIntensity(50.0f, 50.0f, 50.0f);
+
+    // int numPixelsLit = 0;
+
+    // std::ofstream testFile("Temp.txt");
+
+
+    // Image img;
+    // for (uint32_t yIdx = 0; yIdx < img.DimY(); yIdx++) {
+    //     std::cout << "Row: " << yIdx << "\n";
+    //     for (uint32_t xIdx = 0; xIdx < img.DimX(); xIdx++) {
+    //         for (uint32_t sampleIdx = 0; sampleIdx < img.Spp(); sampleIdx++) {
+    //             const float e0 = uniform01(generator);
+    //             const float e1 = uniform01(generator);
+
+    //             Ray sampleRay = img.GetRay(xIdx, yIdx, e0, e1);
+    //             // std::cout << "Sample ray: " << sampleRay.origin << ", " << sampleRay.dir << std::endl;
+    //             img.AccessPixel(xIdx, yIdx, sampleIdx)
+    //                   = RayMarchSingleScatter(sampleRay.origin, sampleRay.dir, lightPos)
+    //                   * lightIntensity;
+    //             if (img.AccessPixel(xIdx, yIdx, sampleIdx).Magnitude() > 0.0f)
+    //                 numPixelsLit++;
+    //             testFile << img.AccessPixel(xIdx, yIdx, sampleIdx) << std::endl;
+    //         }
+    //     }
+    // }
+    // img.Resolve();
+    // img.WriteExr("RayMarchTest.exr");
+    // std::cout << "Num lit: " << numPixelsLit << std::endl;
+    // std::cout << "Percent lit: "
+    //           << 100.0f * static_cast<float>(numPixelsLit) / (img.DimX() * img.DimY()) << std::endl;
 
     std::cout << "Done" << std::endl;
 }
