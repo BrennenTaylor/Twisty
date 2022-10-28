@@ -150,7 +150,7 @@ int main()
 
     // Lets reconstruct the signal
     std::vector<SPHSample> testSamples(20);
-    for (uint32_t sampleIdx = 0; sampleIdx < numSamplesSqrt * numSamplesSqrt; sampleIdx++) {
+    for (uint32_t sampleIdx = 0; sampleIdx < testSamples.size(); sampleIdx++) {
         const uint32_t a = sampleIdx / numSamplesSqrt;
         const uint32_t b = sampleIdx % numSamplesSqrt;
 
@@ -159,7 +159,7 @@ int main()
         const float e1 = (b + uniform01(generator)) * oneOverSqrtN;
 
 
-        auto &sample = samples[sampleIdx];
+        auto &sample = testSamples[sampleIdx];
         sample.sph.x = 2.0f * std::acos(std::sqrt(1.0f - e0));
         sample.sph.y = 2.0f * std::numbers::pi_v<float> * e1;
 
