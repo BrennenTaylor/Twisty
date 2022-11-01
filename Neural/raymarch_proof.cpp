@@ -301,7 +301,7 @@ int main()
     // Render data pairs
     const float rasterSphereRadius = 10.0f;
 
-    const uint32_t numDataSetPairs = 100000;
+    const uint32_t numDataSetPairs = 100;
     const uint32_t numDirectionsPerSample = 100;
     std::vector<Sample> sampledDirections(numDirectionsPerSample);
     std::vector<Farlor::Vector3> perSampleColorRM(numDirectionsPerSample);
