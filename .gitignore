@@ -34,3 +34,6 @@ python_sandbox/
 CudaProfiling/
 unitweights/python
 *.nvprof
+Neural/python/__pycache__/
+Dataset/
+Neural/python/runs/
