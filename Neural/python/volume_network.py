@@ -51,11 +51,11 @@ class VolumeScatterModel(torch.nn.Module):
         super(VolumeScatterModel, self).__init__()
 
         self.activation = torch.nn.ReLU()
-        self.linear1 = torch.nn.Linear(9, 512)
-        self.linear2 = torch.nn.Linear(512, 512)
-        self.linear3 = torch.nn.Linear(512, 512)
-        self.linear4 = torch.nn.Linear(512, 512)
-        self.linear5 = torch.nn.Linear(512, 3)
+        self.linear1 = torch.nn.Linear(9, 1024)
+        self.linear2 = torch.nn.Linear(1024, 1024)
+        self.linear3 = torch.nn.Linear(1024, 1024)
+        self.linear4 = torch.nn.Linear(1024, 1024)
+        self.linear5 = torch.nn.Linear(1024, 3)
 
     def forward(self, x):
         x = self.linear1(x)

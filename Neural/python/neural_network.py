@@ -15,18 +15,23 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.backends.cudnn.benchmark = True
 print(device)
 
+# Super basic model, not based on any paper
 model = VolumeScatterModel()
+
+# model = ComplexLuminariesModel()
+
 model.to(device)
 
+# Take average of the MSE over the batch
 loss_fn = torch.nn.MSELoss(reduction='mean')
 
 train_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/samples.csv', root_dir='dataset/single_scatter_raymarch/')
-train_dataloader = DataLoader(train_dataset, batch_size=1024, shuffle=True, pin_memory=True)
+train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True, pin_memory=True)
 
 validation_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/validation.csv', root_dir='dataset/single_scatter_raymarch/')
-validation_dataloader = DataLoader(validation_dataset, batch_size=1024, shuffle=True, pin_memory=True)
+validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=True, pin_memory=True)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 def train_one_epoch(epoch_index, tb_writer):
     running_loss = 0.
@@ -75,7 +80,7 @@ timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 writer = SummaryWriter('runs/volume_scatter_{}'.format(timestamp))
 epoch_number = 0
 
-EPOCHS = 5
+EPOCHS = 50
 
 best_vloss = 1_000_000.
 
@@ -113,8 +118,10 @@ for epoch in range(EPOCHS):
     # Track best performance, and save the model's state
     if avg_vloss < best_vloss:
         best_vloss = avg_vloss
-        model_path = 'model_{}_{}'.format(timestamp, epoch_number)
-        torch.save(model.state_dict(), model_path)
+
+        model_path = 'models/'
+        os.makedirs(model_path, exist_ok = True) 
+        torch.save(model.state_dict(), os.path.join(model_path, 'model_{}_{}'.format(timestamp, epoch_number)))
         torch.save(model.state_dict(), "latest")
     epoch_number += 1
 
