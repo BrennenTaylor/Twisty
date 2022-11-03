@@ -15,6 +15,7 @@
 #include <random>
 #include <vector>
 #include <fstream>
+#include <string>
 
 const float DefaultAbsorbtion = 0.1f;
 const float DefaultScattering = 0.1f;
@@ -315,7 +316,7 @@ struct Sample {
     Farlor::Vector3 sphere = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 };
 
-int main()
+int main(int argc, char **argv)
 {
     uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937 generator(seed);
@@ -334,8 +335,8 @@ int main()
     // Render data pairs
     const float rasterSphereRadius = 10.0f;
 
-    const uint32_t numDataSetPairs = 10;
-    const uint32_t numDirectionsPerSample = 10;
+    const uint32_t numDataSetPairs = std::stoi(argv[1]);
+    const uint32_t numDirectionsPerSample = std::stoi(argv[2]);
     std::vector<Sample> sampledDirections(numDirectionsPerSample);
     std::vector<Farlor::Vector3> perSampleColorRM(numDirectionsPerSample);
 
