@@ -10,29 +10,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 from volume_network import *
 
-dtype = torch.float
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-torch.backends.cudnn.benchmark = True
-print(device)
-
-# Super basic model, not based on any paper
-model = VolumeScatterModel()
-
-# model = ComplexLuminariesModel()
-
-model.to(device)
-
-# Take average of the MSE over the batch
-loss_fn = torch.nn.MSELoss(reduction='mean')
-
-train_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/samples.csv', root_dir='dataset/single_scatter_raymarch/')
-train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True, pin_memory=True)
-
-validation_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/validation.csv', root_dir='dataset/single_scatter_raymarch/')
-validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=True, pin_memory=True)
-
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-
 def train_one_epoch(epoch_index, tb_writer):
     running_loss = 0.
     last_loss = 0.
@@ -65,8 +42,8 @@ def train_one_epoch(epoch_index, tb_writer):
 
         # Gather data and report
         running_loss += loss.item()
-        if i % 10 == 0:
-            last_loss = running_loss / 10 # loss per batch
+        if i % 100 == 0:
+            last_loss = running_loss / 100 # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             tb_x = epoch_index * len(train_dataloader) + i + 1
             tb_writer.add_scalar('Loss/train', last_loss, tb_x)
@@ -74,54 +51,77 @@ def train_one_epoch(epoch_index, tb_writer):
 
     return last_loss
 
+if __name__ ==  '__main__':
+    dtype = torch.float
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.backends.cudnn.benchmark = True
+    print(device)
 
-# Initializing in a separate cell so we can easily add more epochs to the same run
-timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-writer = SummaryWriter('runs/volume_scatter_{}'.format(timestamp))
-epoch_number = 0
+    # Super basic model, not based on any paper
+    model = VolumeScatterModel()
 
-EPOCHS = 50
+    # model = ComplexLuminariesModel()
 
-best_vloss = 1_000_000.
+    model.to(device)
 
-for epoch in range(EPOCHS):
-    print('EPOCH {}:'.format(epoch_number + 1))
+    # Take average of the MSE over the batch
+    loss_fn = torch.nn.MSELoss(reduction='mean')
 
-    # Make sure gradient tracking is on, and do a pass over the data
-    model.train(True)
-    avg_loss = train_one_epoch(epoch_number, writer)
+    train_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/samples.csv', root_dir='dataset/single_scatter_raymarch/')
+    train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=8)
 
-    # We don't need gradients on to do reporting
-    model.train(False)
+    validation_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/validation.csv', root_dir='dataset/single_scatter_raymarch/')
+    validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=8)
 
-    running_vloss = 0.0
-    for i, vdata in enumerate(validation_dataloader):
-        vinputs, vGT = vdata
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
-        vinputs = vinputs.float().to(device)
-        vGT = vGT.float().to(device)
+    # Initializing in a separate cell so we can easily add more epochs to the same run
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    writer = SummaryWriter('runs/volume_scatter_{}'.format(timestamp))
+    epoch_number = 0
 
-        voutputs = model(vinputs)
-        vloss = loss_fn(voutputs, vGT)
-        running_vloss += vloss
+    EPOCHS = 5
 
-    avg_vloss = running_vloss / (i + 1)
-    print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
+    best_vloss = 1_000_000.
 
-    # Log the running loss averaged per batch
-    # for both training and validation
-    writer.add_scalars('Training vs. Validation Loss',
-                    { 'Training' : avg_loss, 'Validation' : avg_vloss },
-                    epoch_number + 1)
-    writer.flush()
+    for epoch in range(EPOCHS):
+        print('EPOCH {}:'.format(epoch_number + 1))
 
-    # Track best performance, and save the model's state
-    if avg_vloss < best_vloss:
-        best_vloss = avg_vloss
+        # Make sure gradient tracking is on, and do a pass over the data
+        model.train(True)
+        avg_loss = train_one_epoch(epoch_number, writer)
 
-        model_path = 'models/'
-        os.makedirs(model_path, exist_ok = True) 
-        torch.save(model.state_dict(), os.path.join(model_path, 'model_{}_{}'.format(timestamp, epoch_number)))
-        torch.save(model.state_dict(), "latest")
-    epoch_number += 1
+        # We don't need gradients on to do reporting
+        model.train(False)
+
+        running_vloss = 0.0
+        for i, vdata in enumerate(validation_dataloader):
+            vinputs, vGT = vdata
+
+            vinputs = vinputs.float().to(device)
+            vGT = vGT.float().to(device)
+
+            voutputs = model(vinputs)
+            vloss = loss_fn(voutputs, vGT)
+            running_vloss += vloss
+
+        avg_vloss = running_vloss / (i + 1)
+        print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
+
+        # Log the running loss averaged per batch
+        # for both training and validation
+        writer.add_scalars('Training vs. Validation Loss',
+                        { 'Training' : avg_loss, 'Validation' : avg_vloss },
+                        epoch_number + 1)
+        writer.flush()
+
+        # Track best performance, and save the model's state
+        if avg_vloss < best_vloss:
+            best_vloss = avg_vloss
+
+            model_path = 'models/'
+            os.makedirs(model_path, exist_ok = True) 
+            torch.save(model.state_dict(), os.path.join(model_path, 'model_{}_{}'.format(timestamp, epoch_number)))
+            torch.save(model.state_dict(), "latest")
+        epoch_number += 1
 
