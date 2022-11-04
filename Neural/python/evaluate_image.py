@@ -27,7 +27,7 @@ pixel_mask = np.zeros((read_data.shape[0], 1))
 pixel_mask = np.copy(read_data[:, 0])
 print(f"Pixel mask: {pixel_mask[0]}")
 
-scaled_data = np.zeros((read_data.shape[0], 6))
+scaled_data = np.zeros((read_data.shape[0], 9))
 scaled_data[:, 0] = read_data[:, 1] / 10
 scaled_data[:, 1] = read_data[:, 2] / 10.
 scaled_data[:, 2] = read_data[:, 3] / 10.
@@ -36,9 +36,10 @@ scaled_data[:, 3] = read_data[:, 4]
 scaled_data[:, 4] = read_data[:, 5]
 scaled_data[:, 5] = read_data[:, 6]
 
-# scaled_data[:, 6] = 0.
-# scaled_data[:, 7] = 40.
-# scaled_data[:, 8] = 10.
+# We MUST scale our data correctly
+scaled_data[:, 6] = 0. / 40.
+scaled_data[:, 7] = 40. / 40.
+scaled_data[:, 8] = 10. / 40.
 
 print(f"Scaled Data: {scaled_data[0]}")
 
