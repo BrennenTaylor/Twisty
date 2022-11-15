@@ -37,9 +37,9 @@ scaled_data[:, 4] = read_data[:, 5]
 scaled_data[:, 5] = read_data[:, 6]
 
 # We MUST scale our data correctly
-scaled_data[:, 6] = 0. / 40.
-scaled_data[:, 7] = 40. / 40.
-scaled_data[:, 8] = 10. / 40.
+scaled_data[:, 6] = read_data[:, 7] / 40.
+scaled_data[:, 7] = read_data[:, 8] / 40.
+scaled_data[:, 8] = read_data[:, 9] / 40.
 
 print(f"Scaled Data: {scaled_data[0]}")
 

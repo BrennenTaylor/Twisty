@@ -68,10 +68,10 @@ if __name__ ==  '__main__':
     loss_fn = torch.nn.MSELoss(reduction='mean')
 
     train_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/samples.csv', root_dir='dataset/single_scatter_raymarch/')
-    train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=8)
+    train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=6)
 
     validation_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/validation.csv', root_dir='dataset/single_scatter_raymarch/')
-    validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=8)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=6)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 

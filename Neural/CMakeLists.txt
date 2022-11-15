@@ -33,6 +33,17 @@ target_link_libraries(raymarch_proof
 
 set_property(TARGET raymarch_proof PROPERTY CXX_STANDARD 20)
 
+add_executable(generate_dataset_multiple_light_positions
+    generate_dataset_multiple_light_positions.cpp
+)
+
+target_link_libraries(generate_dataset_multiple_light_positions
+    PUBLIC FMath::FMath
+    PUBLIC tinyexr_include
+)
+
+set_property(TARGET generate_dataset_multiple_light_positions PROPERTY CXX_STANDARD 20)
+
 add_executable(test_sph
     test_sph.cpp
 )
