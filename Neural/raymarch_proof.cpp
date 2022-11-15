@@ -1,6 +1,3 @@
-#include <openvdb/openvdb.h>
-#include <openvdb/tools/ChangeBackground.h>
-
 #include "FMath/Vector3.h"
 #include "FMath/Vector4.h"
 #include <FMath/FMath.h>
@@ -324,11 +321,6 @@ int main(int argc, char **argv)
     std::mt19937 generator(seed);
     std::uniform_real_distribution uniform01(0.0f, 1.0f);
 
-
-    openvdb::initialize();
-
-    openvdb::io::File vdbFile("bunny.vdb");
-    vdbFile.open();
     std::filesystem::path currentDir = std::filesystem::current_path();
     currentDir /= "Dataset";
     if (!std::filesystem::exists(currentDir)) {
@@ -338,9 +330,6 @@ int main(int argc, char **argv)
     const std::string filename = (currentDir / "samples.csv").string();
 
     std::ofstream outfile(filename);
-
-
-    std::ofstream outfile("samples.csv");
 
     // Render data pairs
     const float rasterSphereRadius = 10.0f;
