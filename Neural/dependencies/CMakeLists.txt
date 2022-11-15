@@ -1,6 +1,11 @@
 include(FetchContent)
 include(ExternalProject)
 
+FetchContent_Declare(FMath
+    GIT_REPOSITORY "https://github.com/BrennenTaylor/FMath"
+)
+FetchContent_MakeAvailable(FMath)
+
 FetchContent_Declare(tinyexr
     GIT_REPOSITORY "https://github.com/syoyo/tinyexr"
     GIT_TAG "release"

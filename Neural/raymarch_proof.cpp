@@ -1,7 +1,9 @@
+#include <openvdb/openvdb.h>
+#include <openvdb/tools/ChangeBackground.h>
+
 #include "FMath/Vector3.h"
 #include <FMath/FMath.h>
 #include <cmath>
-
 
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
@@ -296,6 +298,13 @@ int main()
     std::mt19937 generator(seed);
     std::uniform_real_distribution uniform01(0.0f, 1.0f);
 
+    openvdb::initialize();
+
+    openvdb::io::File vdbFile("bunny.vdb");
+    vdbFile.open();
+
+
+
     std::ofstream outfile("samples.csv");
 
     // Render data pairs
@@ -311,7 +320,7 @@ int main()
             std::cout << "\r"
                       << static_cast<float>(dataPairIdx) / static_cast<float>(numDataSetPairs)
                         * 100.0f
-                      << "\% done" << std::flush;
+                      << "%% done" << std::flush;
         }
 
         for (auto &dir : sampledDirections) {

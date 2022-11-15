@@ -1,0 +1,30 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "MSVC22",
+            "displayName": "Visual Studio 2022 - amd64",
+            "description": "Using compilers for Visual Studio 17 2022 (x64 architecture)",
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/build/",
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
+                "BUILD_SHARED_LIBS": "OFF",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_INSTALL_DIR}/../multiple_vcpkg/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            }
+        },
+        {
+            "name": "Ninja22",
+            "displayName": "Ninja w/ Visual Studio 2022 - amd64",
+            "description": "Ninja using compilers for Visual Studio 17 2022 (x64 architecture)",
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/build_ninja/",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_FLAGS": "/EHsc /W3 /wd4201 /std:c++latest",
+                "BUILD_SHARED_LIBS": "OFF",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_INSTALL_DIR}/../multiple_vcpkg/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            }
+        }
+    ]
+}
