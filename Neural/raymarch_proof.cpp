@@ -2,8 +2,10 @@
 #include <openvdb/tools/ChangeBackground.h>
 
 #include "FMath/Vector3.h"
+#include "FMath/Vector4.h"
 #include <FMath/FMath.h>
 #include <cmath>
+#include <filesystem>
 
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
@@ -15,11 +17,11 @@
 #include <random>
 #include <vector>
 #include <fstream>
+#include <string>
 
 const float DefaultAbsorbtion = 0.1f;
 const float DefaultScattering = 0.1f;
 const float DefaultDensity = 1.0f;
-const float CubeSize = 19.0f;
 const float VolumeSphereRadius = 9.0f;
 
 struct VolumeData {
@@ -120,10 +122,6 @@ Farlor::Vector3 RayMarchSingleScatter(const Farlor::Vector3 &rayOrigin,
       const Farlor::Vector3 &rayDir, const Farlor::Vector3 &lightPos, std::mt19937 &generator,
       std::uniform_real_distribution<float> &uniform01)
 {
-    // uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
-    // std::mt19937 generator(seed);
-    // std::uniform_real_distribution uniform01(0.0f, 1.0f);
-
     const float maxTraceDistance = 100.0f;
     const uint32_t resolution = 1000;
     const Farlor::Vector3 traceDir = rayDir.Normalized();
@@ -163,6 +161,34 @@ struct Ray {
     Farlor::Vector3 origin = Farlor::Vector3(0.0f, 0.0f, 0.0f);
     Farlor::Vector3 dir = Farlor::Vector3(0.0f, 0.0f, 0.0f);
 };
+
+// Intersects ray r = p + td, |d| = 1, with sphere s and, if intersecting,
+// returns t value of intersection and intersection point q
+
+bool IntersectRaySphere(const Ray &ray, const Farlor::Vector3 &center, const float radius, float &t)
+{
+    Farlor::Vector3 m = ray.origin - center;
+    float b = m.Dot(ray.dir);
+    float c = m.Dot(m) - radius * radius;
+
+    // Exit if r’s origin outside s (c > 0) and r pointing away from s (b > 0)
+    if (c > 0.0f && b > 0.0f)
+        return 0;
+    float discr = b * b - c;
+
+    // A negative discriminant corresponds to ray missing sphere
+    if (discr < 0.0f)
+        return false;
+
+    // Ray now found to intersect sphere, compute smallest t value of intersection
+    t = -b - std::sqrt(discr);
+
+    // If t is negative, ray started inside sphere so clamp t to zero
+    if (t < 0.0f)
+        t = 0.0f;
+
+    return true;
+}
 
 class Image {
    public:
@@ -210,7 +236,7 @@ class Image {
     uint32_t DimY() const { return dimY; }
     uint32_t Spp() const { return spp; }
 
-    void WriteExr(std::string filename)
+    void WriteExr(const std::string &filename)
     {
         EXRHeader header;
         InitEXRHeader(&header);
@@ -279,7 +305,7 @@ class Image {
     float height = 30.0f;
     uint32_t dimX = 256;
     uint32_t dimY = 256;
-    uint32_t spp = 4;
+    uint32_t spp = 1;
 
     std::vector<Farlor::Vector3> pixels;
     Farlor::Vector3 bottomLeft;
@@ -292,17 +318,26 @@ struct Sample {
     Farlor::Vector3 sphere = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 };
 
-int main()
+int main(int argc, char **argv)
 {
     uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937 generator(seed);
     std::uniform_real_distribution uniform01(0.0f, 1.0f);
 
+
     openvdb::initialize();
 
     openvdb::io::File vdbFile("bunny.vdb");
     vdbFile.open();
+    std::filesystem::path currentDir = std::filesystem::current_path();
+    currentDir /= "Dataset";
+    if (!std::filesystem::exists(currentDir)) {
+        std::filesystem::create_directories(currentDir);
+    }
 
+    const std::string filename = (currentDir / "samples.csv").string();
+
+    std::ofstream outfile(filename);
 
 
     std::ofstream outfile("samples.csv");
@@ -310,14 +345,20 @@ int main()
     // Render data pairs
     const float rasterSphereRadius = 10.0f;
 
-    const uint32_t numDataSetPairs = 100;
-    const uint32_t numDirectionsPerSample = 100;
+    const uint32_t numDataSetPairs = std::stoi(argv[1]);
+    const uint32_t numDirectionsPerSample = std::stoi(argv[2]);
     std::vector<Sample> sampledDirections(numDirectionsPerSample);
     std::vector<Farlor::Vector3> perSampleColorRM(numDirectionsPerSample);
+
+    Farlor::Vector3 lightPos;
+    lightPos.x = 0.0f;
+    lightPos.y = 40.0f;
+    lightPos.z = 10.0f;
 
     for (int dataPairIdx = 0; dataPairIdx < numDataSetPairs; dataPairIdx++) {
         if ((dataPairIdx % 1) == 0) {
             std::cout << "\r"
+                      << "Dataset: "
                       << static_cast<float>(dataPairIdx) / static_cast<float>(numDataSetPairs)
                         * 100.0f
                       << "%% done" << std::flush;
@@ -347,14 +388,6 @@ int main()
         inputPoint.z = std::cos(theta);
         inputPoint = inputPoint.Normalized() * VolumeSphereRadius;
 
-        Farlor::Vector3 lightPos;
-        // lightPos.x = uniform01(generator);
-        // lightPos.y = uniform01(generator);
-        // lightPos.z = uniform01(generator);
-
-        lightPos.x = 0.0f;
-        lightPos.y = 20.0f;
-        lightPos.z = 0.0f;
 
         for (int sampleIdx = 0; sampleIdx < numDirectionsPerSample; sampleIdx++) {
             // printf("\tData Pair %d, Sample %d\n", dataPairIdx, sampleIdx);
@@ -377,44 +410,67 @@ int main()
         }
     }
 
-    // // Render image stuff
-    // Farlor::Vector3 lightPos;
-    // lightPos.x = 0.0f;
-    // lightPos.y = 40.0f;
-    // lightPos.z = 10.0f;
-    // Farlor::Vector3 lightIntensity(25.0f, 25.0f, 25.0f);
+    // Render image stuff
+    Farlor::Vector3 lightIntensity(25.0f, 25.0f, 25.0f);
 
-    // int numPixelsLit = 0;
+    int numPixelsLit = 0;
 
-    // std::ofstream testFile("Temp.txt");
+    const std::string imageSamplesFilename = (currentDir / "image_samples.csv").string();
 
+    std::ofstream imageSamplesOFS(imageSamplesFilename);
 
-    // Image img;
-    // for (uint32_t yIdx = 0; yIdx < img.DimY(); yIdx++) {
-    //     std::cout << "Row: " << yIdx << "\n";
-    //     for (uint32_t xIdx = 0; xIdx < img.DimX(); xIdx++) {
-    //         for (uint32_t sampleIdx = 0; sampleIdx < img.Spp(); sampleIdx++) {
-    //             const float e0 = uniform01(generator);
-    //             const float e1 = uniform01(generator);
+    Image img;
+    for (uint32_t yIdx = 0; yIdx < img.DimY(); yIdx++) {
+        for (uint32_t xIdx = 0; xIdx < img.DimX(); xIdx++) {
+            const int pixelIdx = (xIdx + img.DimX() * yIdx);
+            if ((pixelIdx % 100) == 0) {
+                std::cout << "\r"
+                          << "Image sample and gt generation: "
+                          << static_cast<float>(pixelIdx)
+                            / static_cast<float>(img.DimX() * img.DimY()) * 100.0f
+                          << "\% done" << std::flush;
+            }
 
-    //             Ray sampleRay = img.GetRay(xIdx, yIdx, e0, e1);
-    //             // std::cout << "Sample ray: " << sampleRay.origin << ", " << sampleRay.dir << std::endl;
-    //             img.AccessPixel(xIdx, yIdx, sampleIdx)
-    //                   = RayMarchSingleScatter(
-    //                           sampleRay.origin, sampleRay.dir, lightPos, generator, uniform01)
-    //                   * lightIntensity;
-    //             if (img.AccessPixel(xIdx, yIdx, sampleIdx).Magnitude() > 0.0f)
-    //                 numPixelsLit++;
-    //             testFile << img.AccessPixel(xIdx, yIdx, sampleIdx) << std::endl;
-    //         }
-    //     }
-    // }
-    // img.Resolve();
-    // img.WriteExr("RayMarchTest.exr");
-    // std::cout << "Num lit: " << numPixelsLit / img.Spp() << std::endl;
-    // std::cout << "Percent lit: "
-    //           << 100.0f * static_cast<float>(numPixelsLit / img.Spp()) / (img.DimX() * img.DimY())
-    //           << std::endl;
+            for (uint32_t sampleIdx = 0; sampleIdx < img.Spp(); sampleIdx++) {
+                const float e0 = uniform01(generator);
+                const float e1 = uniform01(generator);
+
+                Ray sampleRay = img.GetRay(xIdx, yIdx, e0, e1);
+
+                float t = 0.0f;
+                bool intersectedProxy = IntersectRaySphere(
+                      sampleRay, Farlor::Vector3(0.0f, 0.0f, 0.0f), rasterSphereRadius, t);
+
+                imageSamplesOFS << (intersectedProxy ? 1 : 0) << ",";
+
+                const Farlor::Vector3 intersectionPt = sampleRay.origin + t * sampleRay.dir;
+
+                imageSamplesOFS << intersectionPt.x << ",";
+                imageSamplesOFS << intersectionPt.y << ",";
+                imageSamplesOFS << intersectionPt.z << ",";
+
+                imageSamplesOFS << sampleRay.dir.x << ",";
+                imageSamplesOFS << sampleRay.dir.y << ",";
+                imageSamplesOFS << sampleRay.dir.z << std::endl;
+
+                img.AccessPixel(xIdx, yIdx, sampleIdx)
+                      = RayMarchSingleScatter(
+                              sampleRay.origin, sampleRay.dir, lightPos, generator, uniform01)
+                      * lightIntensity;
+                if (img.AccessPixel(xIdx, yIdx, sampleIdx).Magnitude() > 0.0f)
+                    numPixelsLit++;
+            }
+        }
+    }
+    img.Resolve();
+
+    const std::string gtFilename = (currentDir / "gt.exr").string();
+
+    img.WriteExr(gtFilename);
+    std::cout << "Num lit: " << numPixelsLit / img.Spp() << std::endl;
+    std::cout << "Percent lit: "
+              << 100.0f * static_cast<float>(numPixelsLit / img.Spp()) / (img.DimX() * img.DimY())
+              << std::endl;
 
     std::cout << "Done" << std::endl;
 }
