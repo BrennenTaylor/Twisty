@@ -28,7 +28,6 @@ add_executable(raymarch_proof
 target_link_libraries(raymarch_proof
     PUBLIC FMath::FMath
     PUBLIC tinyexr_include
-    PRIVATE OpenVDB::openvdb
 )
 
 set_property(TARGET raymarch_proof PROPERTY CXX_STANDARD 20)
@@ -43,6 +42,18 @@ target_link_libraries(generate_dataset_multiple_light_positions
 )
 
 set_property(TARGET generate_dataset_multiple_light_positions PROPERTY CXX_STANDARD 20)
+
+add_executable(raymarch_vdb
+    raymarch_vdb.cpp
+)
+
+target_link_libraries(raymarch_vdb
+    PUBLIC FMath::FMath
+    PUBLIC tinyexr_include
+    PRIVATE OpenVDB::openvdb
+)
+
+set_property(TARGET raymarch_vdb PROPERTY CXX_STANDARD 20)
 
 add_executable(test_sph
     test_sph.cpp
