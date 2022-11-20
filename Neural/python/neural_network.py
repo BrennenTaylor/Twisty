@@ -80,7 +80,7 @@ if __name__ ==  '__main__':
     writer = SummaryWriter('runs/volume_scatter_{}'.format(timestamp))
     epoch_number = 0
 
-    EPOCHS = 5
+    EPOCHS = 50
 
     best_vloss = 1_000_000.
 

@@ -1,15 +1,22 @@
 #include <openvdb/Grid.h>
 #include <openvdb/Metadata.h>
+#include <openvdb/math/Coord.h>
 #include <openvdb/math/Transform.h>
+#include <openvdb/math/Ray.h>
+#include <openvdb/math/Vec3.h>
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/ChangeBackground.h>
 #include <openvdb/tools/Interpolation.h>
+#include <openvdb/tools/Prune.h>
+#include <openvdb/tools/RayIntersector.h>
+#include <openvdb/tools/LevelSetUtil.h>
 
 #include "FMath/Vector3.h"
 #include "FMath/Vector4.h"
 #include <FMath/FMath.h>
 #include <cmath>
 #include <filesystem>
+#include <openvdb/version.h>
 
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
@@ -23,9 +30,20 @@
 #include <fstream>
 #include <string>
 
+const float ModelScaler = 1.0f;
+const float DensityScale = 1.0f;
+
 const float DefaultAbsorbtion = 0.1f;
 const float DefaultScattering = 0.1f;
-const float VolumeSphereRadius = 9.0f;
+const float VolumeSphereRadius = 9.0f * ModelScaler;
+
+// Render image stuff
+Farlor::Vector3 lightIntensity(25.0f, 25.0f, 25.0f);
+// const Farlor::Vector3 SkyBlue(52.9 * 0.01, 80.8 * 0.01, 92.2 * 0.01);
+const Farlor::Vector3 SkyBlue(0.0f, 0.0f, 0.0f);
+
+
+const Farlor::Vector3 ScaledSkyBlue = SkyBlue * lightIntensity;
 
 struct VolumeData {
     bool inVolume = false;
@@ -78,10 +96,10 @@ VolumeData HollowSphereOfVolume(const Farlor::Vector3 &samplePointWS,
     return { false, 0.0f, 0.0f };
 }
 
-float BeerLambert(float absorptionCoefficient, float scatteringCoefficient, float distanceTraveled, float density)
+float BeerLambert(float absorptionCoefficient, float scatteringCoefficient, float distanceTraveled,
+      float density)
 {
-    return std::exp(
-          -distanceTraveled * density * (absorptionCoefficient + scatteringCoefficient));
+    return std::exp(-distanceTraveled * density * (absorptionCoefficient + scatteringCoefficient));
 }
 
 float PhaseFunction(const Farlor::Vector3 &wo, const Farlor::Vector3 &wi)
@@ -89,72 +107,134 @@ float PhaseFunction(const Farlor::Vector3 &wo, const Farlor::Vector3 &wi)
     return 1.0f / (4.0f * std::numbers::pi_v<float>);
 }
 
-Farlor::Vector3 RayMarchToLight(openvdb::FloatGrid::Ptr grid, openvdb::math::Transform::Ptr linearTransform, const Farlor::Vector3 &rayOrigin, const Farlor::Vector3 &lightPos,
-      std::mt19937 &generator, std::uniform_real_distribution<float> &uniform01)
+Farlor::Vector3 RayMarchToLight(openvdb::FloatGrid::Ptr grid,
+      openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> &lightInter,
+      const Farlor::Vector3 &rayOrigin, const Farlor::Vector3 &lightPos, std::mt19937 &generator,
+      std::uniform_real_distribution<float> &uniform01)
 {
-    const uint32_t resolution = 1000;
+    const openvdb::math::Transform &linearTransform = grid->transform();
     const Farlor::Vector3 traceDir = (lightPos - rayOrigin).Normalized();
-    const float stepSize = (lightPos - rayOrigin).Magnitude() / (resolution - 1);
-    const Farlor::Vector3 stepVec = traceDir * stepSize;
-    Farlor::Vector3 currentPos = rayOrigin;
+    const float maxLightDistance = (lightPos - rayOrigin).Magnitude();
+
+    openvdb::math::Ray<double> ray;
+    ray.setEye(openvdb::math::Vec3<float>(rayOrigin.x, rayOrigin.y, rayOrigin.z));
+    ray.setDir(openvdb::math::Vec3<float>(traceDir.x, traceDir.y, traceDir.z));
 
     float transmittence = 1.0f;
-    for (uint32_t i = 0; i < resolution; i++) {
-        currentPos += stepVec;
-        Farlor::Vector3 samplePos = currentPos - (stepVec * uniform01(generator));
-        
-        // Compute the location in world space
-        openvdb::Vec3d worldSpacePoint(samplePos.x, samplePos.y, samplePos.z);
-        openvdb::Vec3d indexSpacePoint = linearTransform->worldToIndex(worldSpacePoint);
+    bool hitBox = lightInter.setWorldRay(ray);
+    if (!hitBox) {
+        return Farlor::Vector3 { transmittence, transmittence, transmittence };
+    }
 
-        openvdb::FloatGrid::ConstAccessor accessor = grid->getConstAccessor();
-        openvdb::FloatGrid::ValueType sampledDensity = openvdb::tools::BoxSampler::sample(grid->tree(), indexSpacePoint);
-        
-        if (sampledDensity > 0.0f) {
-            transmittence *= BeerLambert(DefaultAbsorbtion, DefaultScattering, stepSize, sampledDensity);
+    const float traceStepSize = 0.1f * ModelScaler;
+
+    const Farlor::Vector3 stepVec = traceDir * traceStepSize;
+
+    double t0 = 0.0f;
+    double t1 = 0.0f;
+    while (lightInter.march(t0, t1)) {
+        const float worldT0 = lightInter.getWorldTime(t0);
+        if (worldT0 > maxLightDistance) {
+            break;
+        }
+        const float worldT1 = std::min((float)lightInter.getWorldTime(t1), maxLightDistance);
+
+        const float distToCover = (worldT1 - worldT0);
+        const int numSteps = static_cast<int>(distToCover / traceStepSize);
+
+        Farlor::Vector3 currentPos = rayOrigin + (traceDir * worldT0);
+
+        for (uint32_t stepIdx = 0; stepIdx < numSteps; stepIdx++) {
+            const Farlor::Vector3 randomStepDist = stepVec * uniform01(generator);
+            Farlor::Vector3 samplePos = currentPos + randomStepDist;
+
+            // Compute the location in world space
+            openvdb::Vec3d worldSpacePoint(samplePos.x, samplePos.y, samplePos.z);
+            openvdb::Vec3d indexSpacePoint = linearTransform.worldToIndex(worldSpacePoint);
+
+            openvdb::FloatGrid::ConstAccessor accessor = grid->getConstAccessor();
+            openvdb::FloatGrid::ValueType sampledDensity
+                  = openvdb::tools::BoxSampler::sample(grid->tree(), indexSpacePoint)
+                  * DensityScale;
+
+            if (sampledDensity > 0.0f) {
+                transmittence *= BeerLambert(
+                      DefaultAbsorbtion, DefaultScattering, traceStepSize, sampledDensity);
+            }
+            currentPos += stepVec;
         }
     }
+
     return Farlor::Vector3 { transmittence, transmittence, transmittence };
 }
 
-Farlor::Vector3 RayMarchSingleScatter(openvdb::FloatGrid::Ptr grid, openvdb::math::Transform::Ptr linearTransform, const Farlor::Vector3 &rayOrigin,
-      const Farlor::Vector3 &rayDir, const Farlor::Vector3 &lightPos, std::mt19937 &generator,
+Farlor::Vector3 RayMarchSingleScatter(openvdb::FloatGrid::Ptr grid,
+      openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> &inter,
+      const Farlor::Vector3 &rayOrigin, const Farlor::Vector3 &rayDir,
+      const Farlor::Vector3 &lightPos, std::mt19937 &generator,
       std::uniform_real_distribution<float> &uniform01)
 {
-    const float maxTraceDistance = 100.0f;
-    const uint32_t resolution = 1000;
+    const openvdb::math::Transform &linearTransform = grid->transform();
+
+    openvdb::math::Ray<double> ray;
+    ray.setEye(openvdb::math::Vec3<float>(rayOrigin.x, rayOrigin.y, rayOrigin.z));
+    ray.setDir(openvdb::math::Vec3<float>(rayDir.x, rayDir.y, rayDir.z));
+    bool hitBox = inter.setWorldRay(ray);
+    if (!hitBox) {
+        return Farlor::Vector3(0.0f, 0.0f, 0.0f);
+    }
+
+    const float traceStepSize = 0.05f * ModelScaler;
     const Farlor::Vector3 traceDir = rayDir.Normalized();
-    const float stepSize = maxTraceDistance / (resolution - 1);
-    const Farlor::Vector3 stepVec = traceDir * stepSize;
-    Farlor::Vector3 currentPos = rayOrigin;
+    const Farlor::Vector3 stepVec = traceDir * traceStepSize;
 
     float transmittence = 1.0f;
     Farlor::Vector3 accumulatedColor(0.0f, 0.0f, 0.0f);
 
-    for (uint32_t i = 0; i < resolution; i++) {
-        const Farlor::Vector3 randomStepDist = stepVec * uniform01(generator);
-        Farlor::Vector3 samplePos = currentPos + randomStepDist;
+    openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> lightInter(inter);
 
-        // Compute the location in world space
-        openvdb::Vec3d worldSpacePoint(samplePos.x, samplePos.y, samplePos.z);
-        openvdb::Vec3d indexSpacePoint = linearTransform->worldToIndex(worldSpacePoint);
+    double t0 = 0.0f;
+    double t1 = 0.0f;
+    while (inter.march(t0, t1)) {
+        const float worldT0 = inter.getWorldTime(t0);
+        const float worldT1 = inter.getWorldTime(t1);
+        // std::cout << worldT0 << ", " << worldT1 << std::endl;
 
-        openvdb::FloatGrid::ConstAccessor accessor = grid->getConstAccessor();
-        openvdb::FloatGrid::ValueType sampledDensity = openvdb::tools::BoxSampler::sample(grid->tree(), indexSpacePoint);
+        const float distToCover = (worldT1 - worldT0);
+        const int numSteps = static_cast<int>(distToCover / traceStepSize);
 
-        if (sampledDensity > 0.0f) {
-            float currentStepDist = randomStepDist.Magnitude();
-            transmittence *= BeerLambert(DefaultAbsorbtion, DefaultScattering,
-                currentStepDist, sampledDensity);
-            const float phaseWeight = PhaseFunction(traceDir, (lightPos - samplePos).Normalized());
-            const Farlor::Vector3 colorUpdate = sampledDensity * DefaultScattering * phaseWeight
-                  * transmittence * RayMarchToLight(grid, linearTransform, samplePos, lightPos, generator, uniform01);
-            accumulatedColor += colorUpdate;
+        Farlor::Vector3 currentPos = rayOrigin + (rayDir * worldT0);
+
+        for (uint32_t stepIdx = 0; stepIdx < numSteps; stepIdx++) {
+            const Farlor::Vector3 randomStepDist = stepVec * uniform01(generator);
+            Farlor::Vector3 samplePos = currentPos + randomStepDist;
+
+            // Compute the location in world space
+            openvdb::Vec3d worldSpacePoint(samplePos.x, samplePos.y, samplePos.z);
+            openvdb::Vec3d indexSpacePoint = linearTransform.worldToIndex(worldSpacePoint);
+
+            openvdb::FloatGrid::ConstAccessor accessor = grid->getConstAccessor();
+            openvdb::FloatGrid::ValueType sampledDensity
+                  = openvdb::tools::BoxSampler::sample(grid->tree(), indexSpacePoint)
+                  * DensityScale;
+
+            if (sampledDensity > 0.0f) {
+                transmittence *= BeerLambert(
+                      DefaultAbsorbtion, DefaultScattering, traceStepSize, sampledDensity);
+                const float phaseWeight
+                      = PhaseFunction(traceDir, (lightPos - samplePos).Normalized());
+                const Farlor::Vector3 colorUpdate = sampledDensity * DefaultScattering * phaseWeight
+                      * transmittence
+                      * RayMarchToLight(
+                            grid, lightInter, samplePos, lightPos, generator, uniform01);
+                accumulatedColor += colorUpdate;
+            }
+            currentPos += stepVec;
         }
-        currentPos += stepVec;
     }
-    return accumulatedColor;
+    return accumulatedColor + SkyBlue * transmittence;
 }
+
 
 struct Ray {
     Farlor::Vector3 origin = Farlor::Vector3(0.0f, 0.0f, 0.0f);
@@ -297,10 +377,11 @@ class Image {
     }
 
    private:
-    Farlor::Vector3 worldPos = Farlor::Vector3(0.0f, 0.0f, -40.0f);
-    Farlor::Vector3 facingDir = Farlor::Vector3(0.0f, 0.0f, 1.0f);  // Face down z
-    float width = 30.0f;
-    float height = 30.0f;
+    // RHS
+    Farlor::Vector3 worldPos = Farlor::Vector3(0.0f, 0.0f, 40.0f) * ModelScaler;
+    Farlor::Vector3 facingDir = Farlor::Vector3(0.0f, 0.0f, -1.0f);  // Face down z
+    float width = 30.0f * ModelScaler;
+    float height = 30.0f * ModelScaler;
     uint32_t dimX = 256;
     uint32_t dimY = 256;
     uint32_t spp = 1;
@@ -327,40 +408,31 @@ int main(int argc, char **argv)
     openvdb::io::File vdbFile("bunny.vdb");
     vdbFile.open();
 
-    openvdb::GridBase::Ptr baseGrid;
-    for (openvdb::io::File::NameIterator nameIter = vdbFile.beginName(); nameIter != vdbFile.endName(); ++nameIter) {
-        baseGrid = vdbFile.readGrid(nameIter.gridName());
-    }
+    openvdb::GridBase::Ptr baseGrid = vdbFile.readGrid(vdbFile.beginName().gridName());
     vdbFile.close();
 
     openvdb::FloatGrid::Ptr grid = openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
-    const float outside = grid->background();
-    const float width = 2.0f * outside;
-
-    for(openvdb::FloatGrid::ValueOnIter iter = grid->beginValueOn(); iter; ++iter) {
-        float dist = iter.getValue();
-        iter.setValue((outside - dist) / width);
+    if (grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
+        openvdb::tools::sdfToFogVolume(*grid);
     }
 
-    for (openvdb::FloatGrid::ValueOffIter iter = grid->beginValueOff(); iter; ++iter) {
-        if (iter.getValue() < 0.0f) {
-            iter.setValue(1.0f);
-            iter.setValueOff();
-        }
-    }
-    openvdb::tools::changeBackground(grid->tree(), 0.0f);
-
+    openvdb::math::Transform::Ptr linearTransform
+          = openvdb::math::Transform::createLinearTransform(0.02f);
+    linearTransform->postTranslate(openvdb::Vec3d(1.0f, -7.0f, 0.0f));
+    grid->setTransform(linearTransform);
 
     for (openvdb::MetaMap::MetaIterator iter = grid->beginMeta(); iter != grid->endMeta(); ++iter) {
-        const std::string& name = iter->first;
+        const std::string &name = iter->first;
         openvdb::Metadata::Ptr value = iter->second;
         std::string valueAsString = value->str();
         std::cout << name << " = " << valueAsString << std::endl;
     }
 
-    // Linear transform that scales ijk by 0.1
-    openvdb::math::Transform::Ptr linearTransform = openvdb::math::Transform::createLinearTransform(0.1f);
+    openvdb::v10_0::math::CoordBBox bbox = grid->evalActiveVoxelBoundingBox();
+    std::cout << grid->indexToWorld(bbox.min()) << ", " << grid->indexToWorld(bbox.max())
+              << std::endl;
 
+    openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> inter(*grid);
 
     std::filesystem::path currentDir = std::filesystem::current_path();
     currentDir /= "Dataset";
@@ -373,17 +445,20 @@ int main(int argc, char **argv)
     std::ofstream outfile(filename);
 
     // Render data pairs
-    const float rasterSphereRadius = 10.0f;
+    const float rasterSphereRadius = 20.0f * ModelScaler;
 
     const uint32_t numDataSetPairs = std::stoi(argv[1]);
     const uint32_t numDirectionsPerSample = std::stoi(argv[2]);
+
+    const uint32_t generateImage = std::stoi(argv[3]);
+
     std::vector<Sample> sampledDirections(numDirectionsPerSample);
     std::vector<Farlor::Vector3> perSampleColorRM(numDirectionsPerSample);
 
     Farlor::Vector3 lightPos;
-    lightPos.x = 0.0f;
-    lightPos.y = 40.0f;
-    lightPos.z = 10.0f;
+    lightPos.x = 0.0f * ModelScaler;
+    lightPos.y = 30.0f * ModelScaler;
+    lightPos.z = 0.0f * ModelScaler;
 
     for (int dataPairIdx = 0; dataPairIdx < numDataSetPairs; dataPairIdx++) {
         if ((dataPairIdx % 1) == 0) {
@@ -427,8 +502,8 @@ int main(int argc, char **argv)
                 sampleDir.sphere.y = std::atan2(sampleDir.cart.y, sampleDir.cart.x);
             }
 
-            perSampleColorRM[sampleIdx] = RayMarchSingleScatter(grid, linearTransform,
-                  inputPoint, sampleDir.cart, lightPos, generator, uniform01);
+            perSampleColorRM[sampleIdx] = RayMarchSingleScatter(
+                  grid, inter, inputPoint, sampleDir.cart, lightPos, generator, uniform01);
 
             outfile << inputPoint.x << ", " << inputPoint.y << ", " << inputPoint.z << ", ";
             outfile << sampleDir.sphere.x << ", " << sampleDir.sphere.y << ", ";
@@ -438,8 +513,6 @@ int main(int argc, char **argv)
         }
     }
 
-    // Render image stuff
-    Farlor::Vector3 lightIntensity(25.0f, 25.0f, 25.0f);
 
     int numPixelsLit = 0;
 
@@ -456,7 +529,7 @@ int main(int argc, char **argv)
                           << "Image sample and gt generation: "
                           << static_cast<float>(pixelIdx)
                             / static_cast<float>(img.DimX() * img.DimY()) * 100.0f
-                          << "\% done" << std::flush;
+                          << "%% done" << std::flush;
             }
 
             for (uint32_t sampleIdx = 0; sampleIdx < img.Spp(); sampleIdx++) {
@@ -479,26 +552,40 @@ int main(int argc, char **argv)
 
                 imageSamplesOFS << sampleRay.dir.x << ",";
                 imageSamplesOFS << sampleRay.dir.y << ",";
-                imageSamplesOFS << sampleRay.dir.z << std::endl;
+                imageSamplesOFS << sampleRay.dir.z << ",";
 
-                img.AccessPixel(xIdx, yIdx, sampleIdx)
-                      = RayMarchSingleScatter(grid, linearTransform,
-                              sampleRay.origin, sampleRay.dir, lightPos, generator, uniform01)
-                      * lightIntensity;
-                if (img.AccessPixel(xIdx, yIdx, sampleIdx).Magnitude() > 0.0f)
-                    numPixelsLit++;
+                imageSamplesOFS << lightPos.x << ",";
+                imageSamplesOFS << lightPos.y << ",";
+                imageSamplesOFS << lightPos.z << std::endl;
+
+                if (generateImage > 0) {
+                    Farlor::Vector3 pixelColor = ScaledSkyBlue;
+                    if (intersectedProxy) {
+                        Farlor::Vector3 marchedColor = RayMarchSingleScatter(grid, inter,
+                              sampleRay.origin, sampleRay.dir, lightPos, generator, uniform01);
+                        if (marchedColor.SqrMagnitude() > 0.0f) {
+                            pixelColor = marchedColor * lightIntensity;
+                        }
+                    }
+                    img.AccessPixel(xIdx, yIdx, sampleIdx) = pixelColor;
+
+                    if (img.AccessPixel(xIdx, yIdx, sampleIdx).Magnitude() > 0.0f)
+                        numPixelsLit++;
+                }
             }
         }
     }
-    img.Resolve();
 
-    const std::string gtFilename = (currentDir / "gt.exr").string();
-
-    img.WriteExr(gtFilename);
-    std::cout << "Num lit: " << numPixelsLit / img.Spp() << std::endl;
-    std::cout << "Percent lit: "
-              << 100.0f * static_cast<float>(numPixelsLit / img.Spp()) / (img.DimX() * img.DimY())
-              << std::endl;
+    if (generateImage > 0) {
+        img.Resolve();
+        const std::string gtFilename = (currentDir / "gt.exr").string();
+        img.WriteExr(gtFilename);
+        std::cout << "Num lit: " << numPixelsLit / img.Spp() << std::endl;
+        std::cout << "Percent lit: "
+                  << 100.0f * static_cast<float>(numPixelsLit / img.Spp())
+                    / (img.DimX() * img.DimY())
+                  << std::endl;
+    }
 
     std::cout << "Done" << std::endl;
 }

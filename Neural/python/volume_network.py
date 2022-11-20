@@ -14,9 +14,9 @@ class VolumeScatterDataset(Dataset):
 
         scaled_output = np.zeros((read_data.shape[0], 3))
         
-        scaled_input[:, 0] = read_data[:, 0] / 10.
-        scaled_input[:, 1] = read_data[:, 1] / 10.
-        scaled_input[:, 2] = read_data[:, 2] / 10.
+        scaled_input[:, 0] = read_data[:, 0] / 40.
+        scaled_input[:, 1] = read_data[:, 1] / 40.
+        scaled_input[:, 2] = read_data[:, 2] / 40.
 
         scaled_input[:, 3] = np.sin(read_data[:, 3]) * np.cos(read_data[:, 4])
         scaled_input[:, 4] = np.sin(read_data[:, 3]) * np.sin(read_data[:, 4])
