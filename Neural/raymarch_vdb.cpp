@@ -1,5 +1,6 @@
 #include <openvdb/Grid.h>
 #include <openvdb/Metadata.h>
+#include <openvdb/Types.h>
 #include <openvdb/math/Coord.h>
 #include <openvdb/math/Transform.h>
 #include <openvdb/math/Ray.h>
@@ -10,6 +11,8 @@
 #include <openvdb/tools/Prune.h>
 #include <openvdb/tools/RayIntersector.h>
 #include <openvdb/tools/LevelSetUtil.h>
+#include <openvdb/tools/LevelSetSphere.h>
+#include <openvdb/tools/Composite.h>
 
 #include "FMath/Vector3.h"
 #include "FMath/Vector4.h"
@@ -39,16 +42,67 @@ const float VolumeSphereRadius = 9.0f * ModelScaler;
 
 // Render image stuff
 Farlor::Vector3 lightIntensity(25.0f, 25.0f, 25.0f);
-// const Farlor::Vector3 SkyBlue(52.9 * 0.01, 80.8 * 0.01, 92.2 * 0.01);
-const Farlor::Vector3 SkyBlue(0.0f, 0.0f, 0.0f);
-
-
-const Farlor::Vector3 ScaledSkyBlue = SkyBlue * lightIntensity;
+// const Farlor::Vector3 BackgroundColor(52.9 * 0.01, 80.8 * 0.01, 92.2 * 0.01);
+const Farlor::Vector3 BackgroundColor(0.0f, 0.0f, 0.0f);
 
 struct VolumeData {
     bool inVolume = false;
     float absorbtion = 0.0f;
     float scattering = 0.0f;
+};
+
+class VDBVolume
+{
+public:
+
+    VDBVolume(const float outerRadius, float innerRadius) {
+        m_grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(outerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
+        openvdb::FloatGrid::Ptr removeGrid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(
+              innerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
+        m_grid = openvdb::tools::csgDifferenceCopy(*m_grid, *removeGrid);
+        if (m_grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
+            openvdb::tools::sdfToFogVolume(*m_grid);
+        }
+    }
+
+    VDBVolume(std::string filename) {
+        openvdb::io::File vdbFile("bunny.vdb");
+        vdbFile.open();
+
+        openvdb::GridBase::Ptr baseGrid = vdbFile.readGrid(vdbFile.beginName().gridName());
+        vdbFile.close();
+
+        m_grid = openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
+        if (m_grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
+            openvdb::tools::sdfToFogVolume(*m_grid);
+        }
+
+        openvdb::math::Transform::Ptr linearTransform
+              = openvdb::math::Transform::createLinearTransform(0.02f);
+        linearTransform->postTranslate(openvdb::Vec3d(1.0f, -7.0f, 0.0f));
+        m_grid->setTransform(linearTransform);
+    }
+
+    void PrintMetadata() const {
+        for (openvdb::MetaMap::MetaIterator iter = m_grid->beginMeta(); iter != m_grid->endMeta();
+              ++iter) {
+            const std::string &name = iter->first;
+            openvdb::Metadata::Ptr value = iter->second;
+            std::string valueAsString = value->str();
+            std::cout << name << " = " << valueAsString << std::endl;
+        }
+    }
+
+    void PrintWorldBB() {
+        openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        std::cout << m_grid->indexToWorld(bbox.min()) << ", " << m_grid->indexToWorld(bbox.max())
+                  << std::endl;
+    }
+
+    openvdb::FloatGrid::Ptr AccessGrid() { return m_grid; }
+
+private:
+    openvdb::FloatGrid::Ptr m_grid = nullptr;
 };
 
 VolumeData CubeOfVolume(
@@ -126,7 +180,7 @@ Farlor::Vector3 RayMarchToLight(openvdb::FloatGrid::Ptr grid,
         return Farlor::Vector3 { transmittence, transmittence, transmittence };
     }
 
-    const float traceStepSize = 0.1f * ModelScaler;
+    const float traceStepSize = 0.3f * ModelScaler;
 
     const Farlor::Vector3 stepVec = traceDir * traceStepSize;
 
@@ -168,7 +222,7 @@ Farlor::Vector3 RayMarchToLight(openvdb::FloatGrid::Ptr grid,
     return Farlor::Vector3 { transmittence, transmittence, transmittence };
 }
 
-Farlor::Vector3 RayMarchSingleScatter(openvdb::FloatGrid::Ptr grid,
+Farlor::Vector4 RayMarchSingleScatter(openvdb::FloatGrid::Ptr grid,
       openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> &inter,
       const Farlor::Vector3 &rayOrigin, const Farlor::Vector3 &rayDir,
       const Farlor::Vector3 &lightPos, std::mt19937 &generator,
@@ -181,10 +235,10 @@ Farlor::Vector3 RayMarchSingleScatter(openvdb::FloatGrid::Ptr grid,
     ray.setDir(openvdb::math::Vec3<float>(rayDir.x, rayDir.y, rayDir.z));
     bool hitBox = inter.setWorldRay(ray);
     if (!hitBox) {
-        return Farlor::Vector3(0.0f, 0.0f, 0.0f);
+        return Farlor::Vector4(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    const float traceStepSize = 0.05f * ModelScaler;
+    const float traceStepSize = 0.3f * ModelScaler;
     const Farlor::Vector3 traceDir = rayDir.Normalized();
     const Farlor::Vector3 stepVec = traceDir * traceStepSize;
 
@@ -198,7 +252,6 @@ Farlor::Vector3 RayMarchSingleScatter(openvdb::FloatGrid::Ptr grid,
     while (inter.march(t0, t1)) {
         const float worldT0 = inter.getWorldTime(t0);
         const float worldT1 = inter.getWorldTime(t1);
-        // std::cout << worldT0 << ", " << worldT1 << std::endl;
 
         const float distToCover = (worldT1 - worldT0);
         const int numSteps = static_cast<int>(distToCover / traceStepSize);
@@ -232,7 +285,8 @@ Farlor::Vector3 RayMarchSingleScatter(openvdb::FloatGrid::Ptr grid,
             currentPos += stepVec;
         }
     }
-    return accumulatedColor + SkyBlue * transmittence;
+    return Farlor::Vector4(
+          accumulatedColor.x, accumulatedColor.y, accumulatedColor.z, transmittence);
 }
 
 
@@ -399,40 +453,25 @@ struct Sample {
 
 int main(int argc, char **argv)
 {
+    if (argc < 4) {
+        std::cout << "Incorrect number of arguments" << std::endl;
+        return 0;
+    }
+
     uint32_t seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937 generator(seed);
     std::uniform_real_distribution uniform01(0.0f, 1.0f);
 
-
+    // Must call once
     openvdb::initialize();
-    openvdb::io::File vdbFile("bunny.vdb");
-    vdbFile.open();
 
-    openvdb::GridBase::Ptr baseGrid = vdbFile.readGrid(vdbFile.beginName().gridName());
-    vdbFile.close();
+    // VDBVolume bunny("bunny.vdb");
+    VDBVolume bunny(9.0f, 5.0f);
+    bunny.PrintMetadata();
+    bunny.PrintWorldBB();
 
-    openvdb::FloatGrid::Ptr grid = openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
-    if (grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
-        openvdb::tools::sdfToFogVolume(*grid);
-    }
-
-    openvdb::math::Transform::Ptr linearTransform
-          = openvdb::math::Transform::createLinearTransform(0.02f);
-    linearTransform->postTranslate(openvdb::Vec3d(1.0f, -7.0f, 0.0f));
-    grid->setTransform(linearTransform);
-
-    for (openvdb::MetaMap::MetaIterator iter = grid->beginMeta(); iter != grid->endMeta(); ++iter) {
-        const std::string &name = iter->first;
-        openvdb::Metadata::Ptr value = iter->second;
-        std::string valueAsString = value->str();
-        std::cout << name << " = " << valueAsString << std::endl;
-    }
-
-    openvdb::v10_0::math::CoordBBox bbox = grid->evalActiveVoxelBoundingBox();
-    std::cout << grid->indexToWorld(bbox.min()) << ", " << grid->indexToWorld(bbox.max())
-              << std::endl;
-
-    openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> inter(*grid);
+    // Should only be one of these, but each thread needs to get a copy
+    openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> inter(*bunny.AccessGrid());
 
     std::filesystem::path currentDir = std::filesystem::current_path();
     currentDir /= "Dataset";
@@ -502,8 +541,11 @@ int main(int argc, char **argv)
                 sampleDir.sphere.y = std::atan2(sampleDir.cart.y, sampleDir.cart.x);
             }
 
-            perSampleColorRM[sampleIdx] = RayMarchSingleScatter(
-                  grid, inter, inputPoint, sampleDir.cart, lightPos, generator, uniform01);
+            const Farlor::Vector4 sampleColor = RayMarchSingleScatter(
+                  bunny.AccessGrid(), inter, inputPoint, sampleDir.cart, lightPos, generator, uniform01);
+            perSampleColorRM[sampleIdx].x = sampleColor.x;
+            perSampleColorRM[sampleIdx].y = sampleColor.y;
+            perSampleColorRM[sampleIdx].z = sampleColor.z;
 
             outfile << inputPoint.x << ", " << inputPoint.y << ", " << inputPoint.z << ", ";
             outfile << sampleDir.sphere.x << ", " << sampleDir.sphere.y << ", ";
@@ -519,6 +561,8 @@ int main(int argc, char **argv)
     const std::string imageSamplesFilename = (currentDir / "image_samples.csv").string();
 
     std::ofstream imageSamplesOFS(imageSamplesFilename);
+
+    uint32_t tileDim = 64;
 
     Image img;
     for (uint32_t yIdx = 0; yIdx < img.DimY(); yIdx++) {
@@ -559,13 +603,17 @@ int main(int argc, char **argv)
                 imageSamplesOFS << lightPos.z << std::endl;
 
                 if (generateImage > 0) {
-                    Farlor::Vector3 pixelColor = ScaledSkyBlue;
+                    Farlor::Vector3 pixelColor(0.0f, 0.0f, 0.0f);
                     if (intersectedProxy) {
-                        Farlor::Vector3 marchedColor = RayMarchSingleScatter(grid, inter,
-                              sampleRay.origin, sampleRay.dir, lightPos, generator, uniform01);
-                        if (marchedColor.SqrMagnitude() > 0.0f) {
-                            pixelColor = marchedColor * lightIntensity;
-                        }
+                        const Farlor::Vector4 marchedColor
+                              = RayMarchSingleScatter(bunny.AccessGrid(), inter, sampleRay.origin,
+                                    sampleRay.dir, lightPos, generator, uniform01);
+                        const Farlor::Vector3 color(marchedColor.x, marchedColor.y, marchedColor.z);
+                        const float transmittence = marchedColor.w;
+                        pixelColor = (color * lightIntensity) + (transmittence * BackgroundColor * lightIntensity);
+                    }
+                    else {
+                        pixelColor = BackgroundColor * lightIntensity;
                     }
                     img.AccessPixel(xIdx, yIdx, sampleIdx) = pixelColor;
 
