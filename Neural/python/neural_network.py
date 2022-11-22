@@ -60,18 +60,16 @@ if __name__ ==  '__main__':
     # Super basic model, not based on any paper
     model = VolumeScatterModel()
 
-    # model = ComplexLuminariesModel()
-
     model.to(device)
 
     # Take average of the MSE over the batch
     loss_fn = torch.nn.MSELoss(reduction='mean')
 
     train_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/samples.csv', root_dir='dataset/single_scatter_raymarch/')
-    train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=6)
+    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, pin_memory=False, num_workers=2)
 
     validation_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/validation.csv', root_dir='dataset/single_scatter_raymarch/')
-    validation_dataloader = DataLoader(validation_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=6)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=True, pin_memory=False, num_workers=2)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
@@ -80,7 +78,7 @@ if __name__ ==  '__main__':
     writer = SummaryWriter('runs/volume_scatter_{}'.format(timestamp))
     epoch_number = 0
 
-    EPOCHS = 50
+    EPOCHS = 10
 
     best_vloss = 1_000_000.
 

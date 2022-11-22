@@ -9,9 +9,14 @@ class VolumeScatterDataset(Dataset):
     def __init__(self, filename, root_dir):
         self.root_dir = root_dir
         read_data = pd.read_csv(filename, header=None).to_numpy()
+        
+        # Randomize read data
+        print("Randomizing")
+        print(read_data.shape)
+        np.random.shuffle(read_data)
+        print(read_data.shape)
 
         scaled_input = np.zeros((read_data.shape[0], 9))
-
         scaled_output = np.zeros((read_data.shape[0], 3))
         
         scaled_input[:, 0] = read_data[:, 0] / 40.
