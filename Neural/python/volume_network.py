@@ -77,3 +77,95 @@ class VolumeScatterModel(torch.nn.Module):
         x = self.linear5(x)
         x = self.activation(x)
         return x
+
+class PositionalEncodingDim3(torch.nn.Module):
+    def __init__(self, offset):
+        super().__init__()
+        self.offset = offset
+
+    def forward(self, x):
+
+        L = 10
+        appended_tensor = torch.empty([x.shape[0], x.shape[1], 6 * L], device=x.device) 
+        for level in range(0, L):
+            val = 2 ** level
+
+            appended_tensor[:,:,0 + level * 6] = torch.sin(val * torch.pi * x[:,:,0 + self.offset])
+            appended_tensor[:,:,1 + level * 6] = torch.cos(val * torch.pi * x[:,:,0 + self.offset])
+
+            appended_tensor[:,:,2 + level * 6] = torch.sin(val * torch.pi * x[:,:,1 + self.offset])
+            appended_tensor[:,:,3 + level * 6] = torch.cos(val * torch.pi * x[:,:,1 + self.offset])
+
+            appended_tensor[:,:,4 + level * 6] = torch.sin(val * torch.pi * x[:,:,2 + self.offset])
+            appended_tensor[:,:,5 + level * 6] = torch.cos(val * torch.pi * x[:,:,2 + self.offset])
+
+        return appended_tensor
+
+class ResidualBlock(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear1 = torch.nn.Linear(512, 512)
+        self.activate = torch.nn.LeakyReLU()
+
+    def forward(self, x):
+        saved = x
+        x = self.linear1(x)
+        x += saved
+        x = self.activate(x)
+        return x
+
+class CachedRadianceModel(torch.nn.Module):
+    
+    def __init__(self):
+        super(CachedRadianceModel, self).__init__()
+
+        self.position_encoding = PositionalEncodingDim3(offset=0)
+        self.direction_encoding = PositionalEncodingDim3(offset=3)
+
+        self.linear_input = torch.nn.Linear(60, 256)
+        self.activation_input = torch.nn.LeakyReLU()
+
+        self.concat_linear = torch.nn.Linear(512, 512)
+        self.concat_linear_activation = torch.nn.LeakyReLU()
+
+        self.residual_unit = ResidualBlock()
+
+        self.output1_linear = torch.nn.Linear(512, 256)
+        self.output1_activation = torch.nn.LeakyReLU()
+
+        self.output2_linear = torch.nn.Linear(256, 3)
+        self.output2_activation = torch.nn.LeakyReLU()
+
+    def forward(self, x):
+        encoded_positions = self.position_encoding(x)
+        encoded_directions = self.direction_encoding(x)
+
+        encoded_positions = self.linear_input(encoded_positions)
+        encoded_directions = self.linear_input(encoded_directions)
+
+        encoded_positions = self.activation_input(encoded_positions)
+        encoded_directions = self.activation_input(encoded_directions)
+
+        concat_input = torch.cat([encoded_positions, encoded_directions], 2)
+
+        saved_concat_input = concat_input
+
+        x = self.concat_linear(concat_input)
+        x = self.concat_linear_activation(x)
+
+        x = self.concat_linear(concat_input)
+        x = self.concat_linear_activation(x)
+
+        x = self.residual_unit(x)
+        x = self.residual_unit(x)
+        x = self.residual_unit(x)
+
+        x += saved_concat_input
+
+        x = self.output1_linear(x)
+        x = self.output1_activation(x)
+
+        x = self.output2_linear(x)
+        x = self.output2_activation(x)
+
+        return x

@@ -24,17 +24,17 @@ def train_one_epoch(epoch_index, tb_writer):
         train_input = train_input.float().to(device)
         train_output = train_output.float().to(device)
 
-
         # import pdb; pdb.set_trace()
         # Zero your gradients for every batch!
         optimizer.zero_grad()
 
         # Make predictions for this batch
         model_prediction = model(train_input)
+        # print(f"model_prediction shape: {model_prediction.shape}")
 
         # Compute the loss and its gradients
+        # print("Calculate loss")
         loss = loss_fn(model_prediction, train_output)
-        # print(loss)
         loss.backward()
 
         # Adjust learning weights
@@ -53,7 +53,8 @@ def train_one_epoch(epoch_index, tb_writer):
 
 if __name__ ==  '__main__':
     dtype = torch.float
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
     torch.backends.cudnn.benchmark = True
     print(device)
 
@@ -79,7 +80,7 @@ if __name__ ==  '__main__':
     writer = SummaryWriter('runs/volume_scatter_{}'.format(timestamp))
     epoch_number = 0
 
-    EPOCHS = 10
+    EPOCHS = 1
 
     best_vloss = 1_000_000.
 
@@ -100,7 +101,12 @@ if __name__ ==  '__main__':
             vinputs = vinputs.float().to(device)
             vGT = vGT.float().to(device)
 
+            # print(f"Validation input: {vinputs.shape}")
+            # print(f"vGT: {vGT.shape}")
+
             voutputs = model(vinputs)
+            # print(f"voutputs: {voutputs.shape}")
+
             vloss = loss_fn(voutputs, vGT)
             running_vloss += vloss
 
