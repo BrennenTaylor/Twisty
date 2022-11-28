@@ -67,10 +67,10 @@ if __name__ ==  '__main__':
     loss_fn = torch.nn.MSELoss(reduction='mean')
 
     train_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/samples.csv', root_dir='dataset/single_scatter_raymarch/')
-    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, pin_memory=False, num_workers=2)
+    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, pin_memory=True, num_workers=1)
 
     validation_dataset = VolumeScatterDataset(filename='dataset/single_scatter_raymarch/validation.csv', root_dir='dataset/single_scatter_raymarch/')
-    validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=True, pin_memory=False, num_workers=2)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=True, pin_memory=True, num_workers=1)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
@@ -79,7 +79,7 @@ if __name__ ==  '__main__':
     writer = SummaryWriter('runs/volume_scatter_{}'.format(timestamp))
     epoch_number = 0
 
-    EPOCHS = 10
+    EPOCHS = 50
 
     best_vloss = 1_000_000.
 
@@ -102,7 +102,7 @@ if __name__ ==  '__main__':
 
             voutputs = model(vinputs)
             vloss = loss_fn(voutputs, vGT)
-            running_vloss += vloss
+            running_vloss += vloss.item()
 
         avg_vloss = running_vloss / (i + 1)
         print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))

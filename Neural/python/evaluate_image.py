@@ -16,7 +16,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.backends.cudnn.benchmark = True
 print(f"Supported device: {device}")
 
-model = VolumeScatterModel()
+# model = VolumeScatterModel()
+model = CachedRadianceModel()
 model.load_state_dict(torch.load("latest"))
 model = model.to(device)
 
@@ -44,6 +45,10 @@ scaled_data[:, 8] = read_data[:, 9] / 40.
 print(f"Scaled Data: {scaled_data[0]}")
 
 pixel_inputs = torch.from_numpy(scaled_data).float()
+pixel_inputs = pixel_inputs.reshape([-1, 1, 9])
+
+print(f"pixel inputs shape: {pixel_inputs.shape}")
+
 pixel_inputs = pixel_inputs.to(device)
 
 pixel_outputs = model(pixel_inputs)
@@ -54,6 +59,8 @@ print(f"Pixel output: {pixel_outputs[0]}")
 
 img_width = int(math.sqrt(pixel_outputs.shape[0]))
 pixel_outputs = pixel_outputs.reshape((img_width, img_width, 3))
+
+print(f"pixel outputs shape: {pixel_outputs.shape}")
 
 pixel_mask = pixel_mask.reshape(img_width, img_width, 1)
 pixel_mask_img = np.zeros((img_width, img_width, 3))
