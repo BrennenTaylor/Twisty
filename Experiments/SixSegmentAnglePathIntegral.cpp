@@ -11,9 +11,6 @@
 #include <string>
 #include <chrono>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <stb_image_write.h>
-
 std::string format_duration(std::chrono::milliseconds ms)
 {
     using namespace std::chrono;

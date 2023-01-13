@@ -6,6 +6,8 @@
 
 #include "CurvePerturbUtils.h"
 
+#include <omp.h>
+
 #include <algorithm>
 #include <assert.h>
 #include <filesystem>
@@ -110,47 +112,76 @@ namespace PathWeighting {
         m_curvatureStepSize
               = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
+        std::vector<float> localLookupTable(weightingParams.numCurvatureSteps + 1);
+
         // Handle first case
         {
             float value = Integrate(m_minCurvature, weightingParams, ds);
-            m_lookupTable[0] = value;
+            localLookupTable[0] = value;
         }
-        float min = m_lookupTable[0];
-        float max = m_lookupTable[0];
+        float min = localLookupTable[0];
+        float max = localLookupTable[0];
 
-        for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i) {
-            float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-            float value = Integrate(curvatureEval, weightingParams, ds);
-
-            // Running min?
-            if (value <= 0.0) {
-                value = min;
-            }
-            m_lookupTable[i] = value;
-
-            if (value < min) {
-                min = value;
-            }
-
-            if (value > max) {
-                max = value;
-            }
+        const int numThreads = omp_get_max_threads();
+        std::cout << "Num Threads for Weight Table Calc: " << numThreads << std::endl;
+        std::vector<float> minValues(numThreads);
+        std::vector<float> maxValues(numThreads);
+        for (int i = 0; i < numThreads; ++i) {
+            minValues[i] = min;
+            maxValues[i] = max;
         }
 
-        uint32_t numInvalid = 0;
+#pragma omp parallel for num_threads(numThreads) default(none)                                     \
+      shared(localLookupTable, minValues, maxValues)
+        for (int64_t i = 1; i <= weightingParams.numCurvatureSteps; ++i) {
+            const float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
+            const float value = Integrate(curvatureEval, weightingParams, ds);
+            const int threadIdx = omp_get_thread_num();
+
+            // #pragma omp critical
+            // {
+            //     std::cout << "thread idx: " << threadIdx << std::endl;
+            // }
+
+            // Unique thread idx
+            localLookupTable[i] = value;
+
+            if (value < minValues[threadIdx]) {
+                minValues[threadIdx] = value;
+            }
+
+            if (value > maxValues[threadIdx]) {
+                maxValues[threadIdx] = value;
+            }
+        }
+
+        min = *std::min_element(minValues.begin(), minValues.end());
+        max = *std::max_element(maxValues.begin(), maxValues.end());
+
+        std::vector<uint64_t> numInvalidPerThread(numThreads);
+        for (int i = 0; i < numThreads; ++i) {
+            numInvalidPerThread[i] = 0;
+        }
+
         for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i) {
-            float value = m_lookupTable[i];
+            const int threadIdx = omp_get_thread_num();
+
+            float& value = localLookupTable[i];
 
             if (value <= 0.0) {
-                numInvalid++;
+                numInvalidPerThread[threadIdx]++;
                 value = min;
             }
         }
+
+        uint64_t numInvalid = std::accumulate(numInvalidPerThread.begin(), numInvalidPerThread.end(), 0); // C++17
 
         if (numInvalid > 0) {
             std::cout << "We calculated " << numInvalid
                       << " negative table values and clamped them to zero" << std::endl;
         }
+
+        m_lookupTable = std::move(localLookupTable);
 
         m_minSegmentWeight = min;
         m_maxSegmentWeight = max;

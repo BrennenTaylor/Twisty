@@ -51,6 +51,12 @@ target_compile_options(Twisty
     PUBLIC $<$<NOT:$<BOOL:${WIN32}>>:"-lstdc++fs">
 )
 
+if(WIN32)
+    target_compile_options(Twisty
+        PUBLIC "/openmp"
+    )
+endif()
+
 # We dont want to generate this on windows atm. Linker is only non-windows platforms
 if(NOT WIN32)
     target_link_options(Twisty

@@ -139,3 +139,39 @@ target_link_libraries(FiveSegmentHeatmap
 target_include_directories(FiveSegmentHeatmap
     PUBLIC ../stb
 )
+
+add_executable(FiveSegmentAnglePathIntegral
+    FiveSegmentAnglePathIntegral.cpp
+)
+
+target_compile_features(FiveSegmentAnglePathIntegral
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(FiveSegmentAnglePathIntegral
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(FiveSegmentAnglePathIntegral
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+add_executable(SixSegmentAnglePathIntegral
+    SixSegmentAnglePathIntegral.cpp
+)
+
+target_compile_features(SixSegmentAnglePathIntegral
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+target_link_libraries(SixSegmentAnglePathIntegral
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)   
