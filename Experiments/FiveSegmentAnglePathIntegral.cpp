@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
               experimentParams.weightingParameters, ds);
     }
-//     lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
+    lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
     assert(lookupEvaluator);
     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
 
@@ -250,6 +250,7 @@ int main(int argc, char *argv[])
           (numTotalPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
 
     const int maxThreads = omp_get_max_threads();
+    std::cout << "Max threads: " << maxThreads << '\n';
     std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
     for (int i = 0; i < maxThreads; i++) {
         twisty::CombinedWeightValues_C_Reset(combinedWeightValuesPerThread[i]);
@@ -262,7 +263,7 @@ int main(int argc, char *argv[])
     //     twisty::CombinedWeightValues_C activeWeightValue;
     //     twisty::CombinedWeightValues_C_Reset(activeWeightValue);
 
-#pragma omp parallel for default(none) shared(combinedWeightValues)
+#pragma omp parallel for num_threads(maxThreads) default(none) shared(combinedWeightValues)
     for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
         const int threadId = omp_get_thread_num();
 
@@ -283,7 +284,7 @@ int main(int argc, char *argv[])
             const float cosTheta1 = std::cos(theta1);
 
             // Calculate the first segment position
-            const Farlor::Vector3 segment1Dir(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
+            const Farlor::Vector3 segment1Dir = Farlor::Vector3(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
             const Farlor::Vector3 point2 = point1 + segment1Dir * ds;
 
             const float remainingDistance2 = (point4 - point2).SqrMagnitude();
@@ -295,7 +296,6 @@ int main(int argc, char *argv[])
             // If not, we keep going through the possible combinations
             for (int theta2Idx = 0; theta2Idx < numTheta2Vals; theta2Idx++) {
                 const float theta2 = theta2Min + theta2Idx * dTheta2;
-                // TODO: Finish out the remaining piece
 
                 const Farlor::Vector3 x_p = (point2 + point4) * 0.5;
                 const Farlor::Vector3 lineUnitDir = (point4 - point2).Normalized();
@@ -310,7 +310,7 @@ int main(int argc, char *argv[])
                 // We should have an even number of segments remaining
                 const float hypot = ds;
                 const float D_2 = (point4 - point2).Magnitude() * 0.5f;
-                assert(D_2 > hypot && "This should never be reached due to earlier check.");
+                assert(D_2 < hypot && "This should never be reached due to earlier check.");
 
                 const float distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
                 Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
@@ -342,9 +342,10 @@ int main(int argc, char *argv[])
                 twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
                       tangents.data(), curvatures.data(), 5, experimentGeometry);
 
-                double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                      curvatures.data(), 4, weightingIntegralsRawPointer);
-                scatteringWeightLog10 += pathNormalizerLog10;
+                const double scatteringWeightLog10
+                      = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
+                              curvatures.data(), 4, weightingIntegralsRawPointer)
+                      + pathNormalizerLog10;
 
                 twisty::CombinedWeightValues_C &activeWeightValue
                       = combinedWeightValuesPerThread[threadId];

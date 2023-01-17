@@ -4,8 +4,8 @@
 
 #include "MathConsts.h"
 
-
 #include <cmath>
+#include <assert.h>
 
 // Cuda Functions
 namespace twisty {
@@ -228,28 +228,23 @@ namespace PerturbUtils {
     }
 
     // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-    __host__ __device__ void UpdateTangentsFromPos_CudaSafe(float *pPositions, float *pTangents,
-          const uint32_t numSegments, const BoundaryConditions_CudaSafe &csBoundaryConditions)
+    __host__ __device__ void UpdateTangentsFromPos_CudaSafe(float *__restrict const pPositions,
+          float * __restrict const pTangents, const uint32_t numSegments,
+          const BoundaryConditions_CudaSafe &csBoundaryConditions)
     {
         const float invDS = numSegments / csBoundaryConditions.arclength;
 
         // TODO: Is Forward Difference good enough?
         for (uint32_t i = 0; i < numSegments; ++i) {
-            float diff_x = pPositions[((i + 1) * 3) + 0] - pPositions[(i * 3) + 0];
-            float diff_y = pPositions[((i + 1) * 3) + 1] - pPositions[(i * 3) + 1];
-            float diff_z = pPositions[((i + 1) * 3) + 2] - pPositions[(i * 3) + 2];
-            pTangents[i * 3 + 0] = diff_x * invDS;
-            pTangents[i * 3 + 1] = diff_y * invDS;
-            pTangents[i * 3 + 2] = diff_z * invDS;
-
-            //TODO: Should we normalize the damn tangents?
-            float mag = pTangents[i * 3 + 0] * pTangents[i * 3 + 0]
-                  + pTangents[i * 3 + 1] * pTangents[i * 3 + 1]
-                  + pTangents[i * 3 + 2] * pTangents[i * 3 + 2];
-            mag = std::sqrt(mag);
-            pTangents[i * 3 + 0] /= mag;
-            pTangents[i * 3 + 1] /= mag;
-            pTangents[i * 3 + 2] /= mag;
+            float diff_x = (pPositions[((i + 1) * 3) + 0] - pPositions[(i * 3) + 0]) * invDS;
+            float diff_y = (pPositions[((i + 1) * 3) + 1] - pPositions[(i * 3) + 1]) * invDS;
+            float diff_z = (pPositions[((i + 1) * 3) + 2] - pPositions[(i * 3) + 2]) * invDS;
+            float mag = diff_x * diff_x + diff_y * diff_y + diff_z * diff_z;
+            assert(mag > 0.0f);
+            mag = 1.0f / std::sqrt(mag);
+            pTangents[i * 3 + 0] = diff_x * mag;
+            pTangents[i * 3 + 1] = diff_y * mag;
+            pTangents[i * 3 + 2] = diff_z * mag;
         }
     }
 

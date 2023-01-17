@@ -90,8 +90,9 @@ namespace PerturbUtils {
           const uint32_t numSegments,
           const BoundaryConditions &boundaryConditions);
 
-    __device__ __host__ void UpdateTangentsFromPos_CudaSafe(float *pPositions, float *pTangents,
-          const uint32_t numSegments, const BoundaryConditions_CudaSafe &boundaryConditions);
+    __device__ __host__ void UpdateTangentsFromPos_CudaSafe(float *__restrict const pPositions,
+          float *__restrict const pTangents, const uint32_t numSegments,
+          const BoundaryConditions_CudaSafe &boundaryConditions);
 
     __device__ __host__ void UpdateCurvaturesFromTangents_RadiativeTransfer_CudaSafe(
           float *pTangents, float *pCurvatures, const uint32_t numSegments,

@@ -94,7 +94,7 @@ namespace PathWeighting {
         }
         for (uint32_t i = 0; i < m_lookupTable.size(); ++i) {
             const double curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-            outputFile << curvatureEval << ", " << m_lookupTable[i] << std::endl;
+            outputFile << curvatureEval << ", " << m_lookupTable[i] << '\n';
         }
         outputFile.close();
     }
@@ -186,18 +186,18 @@ namespace PathWeighting {
         m_minSegmentWeight = min;
         m_maxSegmentWeight = max;
 
-        std::cout << "Finished path weight integral lookup table" << std::endl;
-        std::cout << "\tMin Possible Weight Value: " << min << std::endl;
-        std::cout << "\tMax Possible Weight Value: " << max << std::endl;
+        std::cout << "Finished path weight integral lookup table" << '\n';
+        std::cout << "\tMin Possible Weight Value: " << min << '\n';
+        std::cout << "\tMax Possible Weight Value: " << max << '\n';
         // Parameters
-        std::cout << "\tTable construction params: " << std::endl;
-        std::cout << "\t\tmu: " << weightingParams.mu << std::endl;
-        std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << std::endl;
-        std::cout << "\t\tm_minBound: " << weightingParams.minBound << std::endl;
-        std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << std::endl;
-        std::cout << "\t\tm_eps: " << weightingParams.eps << std::endl;
-        std::cout << "\t\tm_minCurvature: " << m_minCurvature << std::endl;
-        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << std::endl;
+        std::cout << "\tTable construction params: " << '\n';
+        std::cout << "\t\tmu: " << weightingParams.mu << '\n';
+        std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << '\n';
+        std::cout << "\t\tm_minBound: " << weightingParams.minBound << '\n';
+        std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << '\n';
+        std::cout << "\t\tm_eps: " << weightingParams.eps << '\n';
+        std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
+        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
         std::cout << "\t\tm_numCurvatureSteps: " << weightingParams.numCurvatureSteps << std::endl;
     }
 
@@ -324,18 +324,18 @@ namespace PathWeighting {
         m_minSegmentWeight = min;
         m_maxSegmentWeight = max;
 
-        std::cout << "Finished path weight integral lookup table" << std::endl;
-        std::cout << "\tMin Possible Weight Value: " << min << std::endl;
-        std::cout << "\tMax Possible Weight Value: " << max << std::endl;
+        std::cout << "Finished path weight integral lookup table" << '\n';
+        std::cout << "\tMin Possible Weight Value: " << min << '\n';
+        std::cout << "\tMax Possible Weight Value: " << max << '\n';
         // Parameters
-        std::cout << "\tTable construction params: " << std::endl;
-        std::cout << "\t\tmu: " << weightingParams.mu << std::endl;
-        std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << std::endl;
-        std::cout << "\t\tm_minBound: " << weightingParams.minBound << std::endl;
-        std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << std::endl;
-        std::cout << "\t\tm_eps: " << weightingParams.eps << std::endl;
-        std::cout << "\t\tm_minCurvature: " << m_minCurvature << std::endl;
-        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << std::endl;
+        std::cout << "\tTable construction params: " << '\n';
+        std::cout << "\t\tmu: " << weightingParams.mu << '\n';
+        std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << '\n';
+        std::cout << "\t\tm_minBound: " << weightingParams.minBound << '\n';
+        std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << '\n';
+        std::cout << "\t\tm_eps: " << weightingParams.eps << '\n';
+        std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
+        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
         std::cout << "\t\tm_numCurvatureSteps: " << weightingParams.numCurvatureSteps << std::endl;
     }
 
@@ -394,19 +394,20 @@ namespace PathWeighting {
 
         void FN::WriteToFile(std::ofstream &outFile)
         {
-            outFile << nb_samples << std::endl;
-            outFile << nb_orders << std::endl;
-            outFile << zMin << std::endl;
-            outFile << zMax << std::endl;
+            outFile << nb_samples << '\n';
+            outFile << nb_orders << '\n';
+            outFile << zMin << '\n';
+            outFile << zMax << '\n';
 
             for (uint32_t order = 2; order <= nb_orders; ++order) {
                 std::cout << "Writing out order: " << order << std::endl;
                 auto &samples = fNsets[order];
                 outFile << order << std::endl;
                 for (uint32_t sample = 0; sample < nb_samples; ++sample) {
-                    outFile << samples[sample] << std::endl;
+                    outFile << samples[sample] << '\n';
                 }
             }
+            outFile.flush();
         }
 
         void FN::init_fromFile(std::ifstream &inFile)

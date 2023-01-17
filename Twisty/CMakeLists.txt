@@ -1,3 +1,5 @@
+find_package(OpenMP)
+
 add_library(Twisty
     BezierCurve.h
     BezierCurve.cpp
@@ -39,6 +41,7 @@ target_link_libraries(Twisty
     PUBLIC glm
     PUBLIC shlwapi
     PUBLIC nlohmann_json::nlohmann_json
+    PUBLIC OpenMP::OpenMP_CXX
 )
 
 target_include_directories(Twisty
@@ -51,11 +54,12 @@ target_compile_options(Twisty
     PUBLIC $<$<NOT:$<BOOL:${WIN32}>>:"-lstdc++fs">
 )
 
-if(WIN32)
-    target_compile_options(Twisty
-        PUBLIC "/openmp"
-    )
-endif()
+# if(WIN32)
+#     target_compile_options(Twisty
+#         PUBLIC $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=/openmp>
+#         PUBLIC "/openmp"
+#     )
+# endif()
 
 # We dont want to generate this on windows atm. Linker is only non-windows platforms
 if(NOT WIN32)
