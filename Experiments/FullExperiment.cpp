@@ -188,11 +188,9 @@ int main(int argc, char *argv[])
         }
         // Force to a value
 
-
         experimentGeometry.arclength = experimentParams.arclength
               = experimentConfig["experiment"]["basicExperiment"]["arclength"];
         std::cout << "Minimum arclength: " << experimentGeometry.arclength << std::endl;
-
 
         // We run the experiment as well
         std::string outputDataFilename

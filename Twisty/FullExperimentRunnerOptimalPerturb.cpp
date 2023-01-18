@@ -20,6 +20,19 @@
 #include <stdlib.h>
 #include <memory>
 
+#define EnableHistogramCalc 1
+
+#if EnableHistogramCalc
+// Per the path angle integration
+static double g_minWeight = 4.69653e-16;
+static double g_maxWeight = 1.17517e-13;
+static const uint64_t g_numHistogramBuckets = 500;
+static std::vector<std::vector<double>> g_perThreadHistograms;
+static std::vector<double> g_histogram;
+static double g_normalizerLog10 = 0.0f;
+static std::ofstream g_histogramFile;
+#endif
+
 namespace twisty {
 FullExperimentRunnerOptimalPerturb::FullExperimentRunnerOptimalPerturb(
       ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
@@ -43,17 +56,16 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
               m_experimentParams.weightingParameters, m_upInitialCurve->m_ds);
     }
-    lookupEvaluator->ExportValues(m_experimentDirPath.string());
     assert(lookupEvaluator);
+    lookupEvaluator->ExportValues(m_experimentDirPath.string());
     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
-
 
     const twisty::PerturbUtils::BoundaryConditions boundaryConditions
           = m_upInitialCurve->GetBoundaryConditions();
     assert(boundaryConditions.arclength > 0);
 
     // Constants
-    int64_t numSystemThreads = std::thread::hardware_concurrency();
+    const int64_t numSystemThreads = std::thread::hardware_concurrency();
     int64_t numPurturbThreads = m_experimentParams.maxPerturbThreads;
 
     if (numSystemThreads < numPurturbThreads) {
@@ -62,12 +74,10 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
               << std::endl;
         numPurturbThreads = numSystemThreads;
     }
-
     if (numPurturbThreads == 0) {
         std::cout << "Requested behavior: Use number of system threads" << std::endl;
         numPurturbThreads = numSystemThreads;
     }
-
     assert(numPurturbThreads > 0);
 
     std::cout << "Using " << numPurturbThreads << " threads for purturbation." << std::endl;
@@ -205,6 +215,19 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
     uint64_t pathsLeftInExperiment = m_experimentParams.numPathsInExperiment;
     boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
     uint64_t numPathsGenerated = 0;
+
+#if EnableHistogramCalc
+    // For each thread, resize the histrogram
+    g_perThreadHistograms.resize(numPurturbThreads);
+    for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
+        g_perThreadHistograms[threadIdx].resize(g_numHistogramBuckets);
+        // Initialize to 0
+        for (int64_t bucketIdx = 0; bucketIdx < g_numHistogramBuckets; ++bucketIdx) {
+            g_perThreadHistograms[threadIdx][bucketIdx] = 0;
+        }
+    }
+    g_normalizerLog10 = pathNormalizerLog10;
+#endif
 
     for (uint64_t dispatchIdx = 0; dispatchIdx < numDispatchesRequired; dispatchIdx++) {
         /* --------------------- */
@@ -354,6 +377,36 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
         }
     }
 
+#if EnableHistogramCalc
+    // Combine histograms
+    g_histogram.resize(g_numHistogramBuckets);
+      for (int64_t binIdx = 0; binIdx < g_numHistogramBuckets; ++binIdx) {
+        g_histogram[binIdx] = 0;
+      }
+
+    for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
+        for (int64_t binIdx = 0; binIdx < g_numHistogramBuckets; ++binIdx) {
+            g_histogram[binIdx] += g_perThreadHistograms[threadIdx][binIdx];
+        }
+    }
+
+    // Output Histogram
+    std::cout << "Writing histogram to: " << m_experimentDirPath.string() + "histogram.txt"
+              << std::endl;
+    g_histogramFile.open(m_experimentDirPath.string() + "histogram.txt");
+    g_histogramFile << "Histogram" << '\n';
+    for (int i = 0; i < g_numHistogramBuckets; i++) {
+        // Big float min
+        const double binMin = g_minWeight + (g_maxWeight - g_minWeight) * i / g_numHistogramBuckets;
+        // Big float max
+        const double binMax
+              = g_minWeight + (g_maxWeight - g_minWeight) * (i + 1) / g_numHistogramBuckets;
+
+        g_histogramFile << binMin << " " << binMax << " " << g_histogram[i] << '\n';
+    }
+    g_histogramFile.close();
+#endif
+
     ExperimentResults results;
     results.experimentWeight = bigTotalExperimentWeight;
     results.totalPathsGenerated = numPathsGenerated;
@@ -473,46 +526,6 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                 }
             }
 
-
-            // // Matrix Rotation
-            // {
-            //     float rotationMatrix[9] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-            //     RotationMatrixAroundAxis_AngleAsIs_CudaSafe(
-            //           randRotationAngle, N.m_data.data(), rotationMatrix);
-
-            //     for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
-            //           ++pointIdx) {
-            //         Farlor::Vector3 shiftedPoint
-            //               = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
-            //         // Rotate and stuff back in shifted point
-            //         RotateVectorByMatrix(rotationMatrix, shiftedPoint.m_data.data());
-            //         // Update the point with the rotated version
-            //         globalPos[CurrentThreadPosStartIdx + pointIdx] = (shiftedPoint + leftPoint);
-            //     }
-
-            //     //Now, simply compute the difference in positions at the two edges of the rotated rigidbody.
-            //     //We can do a different approach later.
-            //     // Here, we want to do a perturb update call
-            //     twisty::PerturbUtils::UpdateTangentsFromPos(&globalPos[CurrentThreadPosStartIdx],
-            //           &globalTans[CurrentThreadTanStartIdx], numSegmentsPerCurve,
-            //           boundaryConditions);
-
-
-            //     if (m_experimentParams.weightingParameters.weightingMethod
-            //           == WeightingMethod::RadiativeTransfer) {
-            //         twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
-            //               &globalTans[CurrentThreadTanStartIdx],
-            //               &globalCurvatures[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve,
-            //               boundaryConditions);
-            //     } else {
-            //         twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
-            //               &globalTans[CurrentThreadTanStartIdx],
-            //               &globalCurvatures[CurrentThreadCurvatureStartIdx], numSegmentsPerCurve,
-            //               boundaryConditions);
-            //     }
-            // }
-
-
             // Normalized version
             double scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
@@ -528,6 +541,23 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
             if (pathCount < numPathsToSkipPerThread) {
                 // Skip
             } else {
+#if EnableHistogramCalc
+                const double scatteringWeightLog10Decompressed
+                      = std::pow(10.0, (scatteringWeightLog10 + g_normalizerLog10));
+
+                const uint64_t binIdx =
+                      [scatteringWeightLog10Decompressed]()->uint64_t {
+                    if (scatteringWeightLog10Decompressed < g_minWeight)
+                        return 0;
+                    if (scatteringWeightLog10Decompressed > g_maxWeight)
+                        return (g_numHistogramBuckets - 1);
+                    return (scatteringWeightLog10Decompressed - g_minWeight) / (g_maxWeight - g_minWeight)
+                          * g_numHistogramBuckets;
+                }();
+                g_perThreadHistograms[threadIdx][binIdx]++;
+#endif
+
+
                 // Else, contribute to the paths
                 int64_t currentPathIdx = numPathsPerThread * threadIdx + pathCount;
                 assert((currentPathIdx - numPathsToSkipPerThread) >= numPathsPerThread * threadIdx);
@@ -581,7 +611,6 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
     std::vector<Farlor::Vector3> pathBatchCache(ExportPathBatchCacheSize * NumPosPerCurve);
     std::vector<double> log10PathWeightCache(ExportPathBatchCacheSize);
     std::vector<Farlor::Vector3> fiveSegmentPathCache(ExportPathBatchCacheSize);
-
 
     // Now, we can begin the actual algorithm
     {
