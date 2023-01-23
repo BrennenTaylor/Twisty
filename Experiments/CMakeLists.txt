@@ -174,4 +174,25 @@ target_link_libraries(SixSegmentAnglePathIntegral
     PUBLIC Twisty
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
-)   
+)
+
+add_executable(FiveSegmentUniformPathGenerationSolver
+    FiveSegmentUniformPathGenerationSolver.cpp
+)
+
+target_compile_features(FiveSegmentUniformPathGenerationSolver
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(FiveSegmentUniformPathGenerationSolver
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(FiveSegmentUniformPathGenerationSolver
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
