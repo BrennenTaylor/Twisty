@@ -13,6 +13,8 @@
 #include <string>
 #include <random>
 
+const float PI = 3.14159265358979323846f;
+
 twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
       const nlohmann::json &experimentConfig)
 {
@@ -222,6 +224,16 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 point5 = experimentGeometry.m_endPos;
     const Farlor::Vector3 point4 = point5 - experimentGeometry.m_endDir * ds;
 
+    // Z axis of new corrdinate frame
+    const Farlor::Vector3 zAxis = (point4 - point1).Normalized();
+    // Generate orthogonal basis vectors x axis and y axis
+    Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
+    if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
+        randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+    }
+    const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
+    const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+
     // Generation of curve stuff
     const double d = (point4 - point1).Magnitude();
     const double d2 = d * d;
@@ -237,27 +249,28 @@ int main(int argc, char *argv[])
         return 1;
     } else if (d + std::min(leftRadius, rightRadius) < std::max(leftRadius, rightRadius)) {
         std::cout << "Left sphere fully in right, thus full range of motion" << std::endl;
-        phiExtent = 3.141592;
+        phiExtent = PI;
     } else {
         const double h = 0.5 + (leftRadius2 - rightRadius2) / (2.0 * d2);
         const Farlor::Vector3 centerOfIntersection = point1 + (point4 - point1) * h;
         const double a = std::sqrt(leftRadius2 - (h * h * d2));
 
-        phiExtent
-              = (h * d < 0.0f) ? 3.141592 - std::asin(a / leftRadius) : std::asin(a / leftRadius);
+        phiExtent = (h * d < 0.0f) ? PI - std::asin(a / leftRadius) : std::asin(a / leftRadius);
     }
 
-    /*const double otherA = 1.0f / (2.0f * d)
-          * std::sqrt((4.0f * d2 * leftRadius2)
-                - (d2 - rightRadius2 + leftRadius2) * (d2 - rightRadius2 + leftRadius2));*/
-    //const double otherH = std::sqrt(leftRadius2 - a * a) / d;
+    const float uniformPhiSamplingMax = 0.5f - std::cos(phiExtent) * 0.5f;
 
-    std::uniform_real_distribution<double> phiDist(-phiExtent, phiExtent);
-    std::uniform_real_distribution<double> thetaDist(0.0f, 2.0f * 3.14159265358979323846f);
+    //     std::uniform_real_distribution<double> phiDist(0, uniformPhiSamplingMax);
+    std::uniform_real_distribution<double> phiDist(0, phiExtent);
 
-    auto FromSpherical = [](double phi, double theta) -> Farlor::Vector3 {
-        return Farlor::Vector3(
-              std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta), std::cos(phi));
+    std::uniform_real_distribution<double> thetaDist(0.0f, 2.0f * PI);
+
+
+    auto FromSpherical = [xAxis, yAxis, zAxis](double phi, double theta) -> Farlor::Vector3 {
+        //   return Farlor::Vector3(
+        //         std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta), std::cos(phi));
+        return xAxis * std::sin(phi) * std::cos(theta) + yAxis * std::sin(phi) * std::sin(theta)
+              + zAxis * std::cos(phi);
     };
 
     std::vector<twisty::CombinedWeightValues_C> combinedWeightValues;
@@ -281,7 +294,9 @@ int main(int argc, char *argv[])
     for (uint64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
         const int threadId = 0;  //omp_get_thread_num();
 
+        //   const double phi = std::acos(1.0 - 2.0 * phiDist(rng));
         const double phi = phiDist(rng);
+
         const double theta = thetaDist(rng);
         const double theta2 = thetaDist(rng);
 
