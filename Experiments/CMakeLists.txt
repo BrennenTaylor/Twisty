@@ -1,3 +1,24 @@
+add_library(ExperimentBase
+    ExperimentBase.h
+    ExperimentBase.cpp
+)
+
+target_compile_features(ExperimentBase
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(ExperimentBase
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
 add_executable(FullExperiment
     FullExperiment.cpp
 )
@@ -19,7 +40,7 @@ add_executable(NoisyCircleAngleIntegration
 )
 
 target_link_libraries(NoisyCircleAngleIntegration
-    PUBLIC Twisty
+    PUBLIC ExperimentBase
 )
 
 # Refactor below
@@ -156,9 +177,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(FiveSegmentAnglePathIntegral
-    PUBLIC Twisty
-    PUBLIC glm
-    PRIVATE nlohmann_json::nlohmann_json
+    PUBLIC ExperimentBase
 )
 
 add_executable(SixSegmentAnglePathIntegral

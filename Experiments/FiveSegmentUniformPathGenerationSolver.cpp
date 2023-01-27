@@ -259,16 +259,12 @@ int main(int argc, char *argv[])
     }
 
     const float uniformPhiSamplingMax = 0.5f - std::cos(phiExtent) * 0.5f;
-
-    //     std::uniform_real_distribution<double> phiDist(0, uniformPhiSamplingMax);
-    std::uniform_real_distribution<double> phiDist(0, phiExtent);
+    std::uniform_real_distribution<double> phiDist(0, uniformPhiSamplingMax);
 
     std::uniform_real_distribution<double> thetaDist(0.0f, 2.0f * PI);
 
 
     auto FromSpherical = [xAxis, yAxis, zAxis](double phi, double theta) -> Farlor::Vector3 {
-        //   return Farlor::Vector3(
-        //         std::sin(phi) * std::cos(theta), std::sin(phi) * std::sin(theta), std::cos(phi));
         return xAxis * std::sin(phi) * std::cos(theta) + yAxis * std::sin(phi) * std::sin(theta)
               + zAxis * std::cos(phi);
     };
@@ -294,8 +290,7 @@ int main(int argc, char *argv[])
     for (uint64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
         const int threadId = 0;  //omp_get_thread_num();
 
-        //   const double phi = std::acos(1.0 - 2.0 * phiDist(rng));
-        const double phi = phiDist(rng);
+        const double phi = std::acos(1.0 - 2.0 * phiDist(rng));
 
         const double theta = thetaDist(rng);
         const double theta2 = thetaDist(rng);

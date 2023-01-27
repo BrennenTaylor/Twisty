@@ -84,7 +84,7 @@ namespace PathWeighting {
         std::filesystem::path exportDirectory = directoryFileName;
         exportDirectory = exportDirectory / "WeightLookupTable/";
         if (!std::filesystem::exists(exportDirectory)) {
-            std::filesystem::create_directory(exportDirectory);
+            std::filesystem::create_directories(exportDirectory);
         }
 
         std::cout << "Exporting table of size: " << m_lookupTable.size() << std::endl;
