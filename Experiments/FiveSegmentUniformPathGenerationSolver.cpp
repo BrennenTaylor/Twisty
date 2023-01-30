@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
     combinedWeightValues.reserve(
           (numExperimentPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
 
-    const int maxThreads = 1;  //omp_get_max_threads();
+    const int maxThreads = omp_get_max_threads();
     std::cout << "Max threads: " << maxThreads << '\n';
     std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
     for (int i = 0; i < maxThreads; i++) {
@@ -286,14 +286,19 @@ int main(int argc, char *argv[])
     std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
 
 
-    std::mt19937_64 rng(0);
-    for (uint64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
-        const int threadId = 0;  //omp_get_thread_num();
+    std::vector<std::mt19937_64> rngPerThread(maxThreads);
+    for (int i = 0; i < maxThreads; i++) {
+        rngPerThread[i].seed(i);
+    }
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread)
+    for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
+        const int threadId = omp_get_thread_num();
 
-        const double phi = std::acos(1.0 - 2.0 * phiDist(rng));
+        const double phi = std::acos(1.0 - 2.0 * phiDist(rngPerThread[threadId]));
 
-        const double theta = thetaDist(rng);
-        const double theta2 = thetaDist(rng);
+        const double theta = thetaDist(rngPerThread[threadId]);
+        const double theta2 = thetaDist(rngPerThread[threadId]);
 
         const Farlor::Vector3 point2 = point1 + FromSpherical(phi, theta) * ds;
 
@@ -310,9 +315,12 @@ int main(int argc, char *argv[])
         // We should have an even number of segments remaining
         const float hypot = ds;
         const float D_2 = (point4 - point2).Magnitude() * 0.5f;
-        assert(D_2 < hypot && "This should never be reached due to earlier check.");
+        assert(D_2 <= hypot && "This should never be reached due to earlier check.");
 
-        const float distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
+        float distanceOffLine = 0.0f;
+        if (hypot > D_2) {
+            distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
+        }
         Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
 
         // Now rotate randomly theta amount around the axis.
@@ -356,15 +364,13 @@ int main(int argc, char *argv[])
         if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
             twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
         } else {
-            // #pragma omp critical
+#pragma omp critical
             {
                 combinedWeightValues.push_back(activeWeightValue);
             }
             twisty::CombinedWeightValues_C_Reset(activeWeightValue);
             twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
         }
-        //     numValidPathsPerThread[threadId]++;
-        //     numValidPaths++;
     }
 
     // For each thread, add the last active weight value in
