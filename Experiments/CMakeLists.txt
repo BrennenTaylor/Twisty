@@ -215,3 +215,25 @@ target_link_libraries(FiveSegmentUniformPathGenerationSolver
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )
+
+add_executable(FiveSegmentAngleSpaceMC
+    FiveSegmentAngleSpaceMC.cpp
+)
+
+target_compile_features(FiveSegmentAngleSpaceMC
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(FiveSegmentAngleSpaceMC
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(FiveSegmentAngleSpaceMC
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
