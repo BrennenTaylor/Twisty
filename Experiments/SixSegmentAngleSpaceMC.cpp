@@ -140,8 +140,8 @@ int main(int argc, char *argv[])
 
     twisty::ExperimentRunner::ExperimentParameters experimentParams
           = ParseExperimentParamsFromConfig(experimentConfig);
-    assert((experimentParams.numSegmentsPerCurve == 5)
-          && "Must only target 5 segment curve configurations");
+    assert((experimentParams.numSegmentsPerCurve == 6)
+          && "Must only target 6 segment curve configurations");
 
     if (!std::filesystem::exists(experimentParams.experimentDirPath)) {
         std::filesystem::create_directories(experimentParams.experimentDirPath);
@@ -220,9 +220,8 @@ int main(int argc, char *argv[])
     const double pathNormalizerLog10 = (double)boost::multiprecision::log10(pathNormalizer);
 
     const twisty::ExperimentBase::Result result
-          = twisty::ExperimentBase::FiveSegmentPathGenerationMC(numExperimentPaths,
-                experimentGeometry, experimentParams, pathNormalizerLog10,
-                weightingIntegralsRawPointer);
+          = twisty::ExperimentBase::SixSegmentAngleSpaceMC(numExperimentPaths, experimentGeometry,
+                experimentParams, pathNormalizerLog10, weightingIntegralsRawPointer);
 
     resultsOFS << "Num valid paths: " << result.numValidPaths << "/" << result.numPathsTotal
                << std::endl;

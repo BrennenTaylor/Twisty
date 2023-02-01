@@ -211,6 +211,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(FiveSegmentUniformPathGenerationSolver
+    PUBLIC ExperimentBase    
     PUBLIC Twisty
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
@@ -232,6 +233,28 @@ if(WIN32)
 endif()
 
 target_link_libraries(FiveSegmentAngleSpaceMC
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+add_executable(SixSegmentAngleSpaceMC
+    SixSegmentAngleSpaceMC.cpp
+)
+
+target_compile_features(SixSegmentAngleSpaceMC
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(SixSegmentAngleSpaceMC
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(SixSegmentAngleSpaceMC
     PUBLIC ExperimentBase
     PUBLIC Twisty
     PUBLIC glm

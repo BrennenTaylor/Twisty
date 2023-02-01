@@ -31,6 +31,17 @@ namespace ExperimentBase {
           const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
 
 
-    Result
+    Result FiveSegmentPathGenerationMC(const int64_t numExperimentPaths,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
+
+
+    Result SixSegmentAngleSpaceMC(const int64_t numExperimentPaths,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
 }
 }

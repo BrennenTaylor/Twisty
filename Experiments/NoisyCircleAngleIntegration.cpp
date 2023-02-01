@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
                 const uint32_t frameIdx
                       = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
                       + (pixelIdxZ + halfFrameWidth);
-                twisty::ExperimentBase::FiveSegmentAngleIntegrationResult result
+                twisty::ExperimentBase::Result result
                       = twisty::ExperimentBase::FiveSegmentAngleIntegration(
                             experimentSpecificParams.numPhi1Vals,
                             experimentSpecificParams.numTheta1Vals,
