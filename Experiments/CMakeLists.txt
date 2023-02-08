@@ -211,7 +211,51 @@ if(WIN32)
 endif()
 
 target_link_libraries(FiveSegmentUniformPathGenerationSolver
-    PUBLIC ExperimentBase    
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+add_executable(SixSegmentUniformPathGenerationSolver
+    SixSegmentUniformPathGenerationSolver.cpp
+)
+
+target_compile_features(SixSegmentUniformPathGenerationSolver
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(SixSegmentUniformPathGenerationSolver
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(SixSegmentUniformPathGenerationSolver
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+add_executable(MSegmentUniformPathGenerationSolver
+    MSegmentUniformPathGenerationSolver.cpp
+)
+
+target_compile_features(MSegmentUniformPathGenerationSolver
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(MSegmentUniformPathGenerationSolver
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(MSegmentUniformPathGenerationSolver
+    PUBLIC ExperimentBase
     PUBLIC Twisty
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json

@@ -30,6 +30,11 @@ namespace ExperimentBase {
           const double pathNormalizerLog10,
           const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
 
+    Result SixSegmentAngleSpaceMC(const int64_t numExperimentPaths,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
 
     Result FiveSegmentPathGenerationMC(const int64_t numExperimentPaths,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
@@ -37,8 +42,13 @@ namespace ExperimentBase {
           const double pathNormalizerLog10,
           const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
 
+    Result SixSegmentPathGenerationMC(const int64_t numExperimentPaths,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
 
-    Result SixSegmentAngleSpaceMC(const int64_t numExperimentPaths,
+    Result MSegmentPathGenerationMC(const int64_t numExperimentPaths, const int numSegmentsPerCurve,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
           const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
           const double pathNormalizerLog10,

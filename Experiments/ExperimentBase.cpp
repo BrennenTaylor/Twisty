@@ -6,8 +6,6 @@
 
 namespace twisty {
 namespace ExperimentBase {
-    const float PI = 3.14159265358979323846f;
-
     Result FiveSegmentAngleIntegration(const uint32_t numPhi1Vals, const uint32_t numTheta1Vals,
           const uint32_t numTheta2Vals,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
@@ -381,201 +379,6 @@ namespace ExperimentBase {
     }
 
 
-    Result FiveSegmentPathGenerationMC(const int64_t numExperimentPaths,
-          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
-          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
-          const double pathNormalizerLog10,
-          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable)
-    {
-        const uint64_t numTotalPaths = numExperimentPaths;
-        const float ds = experimentGeometry.arclength / experimentParams.numSegmentsPerCurve;
-
-        const Farlor::Vector3 point0 = experimentGeometry.m_startPos;
-        const Farlor::Vector3 point1
-              = experimentGeometry.m_startPos + ds * experimentGeometry.m_startDir;
-
-        const Farlor::Vector3 point5 = experimentGeometry.m_endPos;
-        const Farlor::Vector3 point4
-              = experimentGeometry.m_endPos - ds * experimentGeometry.m_endDir;
-
-
-        // Z axis of new corrdinate frame
-        const Farlor::Vector3 zAxis = (point4 - point1).Normalized();
-        // Generate orthogonal basis vectors x axis and y axis
-        Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
-        if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
-            randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
-        }
-        const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
-        const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
-
-        // Generation of curve stuff
-        const double d = (point4 - point1).Magnitude();
-        const double d2 = d * d;
-        const double leftRadius = ds;
-        const double leftRadius2 = leftRadius * leftRadius;
-        const double rightRadius = 2.0f * ds;
-        const double rightRadius2 = rightRadius * rightRadius;
-
-        double phiExtent = 0.0f;
-
-        if ((leftRadius + rightRadius) < d) {
-            std::cout << "No intersection, thus no weight" << std::endl;
-            return { 0, 0, 0.0f, 0.0f, 0.0f };
-        } else if (d + std::min(leftRadius, rightRadius) < std::max(leftRadius, rightRadius)) {
-            std::cout << "Left sphere fully in right, thus full range of motion" << std::endl;
-            phiExtent = PI;
-        } else {
-            const double h = 0.5 + (leftRadius2 - rightRadius2) / (2.0 * d2);
-            const Farlor::Vector3 centerOfIntersection = point1 + (point4 - point1) * h;
-            const double a = std::sqrt(leftRadius2 - (h * h * d2));
-
-            phiExtent = (h * d < 0.0f) ? PI - std::asin(a / leftRadius) : std::asin(a / leftRadius);
-        }
-
-        const float uniformPhiSamplingMax = 0.5f - std::cos(phiExtent) * 0.5f;
-        std::uniform_real_distribution<double> phiDist(0, uniformPhiSamplingMax);
-
-        std::uniform_real_distribution<double> thetaDist(0.0f, 2.0f * PI);
-
-
-        auto FromSpherical = [xAxis, yAxis, zAxis](double phi, double theta) -> Farlor::Vector3 {
-            return xAxis * std::sin(phi) * std::cos(theta) + yAxis * std::sin(phi) * std::sin(theta)
-                  + zAxis * std::cos(phi);
-        };
-
-        std::vector<twisty::CombinedWeightValues_C> combinedWeightValues;
-        combinedWeightValues.reserve(
-              (numTotalPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
-
-        const int maxThreads = omp_get_max_threads();
-        std::cout << "Max threads: " << maxThreads << '\n';
-        std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
-        for (int i = 0; i < maxThreads; i++) {
-            twisty::CombinedWeightValues_C_Reset(combinedWeightValuesPerThread[i]);
-        }
-
-        // Per thread min values
-        std::vector<double> minPathWeightPerThread(maxThreads, std::numeric_limits<double>::max());
-        // Per thread max values
-        std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
-
-        // Random Gen per thread
-        std::vector<std::mt19937_64> rngPerThread(maxThreads);
-        for (int i = 0; i < maxThreads; i++) {
-            rngPerThread[i].seed(i);
-        }
-
-#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
-      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread)
-        for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
-            const int threadId = omp_get_thread_num();
-
-            const double phi = std::acos(1.0 - 2.0 * phiDist(rngPerThread[threadId]));
-
-            const double theta = thetaDist(rngPerThread[threadId]);
-            const double theta2 = thetaDist(rngPerThread[threadId]);
-
-            const Farlor::Vector3 point2 = point1 + FromSpherical(phi, theta) * ds;
-
-            const Farlor::Vector3 x_p = (point2 + point4) * 0.5;
-            const Farlor::Vector3 lineUnitDir = (point4 - point2).Normalized();
-
-            Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
-            if (abs(lineUnitDir.Dot(otherCrossVec)) >= 0.99) {
-                otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
-            }
-
-            const Farlor::Vector3 normalToLine = lineUnitDir.Cross(otherCrossVec).Normalized();
-
-            // We should have an even number of segments remaining
-            const float hypot = ds;
-            const float D_2 = (point4 - point2).Magnitude() * 0.5f;
-            assert(D_2 <= hypot && "This should never be reached due to earlier check.");
-
-            float distanceOffLine = 0.0f;
-            if (hypot > D_2) {
-                distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
-            }
-            Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
-
-            // Now rotate randomly theta amount around the axis.
-            {
-                const float sinRotAngle = std::sinf(theta2 / 2.0f);
-                float quaternionRotation[4]
-                      = { std::cosf(theta2 / 2.0f), lineUnitDir.x * sinRotAngle,
-                            lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
-
-                Farlor::Vector3 shiftedPoint = x_t - point2;
-                // Rotate and stuff back in shifted point
-                twisty::RotateVectorByQuaternion(quaternionRotation, shiftedPoint.m_data.data());
-                // Update the point with the rotated version
-                x_t = shiftedPoint + point2;
-            }
-            const Farlor::Vector3 point3 = x_t;
-
-            std::array<Farlor::Vector3, 6> points
-                  = { point0, point1, point2, point3, point4, point5 };
-            std::array<Farlor::Vector3, 5> tangents;
-            std::array<float, 4> curvatures;
-
-            twisty::PerturbUtils::UpdateTangentsFromPos(
-                  points.data(), tangents.data(), 5, experimentGeometry);
-            twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
-                  tangents.data(), curvatures.data(), 5, experimentGeometry);
-
-            const double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                          curvatures.data(), 4, weightLookupTable)
-                  + pathNormalizerLog10;
-
-            // Update the min and max values
-            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10;
-            }
-            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
-            }
-
-            twisty::CombinedWeightValues_C &activeWeightValue
-                  = combinedWeightValuesPerThread[threadId];
-
-            if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
-            } else {
-#pragma omp critical
-                {
-                    combinedWeightValues.push_back(activeWeightValue);
-                }
-                twisty::CombinedWeightValues_C_Reset(activeWeightValue);
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
-            }
-        }
-
-        const double overallMinPathWeightLog10
-              = *std::min_element(minPathWeightPerThread.begin(), minPathWeightPerThread.end());
-        const double overallMaxPathWeightLog10
-              = *std::max_element(maxPathWeightPerThread.begin(), maxPathWeightPerThread.end());
-
-        boost::multiprecision::cpp_dec_float_100 pathIntegralResult = 0.0;
-        uint64_t numValidPaths = 0;
-        for (const auto &combinedWeightValue : combinedWeightValues) {
-            pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
-            numValidPaths += combinedWeightValue.m_numValues;
-        }
-
-        boost::multiprecision::cpp_dec_float_100 finalResult = 0.0;
-
-        if (numValidPaths > 0) {
-            finalResult
-                  = boost::multiprecision::cpp_dec_float_100(pathIntegralResult / numValidPaths);
-        }
-
-        return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
-            overallMaxPathWeightLog10 };
-    }
-
-
     Result SixSegmentAngleSpaceMC(const int64_t numExperimentPaths,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
           const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
@@ -762,6 +565,633 @@ namespace ExperimentBase {
         for (const auto &combinedWeightValue : combinedWeightValues) {
             pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
             numValidPaths += combinedWeightValue.m_numValues;
+        }
+
+        boost::multiprecision::cpp_dec_float_100 finalResult = 0.0;
+
+        if (numValidPaths > 0) {
+            finalResult
+                  = boost::multiprecision::cpp_dec_float_100(pathIntegralResult / numValidPaths);
+        }
+
+        return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
+            overallMaxPathWeightLog10 };
+    }
+
+
+    // Path Generation Helper Functions
+    // Returns the single point
+    void ResolveTwoSegments(std::vector<Farlor::Vector3> &pointList,
+          const size_t leftSegmentStartIdx, const size_t rightSegmentEndIdx, const double ds,
+          std::mt19937_64 &rng)
+    {
+        if (leftSegmentStartIdx >= rightSegmentEndIdx) {
+            throw std::runtime_error("Left segment start idx must be less than right segment end "
+                                     "idx");
+        }
+        if ((rightSegmentEndIdx - leftSegmentStartIdx) != 2) {
+            throw std::runtime_error("Indices must be 2 apart");
+        }
+
+
+        const Farlor::Vector3 &leftSegmentStart = pointList[leftSegmentStartIdx];
+        const Farlor::Vector3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
+
+        // Theta dist
+        std::uniform_real_distribution<float> thetaDist(0.0f, 2.0f * twisty::TwistyPi);
+
+        const float theta = thetaDist(rng);
+
+        const Farlor::Vector3 x_p = (leftSegmentStart + rightSegmentEnd) * 0.5;
+        const Farlor::Vector3 lineUnitDir = (rightSegmentEnd - leftSegmentStart).Normalized();
+
+        Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
+        if (abs(lineUnitDir.Dot(otherCrossVec)) >= 0.99) {
+            otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
+        }
+
+        const Farlor::Vector3 normalToLine = lineUnitDir.Cross(otherCrossVec).Normalized();
+
+        // We should have an even number of segments remaining
+        const float hypot = ds;
+        float D_2 = (rightSegmentEnd - leftSegmentStart).Magnitude() * 0.5f;
+        if ((D_2 > hypot) && abs(D_2 - hypot) < 0.001)
+        {
+            D_2 = hypot;
+        }
+        assert(D_2 <= hypot && "This should never be reached due to earlier check.");
+
+        float distanceOffLine = 0.0f;
+        if (hypot > D_2) {
+            distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
+        }
+        Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
+
+        // Now rotate randomly theta amount around the axis.
+
+        const float sinRotAngle = std::sinf(theta / 2.0f);
+        float quaternionRotation[4] = { std::cosf(theta / 2.0f), lineUnitDir.x * sinRotAngle,
+            lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
+
+        Farlor::Vector3 shiftedPoint = x_t - leftSegmentStart;
+        // Rotate and stuff back in shifted point
+        twisty::RotateVectorByQuaternion(quaternionRotation, shiftedPoint.m_data.data());
+        // Update the point with the rotated version
+        x_t = shiftedPoint + leftSegmentStart;
+
+        const size_t finalPointIdx = leftSegmentStartIdx + 1;
+        pointList[finalPointIdx] = x_t;
+    };
+
+    // Path Generation Helper Functions
+    // Places two points
+    void ResolveThreeSegments(std::vector<Farlor::Vector3> &pointList,
+          const size_t leftSegmentStartIdx, const size_t rightSegmentEndIdx, const double ds,
+          std::mt19937_64 &rng)
+    {
+        if (leftSegmentStartIdx >= rightSegmentEndIdx) {
+            throw std::runtime_error("Left segment start idx must be less than right segment end "
+                                     "idx");
+        }
+        if ((rightSegmentEndIdx - leftSegmentStartIdx) != 3) {
+            throw std::runtime_error("Indices must be 3 apart");
+        }
+
+        const Farlor::Vector3 &leftSegmentStart = pointList[leftSegmentStartIdx];
+        const Farlor::Vector3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
+
+        // Uniform dist
+        std::uniform_real_distribution<float> uniformRandom(0.0f, 1.0f);
+
+        // Z axis of new corrdinate frame
+        const Farlor::Vector3 zAxis = (rightSegmentEnd - leftSegmentStart).Normalized();
+        // Generate orthogonal basis vectors x axis and y axis
+        Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
+        if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
+            randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+        }
+        const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
+        const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+
+        // Generation of curve stuff
+        const double d = (rightSegmentEnd - leftSegmentStart).Magnitude();
+        const double d2 = d * d;
+        const double leftRadius = ds;
+        const double leftRadius2 = leftRadius * leftRadius;
+        const double rightRadius = 2.0f * ds;
+        const double rightRadius2 = rightRadius * rightRadius;
+
+        double phiExtent = 0.0f;
+
+        if ((leftRadius + rightRadius) < d) {
+            throw std::runtime_error("No intersection, thus no weight");
+        } else if (d + std::min(leftRadius, rightRadius) < std::max(leftRadius, rightRadius)) {
+            phiExtent = twisty::TwistyPi;
+        } else {
+            const double h = 0.5 + (leftRadius2 - rightRadius2) / (2.0 * d2);
+            const Farlor::Vector3 centerOfIntersection
+                  = leftSegmentStart + (rightSegmentEnd - leftSegmentStart) * h;
+            double a = 0.0f;
+            if (abs(leftRadius2 - (h * h * d2)) < 0.001)
+            {
+                a = 0.0f;
+            } else
+            {
+                a = std::sqrt(leftRadius2 - (h * h * d2));
+            }
+
+            phiExtent = (h * d < 0.0f) ? twisty::TwistyPi - std::asin(a / leftRadius)
+                                       : std::asin(a / leftRadius);
+            if (phiExtent != phiExtent)
+            {
+                throw std::runtime_error("Phi extent is nan");
+            }
+        }
+
+        const float uniformPhiSamplingMax = 0.5f - std::cos(phiExtent) * 0.5f;
+        std::uniform_real_distribution<double> phiDist(0, uniformPhiSamplingMax);
+
+        const double phi = std::acos(1.0 - 2.0 * phiDist(rng));
+
+        const double e_t1 = uniformRandom(rng);
+        const double theta = e_t1 * 2.0f * twisty::TwistyPi;
+
+        const double e_t2 = uniformRandom(rng);
+
+        const Farlor::Vector3 firstPlacedSegmentDir = xAxis * std::sin(phi) * std::cos(theta)
+              + yAxis * std::sin(phi) * std::sin(theta) + zAxis * std::cos(phi);
+
+        const size_t firstPlacedPointIdx = leftSegmentStartIdx + 1;
+        pointList[firstPlacedPointIdx] = leftSegmentStart + firstPlacedSegmentDir.Normalized() * ds;
+        ResolveTwoSegments(pointList, firstPlacedPointIdx, rightSegmentEndIdx, ds, rng);
+    };
+
+    Result FiveSegmentPathGenerationMC(const int64_t numExperimentPaths,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable)
+    {
+        const uint64_t numTotalPaths = numExperimentPaths;
+        const float ds = experimentGeometry.arclength / experimentParams.numSegmentsPerCurve;
+
+        const Farlor::Vector3 point0 = experimentGeometry.m_startPos;
+        const Farlor::Vector3 point1
+              = experimentGeometry.m_startPos + ds * experimentGeometry.m_startDir;
+
+        const Farlor::Vector3 point5 = experimentGeometry.m_endPos;
+        const Farlor::Vector3 point4
+              = experimentGeometry.m_endPos - ds * experimentGeometry.m_endDir;
+
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValues;
+        combinedWeightValues.reserve(
+              (numTotalPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
+
+        const int maxThreads = omp_get_max_threads();
+        std::cout << "Max threads: " << maxThreads << '\n';
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            twisty::CombinedWeightValues_C_Reset(combinedWeightValuesPerThread[i]);
+        }
+
+        // Per thread min values
+        std::vector<double> minPathWeightPerThread(maxThreads, std::numeric_limits<double>::max());
+        // Per thread max values
+        std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
+
+        // Random Gen per thread
+        std::vector<std::mt19937_64> rngPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            rngPerThread[i].seed(i);
+        }
+
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread)
+        for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
+            const int threadId = omp_get_thread_num();
+
+            std::vector<Farlor::Vector3> points
+                  = { point0, point1, Farlor::Vector3(0.0f, 0.0f, 0.0f),
+                        Farlor::Vector3(0.0f, 0.0f, 0.0f), point4, point5 };
+
+            ResolveThreeSegments(points, 1, 4, ds, rngPerThread[threadId]);
+
+            std::array<Farlor::Vector3, 5> tangents;
+            std::array<float, 4> curvatures;
+
+            twisty::PerturbUtils::UpdateTangentsFromPos(
+                  points.data(), tangents.data(), 5, experimentGeometry);
+            twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                  tangents.data(), curvatures.data(), 5, experimentGeometry);
+
+            const double scatteringWeightLog10
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
+                          curvatures.data(), 4, weightLookupTable)
+                  + pathNormalizerLog10;
+
+            // Update the min and max values
+            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+
+            twisty::CombinedWeightValues_C &activeWeightValue
+                  = combinedWeightValuesPerThread[threadId];
+
+            if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            } else {
+#pragma omp critical
+                {
+                    combinedWeightValues.push_back(activeWeightValue);
+                }
+                twisty::CombinedWeightValues_C_Reset(activeWeightValue);
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            }
+        }
+
+        const double overallMinPathWeightLog10
+              = *std::min_element(minPathWeightPerThread.begin(), minPathWeightPerThread.end());
+        const double overallMaxPathWeightLog10
+              = *std::max_element(maxPathWeightPerThread.begin(), maxPathWeightPerThread.end());
+
+        boost::multiprecision::cpp_dec_float_100 pathIntegralResult = 0.0;
+        uint64_t numValidPaths = 0;
+        for (const auto &combinedWeightValue : combinedWeightValues) {
+            pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+            numValidPaths += combinedWeightValue.m_numValues;
+        }
+
+        boost::multiprecision::cpp_dec_float_100 finalResult = 0.0;
+
+        if (numValidPaths > 0) {
+            finalResult
+                  = boost::multiprecision::cpp_dec_float_100(pathIntegralResult / numValidPaths);
+        }
+
+        return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
+            overallMaxPathWeightLog10 };
+    }
+
+    void ResolveEvenNumberOfSegments(const int numSegments,
+          std::vector<Farlor::Vector3> &pointList, const size_t leftSegmentStartIdx,
+          const size_t rightSegmentEndIdx, const double ds, std::mt19937_64 &rng)
+    {
+        if ((numSegments % 2) != 0) {
+            throw std::runtime_error("Even number of segments required");
+        }
+        const int numSegmentsPerSide = numSegments / 2;
+        if (numSegmentsPerSide != 3 && numSegmentsPerSide != 2 && ((numSegmentsPerSide % 2) != 0)) {
+            throw std::runtime_error("Invalid number of segments per side. We can only resolve "
+                                     "segments counts of 2, 3 or even.");
+        }
+
+        const Farlor::Vector3 &leftPoint = pointList[leftSegmentStartIdx];
+        const Farlor::Vector3 &rightPoint = pointList[rightSegmentEndIdx];
+
+        const double radiusPerSide = ds * numSegmentsPerSide;
+        const double radiusPerSide2 = radiusPerSide * radiusPerSide;
+
+        // Generation of curve stuff
+        const double d = (rightPoint - leftPoint).Magnitude();
+        const double d2 = d * d;
+
+        const Farlor::Vector3 midPoint = 0.5f * (rightPoint + leftPoint);
+
+        const double distToMidpoint = (midPoint - leftPoint).Magnitude();
+
+        double phiExtent = 0.0f;
+
+        if ((radiusPerSide + radiusPerSide) < d) {
+            throw std::runtime_error("Spheres dont intersect");
+        }
+        if (d + std::min(radiusPerSide, radiusPerSide) < std::max(radiusPerSide, radiusPerSide)) {
+            std::cout << "Left sphere fully in right, thus full range of motion" << std::endl;
+            throw std::runtime_error("Stacked segments, not supported");
+        }
+
+        const double h = 0.5 + (radiusPerSide2 - radiusPerSide2) / (2.0 * d2);
+        const Farlor::Vector3 centerOfIntersection = leftPoint + (rightPoint - leftPoint) * h;
+        const double a = std::sqrt(radiusPerSide2 - (h * h * d2));
+
+        phiExtent = std::asin(a / radiusPerSide);
+
+        std::uniform_int_distribution<int> coinFlip(0, 1);
+
+        const float uniformPhiSamplingMax = 0.5f - std::cos(phiExtent) * 0.5f;
+        std::uniform_real_distribution<double> phiDist(0, uniformPhiSamplingMax);
+
+        std::uniform_real_distribution<double> thetaDist(0.0f, 2.0f * twisty::TwistyPi);
+        std::uniform_real_distribution<float> uniformRandom(0.0f, 1.0f);
+
+        const double phi = std::acos(1.0 - 2.0 * phiDist(rng));
+        const double theta = thetaDist(rng);
+
+        const bool coinFlipResult = coinFlip(rng);
+
+        const double hypot = distToMidpoint / std::cos(phi);
+
+        const double maxRadius = numSegmentsPerSide * ds;
+        const double minRadiusPercent = hypot / maxRadius;
+
+        const double sampledRadius = maxRadius
+              * std::pow(
+                    minRadiusPercent + (1.0f - minRadiusPercent) * uniformRandom(rng), 1.0 / 3.0);
+
+        const size_t centerPointIdx = leftSegmentStartIdx + numSegmentsPerSide;
+
+        if (coinFlipResult == false) {
+            const Farlor::Vector3 zAxis = (rightPoint - leftPoint).Normalized();
+            // Generate orthogonal basis vectors x axis and y axis
+            Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
+            if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
+                randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+            }
+            const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
+            const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+
+            Farlor::Vector3 centerOffset = xAxis * std::sin(phi) * std::cos(theta)
+                  + yAxis * std::sin(phi) * std::sin(theta)
+                  + zAxis * std::cos(phi);
+            centerOffset = centerOffset * sampledRadius;
+            pointList[centerPointIdx] = leftPoint + centerOffset;
+            // Right half
+        } else {
+            const Farlor::Vector3 zAxis = (rightPoint - leftPoint).Normalized();
+            // Generate orthogonal basis vectors x axis and y axis
+            Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
+            if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
+                randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+            }
+            const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
+            const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+
+            Farlor::Vector3 centerOffset = xAxis * std::sin(phi) * std::cos(theta)
+                  + yAxis * std::sin(phi) * std::sin(theta) + zAxis * std::cos(phi) * -1.0f;
+            centerOffset = centerOffset * sampledRadius;
+            pointList[centerPointIdx] = rightPoint + centerOffset;
+        }
+
+        if ((pointList[centerPointIdx] - leftPoint).Magnitude() > (numSegmentsPerSide * ds)) {
+            throw std::runtime_error("Center point is too far away from left point");
+        }
+        if ((pointList[centerPointIdx] - rightPoint).Magnitude() > (numSegmentsPerSide * ds)) {
+            throw std::runtime_error("Center point is too far away from right point");
+        }
+
+        // Ok, now that we have set the center point, we need to set the other points
+        // Left half
+        if (numSegmentsPerSide == 2) {
+            ResolveTwoSegments(pointList, leftSegmentStartIdx, centerPointIdx, ds, rng);
+            ResolveTwoSegments(pointList, centerPointIdx, rightSegmentEndIdx, ds, rng);
+        } else if (numSegmentsPerSide == 3) {
+            ResolveThreeSegments(pointList, leftSegmentStartIdx, centerPointIdx, ds, rng);
+            ResolveThreeSegments(pointList, centerPointIdx, rightSegmentEndIdx, ds, rng);
+        } else {
+            // Left half recurse
+            ResolveEvenNumberOfSegments(
+                  numSegmentsPerSide, pointList, leftSegmentStartIdx, centerPointIdx, ds, rng);
+            // Right half recurse
+            ResolveEvenNumberOfSegments(
+                  numSegmentsPerSide, pointList, centerPointIdx, rightSegmentEndIdx, ds, rng);
+        }
+    }
+
+    Result SixSegmentPathGenerationMC(const int64_t numExperimentPaths,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable)
+    {
+        const uint64_t numTotalPaths = numExperimentPaths;
+        const float ds = experimentGeometry.arclength / experimentParams.numSegmentsPerCurve;
+
+        const Farlor::Vector3 point0 = experimentGeometry.m_startPos;
+        const Farlor::Vector3 point1
+              = experimentGeometry.m_startPos + ds * experimentGeometry.m_startDir;
+
+        const Farlor::Vector3 point6 = experimentGeometry.m_endPos;
+        const Farlor::Vector3 point5
+              = experimentGeometry.m_endPos - ds * experimentGeometry.m_endDir;
+
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValues;
+        combinedWeightValues.reserve(
+              (numTotalPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
+
+        const int maxThreads = omp_get_max_threads();
+        std::cout << "Max threads: " << maxThreads << '\n';
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            twisty::CombinedWeightValues_C_Reset(combinedWeightValuesPerThread[i]);
+        }
+
+        // Per thread min values
+        std::vector<double> minPathWeightPerThread(maxThreads, std::numeric_limits<double>::max());
+        // Per thread max values
+        std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
+
+        // Random Gen per thread
+        std::vector<std::mt19937_64> rngPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            rngPerThread[i].seed(i);
+        }
+
+        std::cout << "Starting path generation" << std::endl;
+
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread)
+        for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
+            const int threadId = omp_get_thread_num();
+
+            std::vector<Farlor::Vector3> points = { point0, point1,
+                Farlor::Vector3(0.0f, 0.0f, 0.0f), Farlor::Vector3(0.0f, 0.0f, 0.0f),
+                Farlor::Vector3(0.0f, 0.0f, 0.0f), point5, point6 };
+
+            const int numFreeSegments = 4;
+            ResolveEvenNumberOfSegments(numFreeSegments, points, 1, 5, ds, rngPerThread[threadId]);
+
+            std::array<Farlor::Vector3, 6> tangents;
+            std::array<float, 5> curvatures;
+
+            twisty::PerturbUtils::UpdateTangentsFromPos(
+                  points.data(), tangents.data(), 6, experimentGeometry);
+            twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                  tangents.data(), curvatures.data(), 6, experimentGeometry);
+
+            const double scatteringWeightLog10
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
+                          curvatures.data(), 5, weightLookupTable)
+                  + pathNormalizerLog10;
+
+            // Update the min and max values
+            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+
+            twisty::CombinedWeightValues_C &activeWeightValue
+                  = combinedWeightValuesPerThread[threadId];
+
+            if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            } else {
+#pragma omp critical
+                {
+                    combinedWeightValues.push_back(activeWeightValue);
+                }
+                twisty::CombinedWeightValues_C_Reset(activeWeightValue);
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            }
+        }
+
+        const double overallMinPathWeightLog10
+              = *std::min_element(minPathWeightPerThread.begin(), minPathWeightPerThread.end());
+        const double overallMaxPathWeightLog10
+              = *std::max_element(maxPathWeightPerThread.begin(), maxPathWeightPerThread.end());
+
+        boost::multiprecision::cpp_dec_float_100 pathIntegralResult = 0.0;
+        uint64_t numValidPaths = 0;
+        for (const auto &combinedWeightValue : combinedWeightValues) {
+            pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+            numValidPaths += combinedWeightValue.m_numValues;
+        }
+
+        // Go through each current thread combined weight value and add it in
+        for (const auto &combinedWeightValue : combinedWeightValuesPerThread) {
+            if (combinedWeightValue.m_numValues > 0) {
+                pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+                numValidPaths += combinedWeightValue.m_numValues;
+            }
+        }
+
+        boost::multiprecision::cpp_dec_float_100 finalResult = 0.0;
+
+        if (numValidPaths > 0) {
+            finalResult
+                  = boost::multiprecision::cpp_dec_float_100(pathIntegralResult / numValidPaths);
+        }
+
+        return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
+            overallMaxPathWeightLog10 };
+    }
+
+    Result MSegmentPathGenerationMC(const int64_t numExperimentPaths, const int numSegmentsPerCurve,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable)
+    {
+        const uint64_t numTotalPaths = numExperimentPaths;
+        const float ds = experimentGeometry.arclength / experimentParams.numSegmentsPerCurve;
+
+        const Farlor::Vector3 point0 = experimentGeometry.m_startPos;
+        const Farlor::Vector3 point1
+              = experimentGeometry.m_startPos + ds * experimentGeometry.m_startDir;
+
+        const Farlor::Vector3 pointM = experimentGeometry.m_endPos;
+        const Farlor::Vector3 pointMm1
+              = experimentGeometry.m_endPos - ds * experimentGeometry.m_endDir;
+
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValues;
+        combinedWeightValues.reserve(
+              (numTotalPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
+
+        const int maxThreads = omp_get_max_threads();
+        std::cout << "Max threads: " << maxThreads << '\n';
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            twisty::CombinedWeightValues_C_Reset(combinedWeightValuesPerThread[i]);
+        }
+
+        // Per thread min values
+        std::vector<double> minPathWeightPerThread(maxThreads, std::numeric_limits<double>::max());
+        // Per thread max values
+        std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
+
+        // Random Gen per thread
+        std::vector<std::mt19937_64> rngPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            rngPerThread[i].seed(i);
+        }
+
+        std::cout << "Starting path generation" << std::endl;
+
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread)
+        for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
+            const int threadId = omp_get_thread_num();
+
+            std::vector<Farlor::Vector3> points;
+            points.resize(numSegmentsPerCurve + 1);
+            points[0] = point0;
+            points[1] = point1;
+            points[numSegmentsPerCurve - 1] = pointMm1;
+            points[numSegmentsPerCurve] = pointM;
+
+            const int numFreeSegments = numSegmentsPerCurve - 2;
+            ResolveEvenNumberOfSegments(
+                  numFreeSegments, points, 1, numSegmentsPerCurve - 1, ds, rngPerThread[threadId]);
+
+            std::vector<Farlor::Vector3> tangents;
+            tangents.resize(numSegmentsPerCurve);
+            std::vector<float> curvatures;
+            curvatures.resize(numSegmentsPerCurve - 1);
+
+            twisty::PerturbUtils::UpdateTangentsFromPos(
+                  points.data(), tangents.data(), numSegmentsPerCurve, experimentGeometry);
+            twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                  tangents.data(), curvatures.data(), numSegmentsPerCurve, experimentGeometry);
+
+            const double scatteringWeightLog10
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
+                          curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable)
+                  + pathNormalizerLog10;
+
+            // Update the min and max values
+            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+
+            twisty::CombinedWeightValues_C &activeWeightValue
+                  = combinedWeightValuesPerThread[threadId];
+
+            if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            } else {
+#pragma omp critical
+                {
+                    combinedWeightValues.push_back(activeWeightValue);
+                }
+                twisty::CombinedWeightValues_C_Reset(activeWeightValue);
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            }
+        }
+
+        const double overallMinPathWeightLog10
+              = *std::min_element(minPathWeightPerThread.begin(), minPathWeightPerThread.end());
+        const double overallMaxPathWeightLog10
+              = *std::max_element(maxPathWeightPerThread.begin(), maxPathWeightPerThread.end());
+
+        boost::multiprecision::cpp_dec_float_100 pathIntegralResult = 0.0;
+        uint64_t numValidPaths = 0;
+        for (const auto &combinedWeightValue : combinedWeightValues) {
+            pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+            numValidPaths += combinedWeightValue.m_numValues;
+        }
+
+        // Go through each current thread combined weight value and add it in
+        for (const auto &combinedWeightValue : combinedWeightValuesPerThread) {
+            if (combinedWeightValue.m_numValues > 0) {
+                pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+                numValidPaths += combinedWeightValue.m_numValues;
+            }
         }
 
         boost::multiprecision::cpp_dec_float_100 finalResult = 0.0;
