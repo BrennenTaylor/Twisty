@@ -166,7 +166,7 @@ namespace PathWeighting {
         for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i) {
             const int threadIdx = omp_get_thread_num();
 
-            float& value = localLookupTable[i];
+            float &value = localLookupTable[i];
 
             if (value <= 0.0) {
                 numInvalidPerThread[threadIdx]++;
@@ -174,7 +174,8 @@ namespace PathWeighting {
             }
         }
 
-        uint64_t numInvalid = std::accumulate(numInvalidPerThread.begin(), numInvalidPerThread.end(), 0); // C++17
+        uint64_t numInvalid = std::accumulate(
+              numInvalidPerThread.begin(), numInvalidPerThread.end(), 0);  // C++17
 
         if (numInvalid > 0) {
             std::cout << "We calculated " << numInvalid
@@ -522,76 +523,66 @@ namespace PathWeighting {
             return K4(rMag, ds);
         }
 
-        NormalizerDoubleType F6(const float x, const float &z, const float ds)
-        {
-            const float rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));
+#define F(N, M)                                                                                    \
+    NormalizerDoubleType F##N(const float x, const float &z, const float ds)                       \
+    {                                                                                              \
+        const float rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));                               \
+                                                                                                   \
+        NormalizerDoubleType result = 0.0;                                                         \
+        const uint32_t numSteps = 10000;                                                           \
+                                                                                                   \
+        const float xMin = -1.0;                                                                   \
+        const float xMax = 1.0;                                                                    \
+        const float dx = (xMax - xMin) / numSteps;                                                 \
+                                                                                                   \
+        /* Phi is vertical Component\
+         Theta is angle around the axis*/                                                             \
+                                                                                                   \
+        for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {                                         \
+            const float xVal = xMin + xIdx * dx;                                                   \
+                                                                                                   \
+            const NormalizerDoubleType val = F##M(xVal, rMag, ds);                                 \
+            result += val;                                                                         \
+        }                                                                                          \
+        result *= (2.0 * TwistyPi) * dx;                                                           \
+                                                                                                   \
+        return result;                                                                             \
+    }
 
-            NormalizerDoubleType result = 0.0;
-            const uint32_t numSteps = 10000;
+        F(6, 5)
+        F(7, 6)
+        F(8, 7)
 
-            const float xMin = -1.0;
-            const float xMax = 1.0;
-            const float dx = (xMax - xMin) / numSteps;
+#define K(N)                                                                                       \
+    NormalizerDoubleType K##N(const double &z, const double ds)                                    \
+    {                                                                                              \
+        std::cout << "K" << N << std::endl;                                                        \
+        NormalizerDoubleType result = 0.0;                                                         \
+        const uint32_t numSteps = 10000;                                                           \
+                                                                                                   \
+        const float xMin = -1.0;                                                                   \
+        const float xMax = 1.0;                                                                    \
+        const float dx = (xMax - xMin) / numSteps;                                                 \
+                                                                                                   \
+        /* Phi is vertical Component\
+        Theta is angle around the axis*/                                                             \
+                                                                                                   \
+        for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {                                         \
+            const float xVal = xMin + xIdx * dx;                                                   \
+            const NormalizerDoubleType val = F##7(xVal, z, ds);                                    \
+            result += val;                                                                         \
+        }                                                                                          \
+        result *= (2.0 * TwistyPi) * dx;                                                           \
+                                                                                                   \
+        return result;                                                                             \
+    }
 
-            // Phi is vertical Component
-            // Theta is angle around the axis
-
-            for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
-                const float xVal = xMin + xIdx * dx;
-
-                const NormalizerDoubleType val = F5(xVal, rMag, ds);
-                result += val;
-            }
-            result *= (2.0 * TwistyPi) * dx;
-
-            return result;
-        }
-
-        NormalizerDoubleType K5(const double &z, const double ds)
-        {
-            std::cout << "K5" << std::endl;
-            NormalizerDoubleType result = 0.0;
-            const uint32_t numSteps = 10000;
-
-            const float xMin = -1.0;
-            const float xMax = 1.0;
-            const float dx = (xMax - xMin) / numSteps;
-
-            // Phi is vertical Component
-            // Theta is angle around the axis
-
-            for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
-                const float xVal = xMin + xIdx * dx;
-                const NormalizerDoubleType val = F5(xVal, z, ds);
-                result += val;
-            }
-            result *= (2.0 * TwistyPi) * dx;
-
-            return result;
-        }
-
-        NormalizerDoubleType K6(const double &z, const double ds)
-        {
-            std::cout << "K6" << std::endl;
-            NormalizerDoubleType result = 0.0;
-            const uint32_t numSteps = 10000;
-
-            const float xMin = -1.0;
-            const float xMax = 1.0;
-            const float dx = (xMax - xMin) / numSteps;
-
-            // Phi is vertical Component
-            // Theta is angle around the axis
-
-            for (uint32_t xIdx = 0; xIdx < numSteps; xIdx++) {
-                const float xVal = xMin + xIdx * dx;
-                const NormalizerDoubleType val = F6(xVal, z, ds);
-                result += val;
-            }
-            result *= (2.0 * TwistyPi) * dx;
-
-            return result;
-        }
+        K(5)
+        K(6)
+        K(7)
+        K(8)
+        K(9)
+        K(10)
 
         // Calculate the overall normalization
         NormalizerDoubleType Norm(int numberOfSegments, float ds,
@@ -607,22 +598,35 @@ namespace PathWeighting {
                   - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
             const float z = zVec.Magnitude();
 
-            // Special case
-            if (numberOfSegments == 4) {
-                return K4(z, ds);
-            }
 
-            if (numberOfSegments == 5) {
-                return K5(z, ds);
-            }
-
-            if (numberOfSegments == 6) {
-                return K6(z, ds);
-            }
-
-            std::cout << "Invalid number of segments, currently cannot calculate normalizer"
-                      << std::endl;
-            return 0.0;
+            switch (numberOfSegments) {
+                case 4: {
+                    return K4(z, ds);
+                } break;
+                case 5: {
+                    return K5(z, ds);
+                } break;
+                case 6: {
+                    return K6(z, ds);
+                } break;
+                case 7: {
+                    return K7(z, ds);
+                } break;
+                case 8: {
+                    return K8(z, ds);
+                } break;
+                case 9: {
+                    return K9(z, ds);
+                } break;
+                case 10: {
+                    return K10(z, ds);
+                } break;
+                default: {
+                    std::cout << "Invalid number of segments, currently cannot calculate normalizer"
+                              << std::endl;
+                    return 0.0;
+                } break;
+            };
         }
     }  // namespace PathWeighting
 }  // namespace twisty

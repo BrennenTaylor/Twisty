@@ -216,7 +216,8 @@ int main(int argc, char *argv[])
           : twisty::PathWeighting::NormalizerStuff::Norm(
                 experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
-    const double pathNormalizerLog10 = (double)boost::multiprecision::log10(pathNormalizer);
+    const double pathNormalizerLog10
+          = (pathNormalizer != 0.0) ? (double)boost::multiprecision::log10(pathNormalizer) : 0.0;
 
     const twisty::ExperimentBase::Result result = twisty::ExperimentBase::MSegmentPathGenerationMC(
           numExperimentPaths, experimentParams.numSegmentsPerCurve, experimentGeometry,
