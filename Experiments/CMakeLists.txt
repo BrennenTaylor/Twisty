@@ -304,3 +304,25 @@ target_link_libraries(SixSegmentAngleSpaceMC
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )
+
+add_executable(NoisyCirclePathGenerationMSegment
+    NoisyCirclePathGenerationMSegment.cpp
+)
+
+target_compile_features(NoisyCirclePathGenerationMSegment
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(NoisyCirclePathGenerationMSegment
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(NoisyCirclePathGenerationMSegment
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
