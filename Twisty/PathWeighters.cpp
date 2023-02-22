@@ -63,7 +63,8 @@ namespace PathWeighting {
             // Take the natural log of the interpolated results
             double interpolatedResultLog10 = log10(interpolatedResult);
             if (isnan(interpolatedResultLog10)) {
-                throw std::runtime_error("Invalid segment weight");
+                printf("Error: invalid segment weight, is nan\n");
+                return 0.0;
             }
 
             // Update the running path weight. We also want to cache the segment weights
@@ -71,7 +72,8 @@ namespace PathWeighting {
         }
 
         if (isnan(runningPathWeightLog10)) {
-            throw std::runtime_error("Invalid segment weight");
+            printf("Error: running path weight is nan\n");
+            return 0.0;
         }
         return runningPathWeightLog10;
     }

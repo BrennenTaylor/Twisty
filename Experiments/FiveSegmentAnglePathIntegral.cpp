@@ -64,6 +64,7 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
         // Simplified Model
         case 1: {
+            std::cout << "Using simplified model weighting function" << std::endl;
             experimentParams.weightingParameters.weightingMethod
                   = twisty::WeightingMethod::SimplifiedModel;
         } break;
@@ -202,6 +203,7 @@ int main(int argc, char *argv[])
     std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
     if (experimentParams.weightingParameters.weightingMethod
           == twisty::WeightingMethod::SimplifiedModel) {
+        std::cout << "Simplified Weight Lookup Table" << std::endl;
         lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
               experimentParams.weightingParameters, ds);
     } else {
@@ -370,8 +372,15 @@ int main(int argc, char *argv[])
 
                 twisty::PerturbUtils::UpdateTangentsFromPos(
                       points.data(), tangents.data(), 5, experimentGeometry);
-                twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
-                      tangents.data(), curvatures.data(), 5, experimentGeometry);
+
+                if (experimentParams.weightingParameters.weightingMethod
+                      == twisty::WeightingMethod::RadiativeTransfer) {
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                          tangents.data(), curvatures.data(), 5, experimentGeometry);
+                } else {
+                    twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
+                          tangents.data(), curvatures.data(), 5, experimentGeometry);
+                }
 
                 const double scatteringWeightLog10
                       = twisty::PathWeighting::WeightCurveViaCurvatureLog10(

@@ -47,8 +47,8 @@ double G_5(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
       const double ds, const twisty::PerturbUtils::BoundaryConditions &bc)
 {
     // Integration over unit sphere
-    const int numPhi1Vals = 100;
-    const int numTheta1Vals = 100;
+    const int numPhi1Vals = 100000;
+    const int numTheta1Vals = 100000;
 
     // Polar angle
     const float phi1Min = 0.0f;

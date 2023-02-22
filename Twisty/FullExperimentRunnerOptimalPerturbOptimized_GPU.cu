@@ -1,9 +1,11 @@
+// Include these specifically to have all localized linking
+#define ACTUAL_IMPLEMENTATION
+#include "CombinedWeightUtils.h"
+#include "CurvePerturbUtils.h"
+#include "PathWeighters.h"
+
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 
-// Include these specifically to have all localized linking
-#include "CombinedWeightUtils.cpp"
-#include "CurvePerturbUtils.cpp"
-#include "PathWeighters.cpp"
 
 #include <boost\multiprecision\cpp_dec_float.hpp>
 

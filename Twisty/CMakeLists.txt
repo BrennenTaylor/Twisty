@@ -22,15 +22,15 @@ add_library(Twisty
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
 
-    # FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
-    # FullExperimentRunnerOptimalPerturbOptimized_GPU.h
+    FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
+    FullExperimentRunnerOptimalPerturbOptimized_GPU.h
     Integrate.h
     MathConsts.h
     PathWeighters.h
 
-    CombinedWeightUtils.cpp
-    CurvePerturbUtils.cpp
-    PathWeighters.cpp
+    # CombinedWeightUtils.cpp
+    # CurvePerturbUtils.cpp
+    # PathWeighters.cpp
     PathWeightUtils.h
     PathWeightUtils.cpp
     PerturbUtils.h

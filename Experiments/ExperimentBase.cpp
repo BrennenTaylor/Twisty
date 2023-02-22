@@ -137,8 +137,15 @@ namespace ExperimentBase {
 
                     twisty::PerturbUtils::UpdateTangentsFromPos(
                           points.data(), tangents.data(), 5, experimentGeometry);
-                    twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
-                          tangents.data(), curvatures.data(), 5, experimentGeometry);
+
+                    if (experimentParams.weightingParameters.weightingMethod
+                          == twisty::WeightingMethod::RadiativeTransfer) {
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                              tangents.data(), curvatures.data(), 5, experimentGeometry);
+                    } else {
+                        twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
+                              tangents.data(), curvatures.data(), 5, experimentGeometry);
+                    }
 
                     const double scatteringWeightLog10
                           = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
@@ -324,8 +331,15 @@ namespace ExperimentBase {
 
             twisty::PerturbUtils::UpdateTangentsFromPos(
                   points.data(), tangents.data(), 5, experimentGeometry);
-            twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
-                  tangents.data(), curvatures.data(), 5, experimentGeometry);
+
+            if (experimentParams.weightingParameters.weightingMethod
+                  == twisty::WeightingMethod::RadiativeTransfer) {
+                twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                      tangents.data(), curvatures.data(), 5, experimentGeometry);
+            } else {
+                twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
+                      tangents.data(), curvatures.data(), 5, experimentGeometry);
+            }
 
             const double scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
@@ -1008,8 +1022,15 @@ namespace ExperimentBase {
 
             twisty::PerturbUtils::UpdateTangentsFromPos(
                   points.data(), tangents.data(), 5, experimentGeometry);
-            twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
-                  tangents.data(), curvatures.data(), 5, experimentGeometry);
+
+            if (experimentParams.weightingParameters.weightingMethod
+                  == WeightingMethod::RadiativeTransfer) {
+                twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                      tangents.data(), curvatures.data(), 5, experimentGeometry);
+            } else {
+                twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
+                      tangents.data(), curvatures.data(), 5, experimentGeometry);
+            }
 
             const double scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
@@ -1049,6 +1070,14 @@ namespace ExperimentBase {
         for (const auto &combinedWeightValue : combinedWeightValues) {
             pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
             numValidPaths += combinedWeightValue.m_numValues;
+        }
+
+        // Go through each current thread combined weight value and add it in
+        for (const auto &combinedWeightValue : combinedWeightValuesPerThread) {
+            if (combinedWeightValue.m_numValues > 0) {
+                pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+                numValidPaths += combinedWeightValue.m_numValues;
+            }
         }
 
         boost::multiprecision::cpp_dec_float_100 finalResult = 0.0;
@@ -1250,7 +1279,7 @@ namespace ExperimentBase {
                   tangents.data(), curvatures.data(), numSegmentsPerCurve, experimentGeometry);
 
             double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                      curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable);
+                  curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable);
 
             if (isnan(scatteringWeightLog10)) {
                 throw std::runtime_error("We somehow got an invalid path weight");
