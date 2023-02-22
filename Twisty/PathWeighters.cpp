@@ -57,13 +57,21 @@ namespace PathWeighting {
 
             float interpDist = distanceFromMin - (leftIdx * curvatureStepSize);
 
-            float interpolatedResult
+            double interpolatedResult
                   = leftLookup * (1.0f - interpDist) + (rightLookup * interpDist);
+
             // Take the natural log of the interpolated results
-            float interpolatedResultLog10 = log10f(interpolatedResult);
+            double interpolatedResultLog10 = log10(interpolatedResult);
+            if (isnan(interpolatedResultLog10)) {
+                throw std::runtime_error("Invalid segment weight");
+            }
 
             // Update the running path weight. We also want to cache the segment weights
-            runningPathWeightLog10 += static_cast<double>(interpolatedResultLog10);
+            runningPathWeightLog10 += interpolatedResultLog10;
+        }
+
+        if (isnan(runningPathWeightLog10)) {
+            throw std::runtime_error("Invalid segment weight");
         }
         return runningPathWeightLog10;
     }

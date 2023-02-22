@@ -22,14 +22,15 @@ add_library(Twisty
     FullExperimentRunnerOptimalPerturb.cpp
     FullExperimentRunnerOptimalPerturb.h
 
-    FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
-    FullExperimentRunnerOptimalPerturbOptimized_GPU.h
-
+    # FullExperimentRunnerOptimalPerturbOptimized_GPU.cu
+    # FullExperimentRunnerOptimalPerturbOptimized_GPU.h
     Integrate.h
     MathConsts.h
     PathWeighters.h
 
-    # PathWeighters.cpp
+    CombinedWeightUtils.cpp
+    CurvePerturbUtils.cpp
+    PathWeighters.cpp
     PathWeightUtils.h
     PathWeightUtils.cpp
     PerturbUtils.h
@@ -55,10 +56,10 @@ target_compile_options(Twisty
 )
 
 # if(WIN32)
-#     target_compile_options(Twisty
-#         PUBLIC $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=/openmp>
-#         PUBLIC "/openmp"
-#     )
+# target_compile_options(Twisty
+# PUBLIC $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=/openmp>
+# PUBLIC "/openmp"
+# )
 # endif()
 
 # We dont want to generate this on windows atm. Linker is only non-windows platforms

@@ -146,11 +146,11 @@ namespace PathWeighting {
             // Unique thread idx
             localLookupTable[i] = value;
 
-            if (value < minValues[threadIdx]) {
+            if (value < minValues[threadIdx] && value >= 0.0f) {
                 minValues[threadIdx] = value;
             }
 
-            if (value > maxValues[threadIdx]) {
+            if (value > maxValues[threadIdx] && value >= 0.0f) {
                 maxValues[threadIdx] = value;
             }
         }

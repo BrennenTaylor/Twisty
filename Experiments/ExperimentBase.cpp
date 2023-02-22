@@ -1249,10 +1249,13 @@ namespace ExperimentBase {
             twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
                   tangents.data(), curvatures.data(), numSegmentsPerCurve, experimentGeometry);
 
-            const double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                          curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable)
-                  + pathNormalizerLog10;
+            double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
+                      curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable);
+
+            if (isnan(scatteringWeightLog10)) {
+                throw std::runtime_error("We somehow got an invalid path weight");
+            }
+            scatteringWeightLog10 += pathNormalizerLog10;
 
             // Update the min and max values
             if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {

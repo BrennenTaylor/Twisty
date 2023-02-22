@@ -326,3 +326,47 @@ target_link_libraries(NoisyCirclePathGenerationMSegment
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )
+
+add_executable(Simple_FiveSegment_Analytical
+    Simple_FiveSegment_Analytical.cpp
+)
+
+target_compile_features(Simple_FiveSegment_Analytical
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(Simple_FiveSegment_Analytical
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(Simple_FiveSegment_Analytical
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+add_executable(Simple_SixSegment_Analytical
+    Simple_SixSegment_Analytical.cpp
+)
+
+target_compile_features(Simple_SixSegment_Analytical
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(Simple_SixSegment_Analytical
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(Simple_SixSegment_Analytical
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
