@@ -389,29 +389,19 @@ namespace PerturbUtils {
     {
         // Update segments
         for (uint32_t i = 0; i < (numSegments - 1); ++i) {
-            float tanLeft_x = pTangents[i * 3 + 0];
-            float tanLeft_y = pTangents[i * 3 + 1];
-            float tanLeft_z = pTangents[i * 3 + 2];
-            const float leftLength
-                  = sqrt(tanLeft_x * tanLeft_x + tanLeft_y * tanLeft_y + tanLeft_z * tanLeft_z);
-            tanLeft_x /= leftLength;
-            tanLeft_y /= leftLength;
-            tanLeft_z /= leftLength;
+            const float tanLeft_x = pTangents[i * 3 + 0];
+            const float tanLeft_y = pTangents[i * 3 + 1];
+            const float tanLeft_z = pTangents[i * 3 + 2];
 
-            float tanRight_x = pTangents[(i + 1) * 3 + 0];
-            float tanRight_y = pTangents[(i + 1) * 3 + 1];
-            float tanRight_z = pTangents[(i + 1) * 3 + 2];
-            const float rightLength = sqrt(
-                  tanRight_x * tanRight_x + tanRight_y * tanRight_y + tanRight_z * tanRight_z);
-            tanRight_x /= rightLength;
-            tanRight_y /= rightLength;
-            tanRight_z /= rightLength;
+            const float tanRight_x = pTangents[(i + 1) * 3 + 0];
+            const float tanRight_y = pTangents[(i + 1) * 3 + 1];
+            const float tanRight_z = pTangents[(i + 1) * 3 + 2];
 
             {
                 const float curvature = (tanLeft_x * tanRight_x) + (tanLeft_y * tanRight_y)
                       + (tanLeft_z * tanRight_z);
                 pCurvatures[i]
-                      = -curvature;  // Negate curvature so that an increase in curvature leads to higher weight values
+                      = curvature;  // Negate curvature so that an increase in curvature leads to higher weight values
             }
         }
     }

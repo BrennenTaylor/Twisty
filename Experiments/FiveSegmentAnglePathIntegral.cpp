@@ -71,8 +71,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
         // Default to the simplified model
         default: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::RadiativeTransfer;
+            std::cout << "Error: Unknown weighting function specified";
+            exit(1);
         } break;
     }
 
@@ -215,10 +215,7 @@ int main(int argc, char *argv[])
     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
 
     const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
-          = (experimentParams.weightingParameters.weightingMethod
-                  != twisty::WeightingMethod::RadiativeTransfer)
-          ? 1.0
-          : twisty::PathWeighting::NormalizerStuff::Norm(
+          = twisty::PathWeighting::NormalizerStuff::Norm(
                 experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
     double pathNormalizerLog10 = (double)boost::multiprecision::log10(pathNormalizer);

@@ -28,18 +28,20 @@ double G_4(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
         return 0.0;
     }
 
-    double firstTerm = (2.0 * PI) / (ds * ds * ds);
+    double firstTerm = std::exp(-4.0 * alpha) / (ds * ds * ds);
     firstTerm *= (1.0 / qMag);
-    firstTerm *= std::exp(-4.0 * alpha);
 
-    double secondTermArg = (alpha / 2.0) * (qSqrMag + q.Dot(bc.m_startDir + betaHat));
+    double secondTermArg = alpha * ((qSqrMag / 2.0) + q.Dot(bc.m_startDir));
     const double secondTerm = std::exp(secondTermArg);
+
+    double thirdTermArg = alpha * (betaHat - bc.m_startDir).Dot((q * 0.5f));
+    const double thirdTerm = std::exp(thirdTermArg);
 
     const double besilFuncArg
           = alpha * sqrt(1 - (qSqrMag / 4)) * (betaHat - bc.m_startDir).Magnitude();
-    const double besilEval = std::cyl_bessel_i(0, besilFuncArg);
+    const double besilEval = 2.0 * PI * std::cyl_bessel_i(0, besilFuncArg);
 
-    const double g4 = firstTerm * secondTerm * besilEval;
+    const double g4 = firstTerm * secondTerm * thirdTerm * besilEval;
     return g4;
 }
 
@@ -47,11 +49,11 @@ double G_5(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
       const double ds, const twisty::PerturbUtils::BoundaryConditions &bc)
 {
     // Integration over unit sphere
-    const int numPhi1Vals = 100000;
-    const int numTheta1Vals = 100000;
+    const int numPhi1Vals = 10000;
+    const int numTheta1Vals = 10000;
 
     // Polar angle
-    const float phi1Min = 0.0f;
+    const float phi1Min = -1.0f;
     const float phi1Max = 1.0f;
     const float dPhi1 = (phi1Max - phi1Min) / numPhi1Vals;
 
@@ -64,7 +66,7 @@ double G_5(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
 
     for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
         const float phi1Mapped = phi1Min + phi1Idx * dPhi1;
-        const float phi1 = std::acos(1.0 - 2.0 * phi1Mapped);
+        const float phi1 = std::acos(phi1Mapped);
 
         for (int theta1Idx = 0; theta1Idx < numTheta1Vals; theta1Idx++) {
             const float theta1 = theta1Min + theta1Idx * dTheta1;
@@ -152,8 +154,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
         // Default to the simplified model
         default: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::RadiativeTransfer;
+            std::cout << "Error: Unknown weighting function specified";
+            exit(1);
         } break;
     }
 

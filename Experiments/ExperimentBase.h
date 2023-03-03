@@ -23,7 +23,6 @@ namespace ExperimentBase {
           const double pathNormalizerLog10,
           const twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable);
 
-
     Result FiveSegmentAngleSpaceMC(const int64_t numExperimentPaths,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
           const twisty::ExperimentRunner::ExperimentParameters &experimentParams,

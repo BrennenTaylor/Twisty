@@ -49,6 +49,10 @@ namespace PathWeighting {
             // Extract curvature
             float curvature = pCurvatureStart[segIdx];
 
+            if ((curvature < minCurvature) && abs(curvature - minCurvature) < 1e-3) {
+                curvature = minCurvature;
+            }
+
             if (curvature < minCurvature) {
                 printf("Error: curvature less than min curvature: %f < %f\n", curvature,
                       minCurvature);

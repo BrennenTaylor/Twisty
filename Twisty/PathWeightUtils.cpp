@@ -274,9 +274,8 @@ namespace PathWeighting {
               = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
 
         auto CalculateSimpleWeightValue = [weightingParams, ds](float curvature) -> float {
-            curvature *= -1.0;  // All curvatures in this mode are negated
             const float alpha = 1.0 / (weightingParams.scatter * ds * weightingParams.mu);
-            const float leftComponent = std::exp(-1.0 * alpha);
+            const float leftComponent = std::exp(-1.0 * alpha) / (ds * ds * ds);
             const float rightComponent = std::exp(alpha * curvature);
             return leftComponent * rightComponent;
         };
@@ -292,10 +291,7 @@ namespace PathWeighting {
         for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i) {
             float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
             float value = CalculateSimpleWeightValue(curvatureEval);
-            // Running min?
-            if (value <= 0.0) {
-                value = min;
-            }
+
             m_lookupTable[i] = value;
 
             if (value < min) {
@@ -305,21 +301,6 @@ namespace PathWeighting {
             if (value > max) {
                 max = value;
             }
-        }
-
-        uint32_t numInvalid = 0;
-        for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i) {
-            float value = m_lookupTable[i];
-
-            if (value <= 0.0) {
-                numInvalid++;
-                value = min;
-            }
-        }
-
-        if (numInvalid > 0) {
-            std::cout << "We calculated " << numInvalid
-                      << " negative table values and clamped them to zero" << std::endl;
         }
 
         m_minSegmentWeight = min;
