@@ -22,14 +22,25 @@ namespace PathWeighting {
         return expf(val);
     }
 
-    // Parameterized gaussian function
-    // Switched to version found in "A leading order approximation of the path integral for radiative transfer"
+    // TODO: We need to verify this. It's not clear if this is the correct form.
+    // I cannot find the documented reference anywhere... I dont know which work this is from.
+    // For now, I will revert to that found in Pauls dissertation and
+    // "ACCELERATED PATH GENERATION AND VISUALIZATION FOR NUMERICAL INTEGRATION OF FEYNMAN PATH INTEGRALS FOR RADIATIVE TRANSFER"
     float GaussianPhase(float evalLocation, float mu)
     {
-        const float Np
-              = sqrtf(8.0f * TwistyPi * TwistyPi * TwistyPi * mu) / (1.0f - expf(-2.0f / mu));
+        const float Np = sqrtf((TwistyPi * mu) * 0.5f) / (1.0f - expf(-2.0f / mu));
         return Np * SimpleGaussianPhase(evalLocation, mu);
     }
+
+    // Parameterized gaussian function
+    // Switched to version found in "A leading order approximation of the path integral for radiative transfer"
+    // float GaussianPhase(float evalLocation, float mu)
+    // {
+    //     const float Np
+    //           = sqrtf(8.0f * TwistyPi * TwistyPi * TwistyPi * mu) / (1.0f - expf(-2.0f / mu));
+    //     return Np * SimpleGaussianPhase(evalLocation, mu);
+    // }
+
 
     // Lookup table integrand
     BaseWeightLookupTable::BaseWeightLookupTable(const WeightingParameters &weightingParams,
