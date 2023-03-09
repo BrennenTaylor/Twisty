@@ -92,9 +92,9 @@ int main(int argc, char *argv[])
         experimentParams.weightingParameters.maxBound
               = 10.0 / experimentParams.weightingParameters.eps;
         experimentParams.weightingParameters.numCurvatureSteps = 10000;
-        // Lets give some absorbtion as well
-        // Absorbtion 1/20 off the time
-        experimentParams.weightingParameters.absorbtion = 0.05;
+        // Lets give some absorption as well
+        // absorption 1/20 off the time
+        experimentParams.weightingParameters.absorption = 0.05;
         // 1/5 scatter means one event every 5 units, thus 2 scattering events in the shortest
         // or 5 in the longest 100 unit path
         experimentParams.weightingParameters.scatter = 0.2;

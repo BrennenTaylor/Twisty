@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
                     //double segmentWeight = interpolatedResultLog;
 
                     //// Take natural log of this constant
-                    //segmentWeight += lnAbsorbtionConst;
+                    //segmentWeight += lnabsorptionConst;
 
                     //// Add segment weighting into running path weight
                     //prevPathWeight += segmentWeight;
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
                     //double segmentWeight = interpolatedResultLog;
 
                     //// Take natural log of this constant
-                    //segmentWeight += lnAbsorbtionConst;
+                    //segmentWeight += lnabsorptionConst;
 
                     //// Add segment weighting into running path weight
                     //prevPathWeight += segmentWeight;

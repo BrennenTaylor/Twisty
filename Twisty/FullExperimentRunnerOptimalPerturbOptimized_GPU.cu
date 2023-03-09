@@ -97,7 +97,8 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
             const float ds,
             const float minCurvature,
             const float maxCurvature,
-            const float curvatureStepSize);
+            const float curvatureStepSize,
+            const float absorption);
 
 // __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
 //       FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_SimplifiedModel(
@@ -290,7 +291,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
                   m_pFinalCombinedValues, csBoundaryConditions, m_pDeviceWeightLookupTable,
                   lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
                   lookupEvaluator->GetMinCurvature(), lookupEvaluator->GetMaxCurvature(),
-                  lookupEvaluator->GetCurvatureStepSize());
+                  lookupEvaluator->GetCurvatureStepSize(), m_experimentParams.weightingParameters.absorption);
 
             CudaSafeErrorCheck(cudaGetLastError(),
                   "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"
@@ -338,7 +339,7 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
 
     printf("Done Copying values back\n");
 
-    // We need to calculate the absorbtion/scattering piece
+    // We need to calculate the absorption/scattering piece
     boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
 
     uint64_t numWeightsGenerated = 0;
@@ -698,7 +699,8 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
             const float ds,
             const float minCurvature,
             const float maxCurvature,
-            const float curvatureStepSize)
+            const float curvatureStepSize,
+            const float absorption)
 {
     __shared__ CombinedWeightValues_C perThreadWeightValues[PerturbBlockSize];
 
@@ -876,7 +878,7 @@ __global__ void __launch_bounds__(PerturbBlockSize, PerturbGridSize)
                                             [CurrentThreadCurvatureStartIdx]),
                                 (numSegmentsPerCurve - 1), pWeightLookupTable,
                                 weightLookupTableSize, ds, minCurvature, maxCurvature,
-                                curvatureStepSize);
+                                curvatureStepSize, absorption);
 
 
                     // Else, contribute to the paths

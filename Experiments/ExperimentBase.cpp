@@ -148,8 +148,9 @@ namespace ExperimentBase {
                     }
 
                     const double scatteringWeightLog10
-                          = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                                  curvatures.data(), 4, weightLookupTable)
+                          = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(),
+                                  4, weightLookupTable,
+                                  experimentParams.weightingParameters.absorption)
                           + pathNormalizerLog10;
 
                     // Update the min and max values
@@ -342,8 +343,8 @@ namespace ExperimentBase {
             }
 
             const double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                          curvatures.data(), 4, weightLookupTable)
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 4,
+                          weightLookupTable, experimentParams.weightingParameters.absorption)
                   + pathNormalizerLog10;
 
             // Update the min and max values
@@ -542,8 +543,8 @@ namespace ExperimentBase {
                   tangents.data(), curvatures.data(), 6, experimentGeometry);
 
             const double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                          curvatures.data(), 5, weightLookupTable)
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 5,
+                          weightLookupTable, experimentParams.weightingParameters.absorption)
                   + pathNormalizerLog10;
 
             // Update the min and max values
@@ -1033,8 +1034,8 @@ namespace ExperimentBase {
             }
 
             const double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                          curvatures.data(), 4, weightLookupTable)
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 4,
+                          weightLookupTable, experimentParams.weightingParameters.absorption)
                   + pathNormalizerLog10;
 
             // Update the min and max values
@@ -1153,8 +1154,8 @@ namespace ExperimentBase {
                   tangents.data(), curvatures.data(), 6, experimentGeometry);
 
             const double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                          curvatures.data(), 5, weightLookupTable)
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 5,
+                          weightLookupTable, experimentParams.weightingParameters.absorption)
                   + pathNormalizerLog10;
 
             // Update the min and max values
@@ -1279,7 +1280,7 @@ namespace ExperimentBase {
                   tangents.data(), curvatures.data(), numSegmentsPerCurve, experimentGeometry);
 
             double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                  curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable);
+                  curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable, experimentParams.weightingParameters.absorption);
 
             if (isnan(scatteringWeightLog10)) {
                 throw std::runtime_error("We somehow got an invalid path weight");

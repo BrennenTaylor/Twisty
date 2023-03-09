@@ -19,7 +19,7 @@
 #include <string>
 
 
-const float DefaultAbsorbtion = 0.1f;
+const float Defaultabsorption = 0.1f;
 const float DefaultScattering = 0.1f;
 const float DefaultDensity = 1.0f;
 const float VolumeSphereRadius = 9.0f;
@@ -28,7 +28,7 @@ const float RasterSphereRadius = 10.0f;
 
 struct VolumeData {
     bool inVolume = false;
-    float absorbtion = 0.0f;
+    float absorption = 0.0f;
     float scattering = 0.0f;
 };
 
@@ -49,7 +49,7 @@ VolumeData CubeOfVolume(
           || samplePointWS.z < (cubeOrigin.z - halfFaceLength)) {
         return { false, 0.0f, 0.0f };
     }
-    return { true, DefaultAbsorbtion, DefaultScattering };
+    return { true, Defaultabsorption, DefaultScattering };
 }
 
 VolumeData SphereOfVolume(
@@ -57,7 +57,7 @@ VolumeData SphereOfVolume(
 {
     const float sphereRadius2 = (sphereRadius * sphereRadius);
     if ((samplePointWS - sphereCenter).SqrMagnitude() <= sphereRadius2) {
-        return { true, DefaultAbsorbtion, DefaultScattering };
+        return { true, Defaultabsorption, DefaultScattering };
     }
     return { false, 0.0f, 0.0f };
 }
@@ -71,7 +71,7 @@ VolumeData HollowSphereOfVolume(const Farlor::Vector3 &samplePointWS,
     const float innerRadius2 = (innerRadius * innerRadius);
     if ((samplePointWS - sphereCenter).SqrMagnitude() <= sphereRadius2) {
         if ((samplePointWS - sphereCenter).SqrMagnitude() >= innerRadius2) {
-            return { true, DefaultAbsorbtion, DefaultScattering };
+            return { true, Defaultabsorption, DefaultScattering };
         }
     }
     return { false, 0.0f, 0.0f };
@@ -116,7 +116,7 @@ Farlor::Vector3 RayMarchToLight(const Farlor::Vector3 &rayOrigin, const Farlor::
         }
     }
     const float transmittence
-          = BeerLambert(DefaultAbsorbtion, DefaultScattering, distanceTraveledInMaterial);
+          = BeerLambert(Defaultabsorption, DefaultScattering, distanceTraveledInMaterial);
     return Farlor::Vector3 { transmittence, transmittence, transmittence };
 }
 
@@ -148,7 +148,7 @@ Farlor::Vector3 RayMarchSingleScatter(const Farlor::Vector3 &rayOrigin,
         if (currentInMaterial) {
             distanceTraveledInMaterial += randomStepDist.Magnitude();
             const float transmittence
-                  = BeerLambert(DefaultAbsorbtion, DefaultScattering, distanceTraveledInMaterial);
+                  = BeerLambert(Defaultabsorption, DefaultScattering, distanceTraveledInMaterial);
             const float phaseWeight = PhaseFunction(traceDir, (lightPos - samplePos).Normalized());
             const Farlor::Vector3 colorUpdate = DefaultDensity * DefaultScattering * phaseWeight
                   * transmittence * RayMarchToLight(samplePos, lightPos, generator, uniform01);

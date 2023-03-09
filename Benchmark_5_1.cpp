@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
 
 
                         experimentParams.weightingParameters.scatter = 0.99;
-                        experimentParams.weightingParameters.absorbtion
+                        experimentParams.weightingParameters.absorption
                               = 1.0 - experimentParams.weightingParameters.scatter;
 
 

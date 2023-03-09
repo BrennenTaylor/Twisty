@@ -536,7 +536,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                         ds,
                         minCurvature,
                         maxCurvature,
-                        curvatureStepSize);
+                        curvatureStepSize,
+                        m_experimentParams.weightingParameters.absorption);
 
             if (pathCount < numPathsToSkipPerThread) {
                 // Skip
@@ -701,7 +702,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                         ds,
                         minCurvature,
                         maxCurvature,
-                        curvatureStepSize);
+                        curvatureStepSize,
+                        m_experimentParams.weightingParameters.absorption);
 
             if (pathCount < numPathsToSkipPerThread) {
                 // Skip

@@ -8,12 +8,12 @@ namespace PathWeighting {
     // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
     // Assumes that integral matches weighting params
     double WeightCurveViaCurvatureLog10(float *pCurvatureStart, uint32_t numCurvatures,
-          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral);
+          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral, const float absorption);
 
     __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float *pCurvatureStart,
           uint32_t numCurvatures, const float *pWeightLookupTable,
           const int32_t weightLookupTableSize, const float ds, const float minCurvature,
-          const float maxCurvature, const float curvatureStepSize);
+          const float maxCurvature, const float curvatureStepSize, const float absorption);
 }
 }
 
@@ -25,23 +25,26 @@ namespace twisty {
 namespace PathWeighting {
     // Assume we have good pointers
     double WeightCurveViaCurvatureLog10(float *pCurvatureStart, uint32_t numCurvatures,
-          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral)
+          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral, const float absorption)
     {
         return WeightCurveViaCurvatureLog10_CudaSafe(pCurvatureStart, numCurvatures,
               weightIntegral.AccessLookupTable().data(),
               (uint32_t)weightIntegral.AccessLookupTable().size(), weightIntegral.GetDs(),
               weightIntegral.GetMinCurvature(), weightIntegral.GetMaxCurvature(),
-              weightIntegral.GetCurvatureStepSize());
+              weightIntegral.GetCurvatureStepSize(), absorption);
     }
 
     __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float *pCurvatureStart,
           uint32_t numCurvatures, const float *pWeightLookupTable,
           const int32_t weightLookupTableSize, const float ds, const float minCurvature,
-          const float maxCurvature, const float curvatureStepSize)
+          const float maxCurvature, const float curvatureStepSize, const float absorption)
     {
         if (!pCurvatureStart || (numCurvatures == 0)) {
             return 0.0;
         }
+
+        // Currently assumes that we dont need a world space lookup
+        const double absorptionFactor = std::exp(-absorption * ds);
 
         // Calculate value
         double runningPathWeightLog10 = 0.0;
@@ -84,6 +87,9 @@ namespace PathWeighting {
             double interpolatedResult
                   = leftLookup * (1.0f - interpDist) + (rightLookup * interpDist);
 
+            // Adds in absorption per segment
+            interpolatedResult *= absorptionFactor;
+
             // Take the natural log of the interpolated results
             double interpolatedResultLog10 = log10(interpolatedResult);
             if (isnan(interpolatedResultLog10)) {
@@ -94,6 +100,7 @@ namespace PathWeighting {
             // Update the running path weight. We also want to cache the segment weights
             runningPathWeightLog10 += interpolatedResultLog10;
         }
+        // Factor in absorption
 
         if (isnan(runningPathWeightLog10)) {
             printf("Error: running path weight is nan\n");

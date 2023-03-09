@@ -70,7 +70,7 @@ namespace twisty
             std::vector<double>& finalThreadDifference,
             float segmentLength,
             float scattering,
-            float absorbtion,
+            float absorption,
             const std::vector<double>& lookupTable,
             float minCurvature,
             float maxCurvature,

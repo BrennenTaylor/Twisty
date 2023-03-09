@@ -138,8 +138,15 @@ ExperimentRunner::ExperimentParameters ExperimentRunner::ParseExperimentParamsFr
           = (int)experimentConfig["experiment"]["experimentParams"]["weighting"]["numStepsInt"];
     experimentParams.weightingParameters.numCurvatureSteps = (int)
           experimentConfig["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
-    experimentParams.weightingParameters.absorbtion
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorbtion"];
+    experimentParams.weightingParameters.absorption
+          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorption"];
+
+      // In the case we have the simplified model, we need to disable absorption
+      if (experimentParams.weightingParameters.weightingMethod
+            == twisty::WeightingMethod::SimplifiedModel) {
+          std::cout << "Disabling absorption for simplified model." << std::endl;
+          experimentParams.weightingParameters.absorption = 0.0f;
+      }
 
     experimentParams.weightingParameters.scatter
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];

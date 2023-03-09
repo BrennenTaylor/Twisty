@@ -59,8 +59,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
           = (int)config.lookup("experiment.experimentParams.weighting.numStepsInt");
     experimentParams.weightingParameters.numCurvatureSteps
           = (int)config.lookup("experiment.experimentParams.weighting.numCurvatureSteps");
-    experimentParams.weightingParameters.absorbtion
-          = config.lookup("experiment.experimentParams.weighting.absorbtion");
+    experimentParams.weightingParameters.absorption
+          = config.lookup("experiment.experimentParams.weighting.absorption");
     experimentParams.weightingParameters.scatter
           = config.lookup("experiment.experimentParams.weighting.scatter");
 

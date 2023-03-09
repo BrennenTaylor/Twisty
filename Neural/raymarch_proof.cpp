@@ -16,7 +16,7 @@
 #include <fstream>
 #include <string>
 
-const float DefaultAbsorbtion = 0.1f;
+const float Defaultabsorption = 0.1f;
 const float DefaultScattering = 0.1f;
 const float OuterSphereRadius = 9.0f;
 const float InnerSphereRadius = 5.0f;
@@ -28,7 +28,7 @@ const Farlor::Vector3 BackgroundColor(0.0f, 0.0f, 0.0f);
 
 struct VolumeData {
     bool inVolume = false;
-    float absorbtion = 0.0f;
+    float absorption = 0.0f;
     float scattering = 0.0f;
 };
 
@@ -107,7 +107,7 @@ Farlor::Vector3 RayMarchToLight(const Farlor::Vector3 &rayOrigin, const Farlor::
               samplePos, Farlor::Vector3(0.0f, 0.0f, 0.0f), OuterSphereRadius, InnerSphereRadius);
         if (sampledDensity > 0.0f) {
             transmittence
-                  *= BeerLambert(DefaultAbsorbtion, DefaultScattering, stepSize, sampledDensity);
+                  *= BeerLambert(Defaultabsorption, DefaultScattering, stepSize, sampledDensity);
         }
         currentPos += stepVec;
     }
@@ -135,7 +135,7 @@ Farlor::Vector4 RayMarchSingleScatter(const Farlor::Vector3 &rayOrigin,
               samplePos, Farlor::Vector3(0.0f, 0.0f, 0.0f), OuterSphereRadius, InnerSphereRadius);
         if (sampledDensity > 0.0f) {
             transmittence *= BeerLambert(
-                  DefaultAbsorbtion, DefaultScattering, stepSize, sampledDensity);
+                  Defaultabsorption, DefaultScattering, stepSize, sampledDensity);
             const float phaseWeight = PhaseFunction(traceDir, (lightPos - samplePos).Normalized());
             const Farlor::Vector3 colorUpdate = sampledDensity * DefaultScattering * phaseWeight
                   * transmittence

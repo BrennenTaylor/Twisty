@@ -19,7 +19,7 @@ const double zMax = 10.0;
 
 const double ringRadius = 1.75;
 
-double GreensFunctionApprox(double scatteringCoefficient, double absorbtionCoefficient, double s, const Farlor::Vector3& x2, const Farlor::Vector3& n2, const Farlor::Vector3& x1, const Farlor::Vector3& n1)
+double GreensFunctionApprox(double scatteringCoefficient, double absorptionCoefficient, double s, const Farlor::Vector3& x2, const Farlor::Vector3& n2, const Farlor::Vector3& x1, const Farlor::Vector3& n1)
 {
 
 
@@ -44,7 +44,7 @@ double GreensFunctionApprox(double scatteringCoefficient, double absorbtionCoeff
         normalization *= exp(C);
     }
 
-    double inside = (-C - D * n2.Dot(n1) + E * r.Dot(n2 + n1) - F * r.SqrMagnitude() - absorbtionCoefficient * s);
+    double inside = (-C - D * n2.Dot(n1) + E * r.Dot(n2 + n1) - F * r.SqrMagnitude() - absorptionCoefficient * s);
     double result = normalization * exp(inside);
 
 
@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
     twisty::Bootstrapper::RayGeometry rayEmitter(emitterStart, emitterDir);
 
     const double scatteringCoefficient = 0.99;
-    const double absorbtionCoefficient = 1.0 - scatteringCoefficient;
+    const double absorptionCoefficient = 1.0 - scatteringCoefficient;
 
     const double deltaZ = (zMax - zMin) / (numZValues - 1);
     for (uint32_t z = 0; z < numZValues; ++z)
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
                 std::cout << "\tTarget arclength " << arclengthIdx << ": " << arclengthToUse << std::endl;
                 std::cout << "\tTarget normal " << normalIdx << ": " << targetNormal << std::endl;
 
-                averagedResult = GreensFunctionApprox(scatteringCoefficient, absorbtionCoefficient, arclengthToUse, recieverPos, targetNormal, emitterStart, emitterDir) * (1.0 / (numNormals * numArclengths));
+                averagedResult = GreensFunctionApprox(scatteringCoefficient, absorptionCoefficient, arclengthToUse, recieverPos, targetNormal, emitterStart, emitterDir) * (1.0 / (numNormals * numArclengths));
             }
         }
 

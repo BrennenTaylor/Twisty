@@ -108,8 +108,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
           = (int)experimentConfig["experiment"]["experimentParams"]["weighting"]["numStepsInt"];
     experimentParams.weightingParameters.numCurvatureSteps = (int)
           experimentConfig["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
-    experimentParams.weightingParameters.absorbtion
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorbtion"];
+    experimentParams.weightingParameters.absorption
+          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorption"];
 
     experimentParams.weightingParameters.scatter
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];
@@ -381,7 +381,7 @@ int main(int argc, char *argv[])
 
                 const double scatteringWeightLog10
                       = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                              curvatures.data(), 4, weightingIntegralsRawPointer)
+                              curvatures.data(), 4, weightingIntegralsRawPointer, experimentParams.weightingParameters.absorption)
                       + pathNormalizerLog10;
                 // Decompressed weight big float
                 const double scatteringWeightLog10Decompressed

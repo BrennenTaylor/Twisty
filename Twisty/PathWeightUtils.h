@@ -40,7 +40,7 @@ struct WeightingParameters {
     float eps = 0.01f;
 
     float scatter = 0.0f;
-    float absorbtion = 0.0f;
+    float absorption = 0.0f;
 
     uint32_t numCurvatureSteps = 10000;
 

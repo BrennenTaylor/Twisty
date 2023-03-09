@@ -221,8 +221,7 @@ namespace PathWeighting {
         const float kds = curvature * ds;
         const float bds = weightingParams.scatter * ds;
 
-        const float cds = (weightingParams.absorbtion + weightingParams.scatter) * ds;
-        const float transmissionFalloff = std::exp(-cds) / (2.0 * TwistyPi * TwistyPi);
+        const float transmissionFalloff = std::exp(-bds) / (2.0 * TwistyPi * TwistyPi);
 
         auto Integrand = [this, weightingParams](
                                const double p, const double kds, const double bds) -> double {

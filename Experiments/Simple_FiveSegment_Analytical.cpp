@@ -191,8 +191,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
           = (int)experimentConfig["experiment"]["experimentParams"]["weighting"]["numStepsInt"];
     experimentParams.weightingParameters.numCurvatureSteps = (int)
           experimentConfig["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
-    experimentParams.weightingParameters.absorbtion
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorbtion"];
+    experimentParams.weightingParameters.absorption
+          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorption"];
 
     experimentParams.weightingParameters.scatter
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];

@@ -141,7 +141,7 @@ void FullExperimentRunnerOldMethodBridge::LogWeightThreadFunction(int64_t thread
       std::vector<double> &finalThreadDifference,
       float segmentLength,
       float scattering,
-      float absorbtion,
+      float absorption,
       const std::vector<double> &lookupTable,
       float minCurvature,
       float maxCurvature,
@@ -186,9 +186,9 @@ void FullExperimentRunnerOldMethodBridge::LogWeightThreadFunction(int64_t thread
     const int64_t CurrentThreadTanStartIdx = NumTanPerCurve * threadIdx;
     const int64_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
 
-    double c = scattering + absorbtion;
-    double absorbtionConst = std::exp(-c * segmentLength) / (2.0 * TwistyPi * TwistyPi);
-    double absorbtionConstLog10 = std::log10(absorbtionConst);
+    double c = scattering + absorption;
+    double absorptionConst = std::exp(-c * segmentLength) / (2.0 * TwistyPi * TwistyPi);
+    double absorptionConstLog10 = std::log10(absorptionConst);
 
     // We start by keeping a running path weight.
     // Lets make this a double actually...
@@ -318,7 +318,7 @@ void FullExperimentRunnerOldMethodBridge::LogWeightThreadFunction(int64_t thread
                         double segmentWeightLog10 = interpolatedResultLog10;
 
                         // Take natural log of this constant
-                        segmentWeightLog10 += absorbtionConstLog10;
+                        segmentWeightLog10 += absorptionConstLog10;
 
                         runningSinglePathWeight += segmentWeightLog10;
                     }
@@ -652,7 +652,7 @@ FullExperimentRunnerOldMethodBridge::RunExperimentLogWeightTable()
     std::cout << "Num perturbThreads: " << numPerturbThreads << std::endl;
     //std::cout << "Num dispatches required: " << numDispatches << std::endl;
 
-    // We need to calculate the absorbtion/scattering piece
+    // We need to calculate the absorption/scattering piece
     boost::multiprecision::cpp_dec_float_100 bigTotalExperimentWeight = 0.0;
 
     long long perturbTimeCount = 0;
@@ -719,7 +719,7 @@ FullExperimentRunnerOldMethodBridge::RunExperimentLogWeightTable()
                       std::ref(cachedSegmentWeights), std::ref(finalThreadWeights),
                       std::ref(finalThreadDifferences), m_upInitialCurve->m_segmentLength,
                       m_experimentParams.weightingParameters.scatter,
-                      m_experimentParams.weightingParameters.absorbtion,
+                      m_experimentParams.weightingParameters.absorption,
                       std::ref(lookupEvaluator.AccessLookupTable()), minCurvature, maxCurvature,
                       curvatureStepSize, pathToRawBinary, std::ref(cachedWeights));
 

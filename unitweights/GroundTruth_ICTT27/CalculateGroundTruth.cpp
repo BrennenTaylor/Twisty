@@ -58,8 +58,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
           = (int)configJson["experiment"]["experimentParams"]["weighting"]["numStepsInt"];
     experimentParams.weightingParameters.numCurvatureSteps
           = (int)configJson["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
-    experimentParams.weightingParameters.absorbtion
-          = configJson["experiment"]["experimentParams"]["weighting"]["absorbtion"];
+    experimentParams.weightingParameters.absorption
+          = configJson["experiment"]["experimentParams"]["weighting"]["absorption"];
     experimentParams.weightingParameters.scatter
           = configJson["experiment"]["experimentParams"]["weighting"]["scatter"];
 

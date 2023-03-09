@@ -55,9 +55,9 @@ int main(int argc, char *argv[])
     weightingParams.minBound = 0.0;
     weightingParams.maxBound = 10.0 / weightingParams.eps;
     weightingParams.numCurvatureSteps = 10000;
-    // Lets give some absorbtion as well
-    // Absorbtion 1/20 off the time
-    weightingParams.absorbtion = 0.05;
+    // Lets give some absorption as well
+    // absorption 1/20 off the time
+    weightingParams.absorption = 0.05;
     // 1/5 scatter means one event every 5 units, thus 2 scattering events in the shortest
     // or 5 in the longest 100 unit path
     weightingParams.scatter = 0.2;
@@ -69,10 +69,10 @@ int main(int argc, char *argv[])
     twisty::PathWeighting::MinMaxCurvature minMax
           = twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds);
 
-    // Note: Has absorbtion const built in
+    // Note: Has absorption const built in
     twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(weightingParams, ds);
     double curveWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-          upCurve->m_curvatures.data(), upCurve->m_curvatures.size(), lookupEvaluator);
+          upCurve->m_curvatures.data(), upCurve->m_curvatures.size(), lookupEvaluator, weightingParams.absorption);
     std::cout << "Weight (Log10): " << curveWeightLog10 << std::endl;
 
     boost::multiprecision::cpp_dec_float_100 bigFloatCurveWeightLog10 = curveWeightLog10;
