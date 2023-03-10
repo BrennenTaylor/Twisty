@@ -129,12 +129,17 @@ int main(int argc, char *argv[])
             const Farlor::Vector3 recieverPos = centerOfFrame
                   + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
 
-            const double actualArclength = (recieverPos - emitterStart).Magnitude() + 0.01f;
+            const double actualArclength = (recieverPos - emitterStart).Magnitude() + 0.0f;
 
             std::string currentArclengthString = std::to_string(actualArclength);
             std::replace(currentArclengthString.begin(), currentArclengthString.end(), '.', '_');
 
             const float ds = actualArclength / experimentParams.numSegmentsPerCurve;
+
+            const auto uuid = experimentParams.weightingParameters.GenerateStringUUID();
+            std::cout << "Weighting parameters hash: " << uuid.first << " \n"
+                      << uuid.second << '\n'
+                      << std::endl;
 
             std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
             if (experimentParams.weightingParameters.weightingMethod
@@ -149,7 +154,6 @@ int main(int argc, char *argv[])
             lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
             assert(lookupEvaluator);
             twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable = (*lookupEvaluator);
-
 
             twisty::PerturbUtils::BoundaryConditions experimentGeometry;
             experimentGeometry.m_startPos = emitterStart;

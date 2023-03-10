@@ -110,6 +110,66 @@ namespace PathWeighting {
         outputFile.close();
     }
 
+
+    // CachedMultiArclengthWeightLookupTable::CachedMultiArclengthWeightLookupTable(
+    //       const WeightingParameters &weightingParams, float minDs, float maxDs, uint32_t numDsSteps,
+    //       float minCurvature, float maxCurvature)
+    // {
+    //     float dsStepSize = (maxDs - minDs) / numDsSteps;
+    //     for (uint32_t i = 0; i < numDsSteps; ++i) {
+    //         float ds = minDs + i * dsStepSize;
+    //         m_weightLookupTables.push_back(std::make_unique<WeightLookupTableIntegral>(
+    //               weightingParams, ds, minCurvature, maxCurvature));
+    //     }
+    // }
+
+    // // Currently just gets the closest table, but could be improved to do bilinear interpolation
+    // BaseWeightLookupTable *CachedMultiArclengthWeightLookupTable::GetWeightLookupTable(
+    //       float ds) const
+    // {
+    //     float minDist = std::numeric_limits<float>::max();
+    //     BaseWeightLookupTable *closestTable = nullptr;
+    //     for (const auto &table : m_weightLookupTables) {
+    //         float dist = std::abs(table->GetDs() - ds);
+    //         if (dist < minDist) {
+    //             minDist = dist;
+    //             closestTable = table.get();
+    //         }
+    //     }
+    //     return closestTable;
+    // }
+
+    // void CachedMultiArclengthWeightLookupTable::ExportTables(
+    //       const std::string &directoryFileName) const
+    // {
+    //     // Open file for table metadata
+    //     std::filesystem::path exportDirectory = directoryFileName;
+    //     exportDirectory = exportDirectory / "WeightLookupTable/";
+    //     if (!std::filesystem::exists(exportDirectory)) {
+    //         std::filesystem::create_directories(exportDirectory);
+    //     }
+
+    //     // Create metadata file
+    //     std::ofstream outputFile(exportDirectory.string() + "WeightLookupTableMetadata.txt");
+    //     if (!outputFile.is_open()) {
+    //         throw std::runtime_error("Failed to export weight table");
+    //     }
+
+    //     // Export table information
+    //     outputFile << m_weightLookupTables.size() << '\n';
+
+    //     // Open table file
+    //     std::ofstream tableFile(exportDirectory.string() + "WeightLookupTableData.cwt");
+    //     if (!tableFile.is_open()) {
+    //         throw std::runtime_error("Failed to export weight table");
+    //     }
+    //     // Write all table data
+    // }
+
+
+    // void CachedMultiArclengthWeightLookupTable::LoadTables(const std::string &directoryFileName);
+
+
     // Lookup table integrand
     WeightLookupTableIntegral::WeightLookupTableIntegral(
           const WeightingParameters &weightingParams, float ds)

@@ -45,6 +45,18 @@ struct WeightingParameters {
     uint32_t numCurvatureSteps = 10000;
 
     WeightingMethod weightingMethod = WeightingMethod::RadiativeTransfer;
+
+    std::pair<std::string, uint64_t> GenerateStringUUID() const
+    {
+        std::stringstream uuid;
+        uuid << std::fixed << std::setprecision(4) << "mu_" << mu << "_numStepsInt_" << numStepsInt
+             << "_minBound_" << minBound << "_maxBound_" << maxBound << "_eps_" << eps
+             << "_scatter_" << scatter << "_absorption_" << absorption << "_numCurvatureSteps_"
+             << numCurvatureSteps << "_weightingMethod_" << (int32_t)weightingMethod;
+
+        return std::make_pair<std::string, uint64_t>(
+              uuid.str(), std::hash<std::string> {}(uuid.str()));
+    }
 };
 
 namespace PathWeighting {
@@ -97,6 +109,29 @@ namespace PathWeighting {
 
         float m_ds;
         WeightingParameters m_weightingParams;
+    };
+
+    // Cached Multi-Arclength Weight Lookup Table
+    class CachedMultiArclengthWeightLookupTable {
+       public:
+        CachedMultiArclengthWeightLookupTable(const WeightingParameters &weightingParams,
+              float minDs, float maxDs, uint32_t numDsSteps, float minCurvature,
+              float maxCurvature);
+
+        // Currently just gets the closest table, but could be improved to do bilinear interpolation
+        BaseWeightLookupTable *GetWeightLookupTable(float ds) const;
+
+        void ExportTables(const std::string &directoryFileName) const;
+        void LoadTables(const std::string &directoryFileName);
+
+       private:
+        WeightingParameters m_weightingParams;
+        float m_minDs;
+        float m_maxDs;
+        uint32_t m_numDsSteps;
+        float m_minCurvature;
+        float m_maxCurvature;
+        std::vector<BaseWeightLookupTable *> m_weightLookupTables;
     };
 
     class WeightLookupTableIntegral : public BaseWeightLookupTable {
