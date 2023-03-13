@@ -61,7 +61,6 @@ struct WeightingParameters {
 
 namespace PathWeighting {
     // Used for the Path Integral Radiative Transfer Weighting
-    float SimpleGaussianPhase(float evalLocation, float mu);
     float GaussianPhase(float evalLocation, float mu);
 
     // Simple Weight Function, for small segment work!
@@ -69,20 +68,16 @@ namespace PathWeighting {
 
     class BaseWeightLookupTable {
        public:
-        BaseWeightLookupTable(const WeightingParameters &weightingParams, float ds,
-              float minCurvature, float maxCurvature);
-        virtual ~BaseWeightLookupTable();
-
-        float InterpolateWeightValues(float curvature) const;
+        BaseWeightLookupTable(const WeightingParameters &weightingParams, const float ds,
+              const float minCurvature, const float maxCurvature);
+        virtual ~BaseWeightLookupTable() = default;
 
         const std::vector<float> &AccessLookupTable() const { return m_lookupTable; }
 
         float GetMinSegmentWeight() const { return m_minSegmentWeight; }
-
         float GetMaxSegmentWeight() const { return m_maxSegmentWeight; }
 
         float GetMinCurvature() const { return m_minCurvature; }
-
         float GetMaxCurvature() const { return m_maxCurvature; }
 
         float GetDs() const { return m_ds; }
@@ -93,30 +88,32 @@ namespace PathWeighting {
 
         void ExportValues(const std::string &relativePath) const;
 
+        void UpdateUUID();
+
        protected:
-        // virtual double Integrate(double curvature, const WeightingParameters&
-        // weightingParams, double ds) const = 0;
         virtual const std::string ExportFilename() const = 0;
 
-        float m_minCurvature;
-        float m_maxCurvature;
-
-        float m_minSegmentWeight = 0.0;
-        float m_maxSegmentWeight = 0.0;
-
-        float m_curvatureStepSize;
-        std::vector<float> m_lookupTable;
-
-        float m_ds;
         WeightingParameters m_weightingParams;
+        std::pair<std::string, uint64_t> m_wpUUID;
+
+        float m_ds = 0.0f;
+        std::pair<std::string, uint64_t> m_wtUUID;
+
+        float m_curvatureStepSize = 0.0f;
+        float m_minCurvature = 0.0f;
+        float m_maxCurvature = 0.0f;
+
+        float m_minSegmentWeight = 0.0f;
+        float m_maxSegmentWeight = 0.0f;
+
+        std::vector<float> m_lookupTable;
     };
 
     // Cached Multi-Arclength Weight Lookup Table
     class CachedMultiArclengthWeightLookupTable {
        public:
         CachedMultiArclengthWeightLookupTable(const WeightingParameters &weightingParams,
-              float minDs, float maxDs, uint32_t numDsSteps, float minCurvature,
-              float maxCurvature);
+              float minDs, float maxDs, uint32_t numDsSteps);
 
         // Currently just gets the closest table, but could be improved to do bilinear interpolation
         BaseWeightLookupTable *GetWeightLookupTable(float ds) const;
@@ -126,12 +123,13 @@ namespace PathWeighting {
 
        private:
         WeightingParameters m_weightingParams;
+        std::pair<std::string, uint64_t> m_wpUUID;
+
+        uint32_t m_numDsSteps;
         float m_minDs;
         float m_maxDs;
-        uint32_t m_numDsSteps;
-        float m_minCurvature;
-        float m_maxCurvature;
-        std::vector<BaseWeightLookupTable *> m_weightLookupTables;
+
+        std::vector<std::unique_ptr<BaseWeightLookupTable>> m_weightLookupTables;
     };
 
     class WeightLookupTableIntegral : public BaseWeightLookupTable {
@@ -166,7 +164,8 @@ namespace PathWeighting {
         float minCurvature = 0.0f;
         float maxCurvature = 0.0f;
     };
-    MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, float ds);
+    MinMaxCurvature CalcMinMaxCurvatureRadiativeTransfer(
+          const twisty::WeightingParameters &wp, float ds);
 
     namespace NormalizerStuff {
         typedef boost::multiprecision::cpp_dec_float_100 NormalizerDoubleType;

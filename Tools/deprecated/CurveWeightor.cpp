@@ -65,14 +65,13 @@ int main(int argc, char *argv[])
     // Say that we will start outputing the path batch output
     const double ds = upCurve->m_arclength / upCurve->m_numSegments;
 
-    // Constants
-    twisty::PathWeighting::MinMaxCurvature minMax
-          = twisty::PathWeighting::CalcMinMaxCurvature(weightingParams, ds);
-
     // Note: Has absorption const built in
     twisty::PathWeighting::WeightLookupTableIntegral lookupEvaluator(weightingParams, ds);
-    double curveWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-          upCurve->m_curvatures.data(), upCurve->m_curvatures.size(), lookupEvaluator, weightingParams.absorption);
+    double curveWeightLog10
+          = twisty::PathWeighting::WeightCurveViaCurvatureLog10(upCurve->m_curvatures.data(),
+                upCurve->m_curvatures.size(),
+                lookupEvaluator,
+                weightingParams.absorption);
     std::cout << "Weight (Log10): " << curveWeightLog10 << std::endl;
 
     boost::multiprecision::cpp_dec_float_100 bigFloatCurveWeightLog10 = curveWeightLog10;

@@ -141,19 +141,27 @@ int main(int argc, char *argv[])
                       << uuid.second << '\n'
                       << std::endl;
 
-            std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
-            if (experimentParams.weightingParameters.weightingMethod
-                  == twisty::WeightingMethod::SimplifiedModel) {
-                lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
-                      experimentParams.weightingParameters, ds);
-            } else {
-                lookupEvaluator
-                      = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
-                            experimentParams.weightingParameters, ds);
-            }
-            lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
-            assert(lookupEvaluator);
-            twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable = (*lookupEvaluator);
+            // We are going to bake a big ol table, then use this whenever we need.
+            const float minArclength = 10.0f;
+            const float maxArclength = 50.0f;
+            const uint32_t numArclengths = 10000;
+
+            twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
+                  experimentParams.weightingParameters, minArclength, maxArclength, numArclengths);
+
+            // std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
+            // if (experimentParams.weightingParameters.weightingMethod
+            //       == twisty::WeightingMethod::SimplifiedModel) {
+            //     lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
+            //           experimentParams.weightingParameters, ds);
+            // } else {
+            //     lookupEvaluator
+            //           = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
+            //                 experimentParams.weightingParameters, ds);
+            // }
+            // lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
+            // assert(lookupEvaluator);
+            // twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable = (*lookupEvaluator);
 
             twisty::PerturbUtils::BoundaryConditions experimentGeometry;
             experimentGeometry.m_startPos = emitterStart;
@@ -180,6 +188,8 @@ int main(int argc, char *argv[])
             // Single run start time
             const auto startTime = std::chrono::high_resolution_clock::now();
 
+            const auto &weightLookupTable
+                  = *cachedLookupTable.GetWeightLookupTable(actualArclength);
             const twisty::ExperimentBase::Result result
                   = twisty::ExperimentBase::MSegmentPathGenerationMC(
                         experimentParams.numPathsInExperiment, experimentParams.numSegmentsPerCurve,
