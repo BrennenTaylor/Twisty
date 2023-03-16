@@ -72,6 +72,11 @@ namespace PathWeighting {
               const float minCurvature, const float maxCurvature);
         virtual ~BaseWeightLookupTable() = default;
 
+        void InitializeFromStream(std::ifstream &fileStream);
+        void StreamOut(std::ostream &outputStream) const;
+
+        virtual void Initialize() = 0;
+
         const std::vector<float> &AccessLookupTable() const { return m_lookupTable; }
 
         float GetMinSegmentWeight() const { return m_minSegmentWeight; }
@@ -99,9 +104,9 @@ namespace PathWeighting {
         float m_ds = 0.0f;
         std::pair<std::string, uint64_t> m_wtUUID;
 
-        float m_curvatureStepSize = 0.0f;
         float m_minCurvature = 0.0f;
         float m_maxCurvature = 0.0f;
+        float m_curvatureStepSize = 0.0f;
 
         float m_minSegmentWeight = 0.0f;
         float m_maxSegmentWeight = 0.0f;
@@ -118,17 +123,22 @@ namespace PathWeighting {
         // Currently just gets the closest table, but could be improved to do bilinear interpolation
         BaseWeightLookupTable *GetWeightLookupTable(float ds) const;
 
-        void ExportTables(const std::string &directoryFileName) const;
-        void LoadTables(const std::string &directoryFileName);
+        void Initialize();
+        void InitializeFromStream(std::ifstream &fileStream);
+
+        std::pair<std::string, uint64_t> GetUUID() const { return m_cwtUUID; }
+        void UpdateUUID();
+
+       private:
+        void CacheWeightTable();
 
        private:
         WeightingParameters m_weightingParams;
-        std::pair<std::string, uint64_t> m_wpUUID;
-
         uint32_t m_numDsSteps;
         float m_minDs;
         float m_maxDs;
 
+        std::pair<std::string, uint64_t> m_cwtUUID;
         std::vector<std::unique_ptr<BaseWeightLookupTable>> m_weightLookupTables;
     };
 
@@ -137,13 +147,16 @@ namespace PathWeighting {
         WeightLookupTableIntegral(const WeightingParameters &weightingParams, float ds);
         virtual ~WeightLookupTableIntegral();
 
-       protected:
-        float Integrate(
-              float curvature, const WeightingParameters &weightingParams, float ds) const;
+        virtual void Initialize() override;
+
         virtual const std::string ExportFilename() const override
         {
             return "WeightLookupTableIntegral_Values.csv";
         }
+
+       private:
+        float Integrate(
+              float curvature, const WeightingParameters &weightingParams, float ds) const;
     };
 
     // The ICTT27 Weighting function integral
@@ -152,12 +165,12 @@ namespace PathWeighting {
         SimpleWeightLookupTable(const WeightingParameters &weightingParams, float ds);
         virtual ~SimpleWeightLookupTable();
 
+        virtual void Initialize() override;
+
         virtual const std::string ExportFilename() const override
         {
             return "SimpleWeightLookupTable_Values.csv";
         }
-
-       protected:
     };
 
     struct MinMaxCurvature {

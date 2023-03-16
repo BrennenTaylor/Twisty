@@ -144,24 +144,13 @@ int main(int argc, char *argv[])
             // We are going to bake a big ol table, then use this whenever we need.
             const float minArclength = 10.0f;
             const float maxArclength = 50.0f;
-            const uint32_t numArclengths = 10000;
+            const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
+            const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
+            const uint32_t numArclengths = 2;
 
             twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
-                  experimentParams.weightingParameters, minArclength, maxArclength, numArclengths);
+                  experimentParams.weightingParameters, minDs, maxDs, numArclengths);
 
-            // std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
-            // if (experimentParams.weightingParameters.weightingMethod
-            //       == twisty::WeightingMethod::SimplifiedModel) {
-            //     lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
-            //           experimentParams.weightingParameters, ds);
-            // } else {
-            //     lookupEvaluator
-            //           = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
-            //                 experimentParams.weightingParameters, ds);
-            // }
-            // lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
-            // assert(lookupEvaluator);
-            // twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable = (*lookupEvaluator);
 
             twisty::PerturbUtils::BoundaryConditions experimentGeometry;
             experimentGeometry.m_startPos = emitterStart;
@@ -213,7 +202,6 @@ int main(int argc, char *argv[])
             if (result.numValidPaths > 0) {
                 framePixels[frameIdx] = result.totalWeight;
             }
-
 
             std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
@@ -296,7 +284,6 @@ int main(int argc, char *argv[])
         }
     }
 
-
     const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedCombined
           = CalculateNormalizedFrames(framePixels);
 
@@ -316,7 +303,6 @@ int main(int argc, char *argv[])
     const auto durationMinutes
           = std::chrono::duration_cast<std::chrono::minutes>(endTime - startTime);
     std::cout << "Experiment duration: " << durationMinutes.count() << "m" << std::endl;
-
 
     // Average runTimes
     uint64_t totalRunTime = 0;

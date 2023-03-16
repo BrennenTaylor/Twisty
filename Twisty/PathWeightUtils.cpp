@@ -48,19 +48,23 @@ namespace PathWeighting {
         : m_weightingParams(weightingParams)
         , m_wpUUID(weightingParams.GenerateStringUUID())
         , m_ds(ds)
+        , m_wtUUID(std::make_pair<std::string, uint64_t>("", 0))
         , m_minCurvature(minCurvature)
         , m_maxCurvature(maxCurvature)
         , m_curvatureStepSize(
                 (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1))
+        , m_minSegmentWeight(0.0f)
+        , m_maxSegmentWeight(0.0f)
         , m_lookupTable(
-                weightingParams.numCurvatureSteps + 1)  // We include 0, thus need that last spot
+                weightingParams.numCurvatureSteps)  // We include 0, thus need that last spot
     {
+        UpdateUUID();
     }
 
     void BaseWeightLookupTable::ExportValues(const std::string &directoryFileName) const
     {
         std::filesystem::path exportDirectory = directoryFileName;
-        exportDirectory = exportDirectory / "WeightLookupTable/";
+        exportDirectory = exportDirectory / (std::to_string(m_wtUUID.second) + "/");
         if (!std::filesystem::exists(exportDirectory)) {
             std::filesystem::create_directories(exportDirectory);
         }
@@ -77,6 +81,40 @@ namespace PathWeighting {
         outputFile.close();
     }
 
+    void BaseWeightLookupTable::InitializeFromStream(std::ifstream &ifstream)
+    {
+        m_lookupTable.resize(m_weightingParams.numCurvatureSteps);
+        ifstream.read(reinterpret_cast<char *>(m_lookupTable.data()),
+              m_weightingParams.numCurvatureSteps * sizeof(float));
+
+        ifstream.read(reinterpret_cast<char *>(&m_minSegmentWeight), sizeof(float));
+        ifstream.read(reinterpret_cast<char *>(&m_maxSegmentWeight), sizeof(float));
+
+        std::cout << "Finished path weight integral lookup table" << '\n';
+        std::cout << "\tMin Possible Weight Value: " << m_minSegmentWeight << '\n';
+        std::cout << "\tMax Possible Weight Value: " << m_maxSegmentWeight << '\n';
+        // Parameters
+        std::cout << "\tTable construction params: " << '\n';
+        std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
+        std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
+        std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
+        std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
+        std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
+        std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
+        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
+        std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
+                  << std::endl;
+    }
+
+    void BaseWeightLookupTable::StreamOut(std::ostream &outputStream) const
+    {
+        // Write out table
+        outputStream.write(reinterpret_cast<const char *>(m_lookupTable.data()),
+              sizeof(float) * m_lookupTable.size());
+        outputStream.write(reinterpret_cast<const char *>(&m_minSegmentWeight), sizeof(float));
+        outputStream.write(reinterpret_cast<const char *>(&m_maxSegmentWeight), sizeof(float));
+    }
+
     void BaseWeightLookupTable::UpdateUUID()
     {
         std::stringstream uuid;
@@ -85,24 +123,69 @@ namespace PathWeighting {
               uuid.str(), std::hash<std::string> {}(uuid.str()));
     }
 
-
     CachedMultiArclengthWeightLookupTable::CachedMultiArclengthWeightLookupTable(
           const WeightingParameters &weightingParams, float minDs, float maxDs, uint32_t numDsSteps)
+        : m_minDs(minDs)
+        , m_maxDs(maxDs)
+        , m_numDsSteps(numDsSteps)
     {
-        m_wpUUID = weightingParams.GenerateStringUUID();
-        float dsStepSize = (maxDs - minDs) / (numDsSteps - 1);
+        UpdateUUID();
 
+        // Search Local Directory for existing tables
+        std::filesystem::path exportDirectory
+              = std::filesystem::current_path() / "CachedWeightTables/";
+        std::filesystem::path searchFilename
+              = exportDirectory / (std::to_string(m_cwtUUID.second) + ".cwt");
+        if (std::filesystem::exists(searchFilename)) {
+            // Initialize from filename
+            std::cout << "Found cached table, loading." << std::endl;
+            std::ifstream inputFile(searchFilename.string());
+            if (!inputFile.is_open()) {
+                throw std::runtime_error("Failed to open cached weight table");
+            }
+            InitializeFromStream(inputFile);
+        } else {
+            std::cout << "No cached table found, we need to compute." << std::endl;
+            Initialize();
+        }
+    }
 
-        for (uint32_t i = 0; i < numDsSteps; ++i) {
-            float ds = minDs + i * dsStepSize;
-            if (weightingParams.weightingMethod == WeightingMethod::RadiativeTransfer) {
-                m_weightLookupTables.push_back(
-                      std::move(std::make_unique<WeightLookupTableIntegral>(weightingParams, ds)));
+    void CachedMultiArclengthWeightLookupTable::Initialize()
+    {
+        const float dsStepSize = (m_maxDs - m_minDs) / (m_numDsSteps - 1);
+
+        for (uint32_t i = 0; i < m_numDsSteps; ++i) {
+            const float ds = m_minDs + i * dsStepSize;
+            if (m_weightingParams.weightingMethod == WeightingMethod::RadiativeTransfer) {
+                m_weightLookupTables.push_back(std::move(
+                      std::make_unique<WeightLookupTableIntegral>(m_weightingParams, ds)));
             } else {
                 m_weightLookupTables.push_back(
-                      std::move(std::make_unique<SimpleWeightLookupTable>(weightingParams, ds)));
+                      std::move(std::make_unique<SimpleWeightLookupTable>(m_weightingParams, ds)));
             }
+            // We initialize since we are computing
+            m_weightLookupTables[i]->Initialize();
         }
+        CacheWeightTable();
+    }
+
+    void CachedMultiArclengthWeightLookupTable::CacheWeightTable()
+    {
+        std::filesystem::path exportDirectory
+              = std::filesystem::current_path() / "CachedWeightTables";
+        if (!std::filesystem::exists(exportDirectory)) {
+            std::filesystem::create_directories(exportDirectory);
+        }
+        std::filesystem::path cachedTableFilename
+              = exportDirectory / (std::to_string(m_cwtUUID.second) + ".cwt");
+        std::ofstream outputFile(cachedTableFilename, std::ios::binary);
+        if (!outputFile.is_open()) {
+            throw std::runtime_error("Failed to export weight table");
+        }
+        for (const auto &table : m_weightLookupTables) {
+            table->StreamOut(outputFile);
+        }
+        outputFile.close();
     }
 
     // Currently just gets the closest table, but could be improved to do bilinear interpolation
@@ -121,53 +204,58 @@ namespace PathWeighting {
         return closestTable;
     }
 
-    void CachedMultiArclengthWeightLookupTable::ExportTables(
-          const std::string &directoryFileName) const
+    void CachedMultiArclengthWeightLookupTable::UpdateUUID()
     {
-        // Open file for table metadata
-        std::filesystem::path exportDirectory = directoryFileName;
-        exportDirectory = exportDirectory / "WeightLookupTable/";
-        if (!std::filesystem::exists(exportDirectory)) {
-            std::filesystem::create_directories(exportDirectory);
-        }
-
-        // Create metadata file
-        std::ofstream outputFile(exportDirectory.string() + "WeightLookupTableMetadata.txt");
-        if (!outputFile.is_open()) {
-            throw std::runtime_error("Failed to export weight table");
-        }
-
-        // Export table information
-        outputFile << m_weightLookupTables.size() << '\n';
-
-        // Open table file
-        std::ofstream tableFile(exportDirectory.string() + "WeightLookupTableData.cwt");
-        if (!tableFile.is_open()) {
-            throw std::runtime_error("Failed to export weight table");
-        }
-        // Write all table data
+        std::stringstream uuid;
+        uuid << std::fixed << std::setprecision(4) << "minDs_" << m_minDs << "maxDs_" << m_maxDs
+             << "numDsSteps_" << m_numDsSteps << "wp_"
+             << m_weightingParams.GenerateStringUUID().first;
+        m_cwtUUID = std::make_pair<std::string, uint64_t>(
+              uuid.str(), std::hash<std::string> {}(uuid.str()));
     }
 
-
-    void CachedMultiArclengthWeightLookupTable::LoadTables(const std::string &directoryFileName) { }
-
+    void CachedMultiArclengthWeightLookupTable::InitializeFromStream(std::ifstream &filestream)
+    {
+        const float dsStepSize = (m_maxDs - m_minDs) / (m_numDsSteps - 1);
+        for (uint32_t i = 0; i < m_numDsSteps; ++i) {
+            const float ds = m_minDs + i * dsStepSize;
+            if (m_weightingParams.weightingMethod == WeightingMethod::RadiativeTransfer) {
+                m_weightLookupTables.push_back(std::move(
+                      std::make_unique<WeightLookupTableIntegral>(m_weightingParams, ds)));
+            } else {
+                m_weightLookupTables.push_back(
+                      std::move(std::make_unique<SimpleWeightLookupTable>(m_weightingParams, ds)));
+            }
+            m_weightLookupTables[i]->InitializeFromStream(filestream);
+        }
+    }
 
     // Lookup table integrand
     WeightLookupTableIntegral::WeightLookupTableIntegral(
           const WeightingParameters &weightingParams, float ds)
         : BaseWeightLookupTable(weightingParams, ds, 0.0f, (2.3f / ds) * 1.1f)
     {
-        std::cout << "Calcuating WeightLookupTableIntegral lookup table" << std::endl;
+        m_minCurvature = 0.0f;
+        m_maxCurvature = (2.3f / ds) * 1.1f;
+        m_curvatureStepSize
+              = (m_maxCurvature - m_minCurvature) / (m_weightingParams.numCurvatureSteps - 1);
+    }
 
-        std::vector<float> localLookupTable(weightingParams.numCurvatureSteps + 1);
+    WeightLookupTableIntegral::~WeightLookupTableIntegral() { }
+
+    void WeightLookupTableIntegral::Initialize()
+    {
+        std::cout << "Calcuating WeightLookupTableIntegral lookup table: " << m_ds << std::endl;
+
+        std::vector<float> localLookupTable(m_weightingParams.numCurvatureSteps);
 
         // Handle first case
         {
-            float value = Integrate(m_minCurvature, weightingParams, ds);
-            m_lookupTable[0] = value;
+            float value = Integrate(m_minCurvature, m_weightingParams, m_ds);
+            localLookupTable[0] = value;
         }
-        float min = m_lookupTable[0];
-        float max = m_lookupTable[0];
+        float min = localLookupTable[0];
+        float max = localLookupTable[0];
 
         const int numThreads = omp_get_max_threads();
         std::cout << "Num Threads for Weight Table Calc: " << numThreads << std::endl;
@@ -180,13 +268,13 @@ namespace PathWeighting {
 
 #pragma omp parallel for num_threads(numThreads) default(none)                                     \
       shared(localLookupTable, minValues, maxValues)
-        for (int64_t i = 1; i <= weightingParams.numCurvatureSteps; ++i) {
+        for (int64_t i = 1; i < m_weightingParams.numCurvatureSteps; ++i) {
             const float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-            const float value = Integrate(curvatureEval, weightingParams, ds);
+            const float value = Integrate(curvatureEval, m_weightingParams, m_ds);
             const int threadIdx = omp_get_thread_num();
 
             // Unique thread idx
-            m_lookupTable[i] = value;
+            localLookupTable[i] = value;
 
             if (value < minValues[threadIdx] && value >= 0.0f) {
                 minValues[threadIdx] = value;
@@ -197,10 +285,12 @@ namespace PathWeighting {
             }
         }
 
+        m_lookupTable = std::move(localLookupTable);
+
         min = *std::min_element(minValues.begin(), minValues.end());
         max = *std::max_element(maxValues.begin(), maxValues.end());
 
-        for (uint32_t i = 0; i <= weightingParams.numCurvatureSteps; ++i) {
+        for (uint32_t i = 0; i < m_weightingParams.numCurvatureSteps; ++i) {
             float &value = m_lookupTable[i];
             if (value <= 0.0) {
                 value = min;
@@ -215,17 +305,16 @@ namespace PathWeighting {
         std::cout << "\tMax Possible Weight Value: " << max << '\n';
         // Parameters
         std::cout << "\tTable construction params: " << '\n';
-        std::cout << "\t\tmu: " << weightingParams.mu << '\n';
-        std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << '\n';
-        std::cout << "\t\tm_minBound: " << weightingParams.minBound << '\n';
-        std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << '\n';
-        std::cout << "\t\tm_eps: " << weightingParams.eps << '\n';
+        std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
+        std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
+        std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
+        std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
+        std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
         std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
         std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        std::cout << "\t\tm_numCurvatureSteps: " << weightingParams.numCurvatureSteps << std::endl;
+        std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
+                  << std::endl;
     }
-
-    WeightLookupTableIntegral::~WeightLookupTableIntegral() { }
 
     float WeightLookupTableIntegral::Integrate(
           float curvature, const WeightingParameters &weightingParams, float ds) const
@@ -290,12 +379,17 @@ namespace PathWeighting {
                   << weightingParams.numCurvatureSteps << std::endl;
         m_minCurvature = -1.0f;
         m_maxCurvature = 1.0f;
-
         m_curvatureStepSize
               = (m_maxCurvature - m_minCurvature) / (weightingParams.numCurvatureSteps - 1);
+    }
 
-        auto CalculateSimpleWeightValue = [weightingParams, ds](float curvature) -> float {
-            const float alpha = 1.0 / (weightingParams.scatter * ds * weightingParams.mu);
+    SimpleWeightLookupTable::~SimpleWeightLookupTable() { }
+
+    void SimpleWeightLookupTable::Initialize()
+    {
+        auto CalculateSimpleWeightValue
+              = [](float curvature, WeightingParameters wp, float ds) -> float {
+            const float alpha = 1.0 / (wp.scatter * ds * wp.mu);
             const float leftComponent = std::exp(-1.0 * alpha) / (ds * ds * ds);
             const float rightComponent = std::exp(alpha * curvature);
             return leftComponent * rightComponent;
@@ -303,15 +397,15 @@ namespace PathWeighting {
 
         // Handle first case
         {
-            float value = CalculateSimpleWeightValue(m_minCurvature);
+            float value = CalculateSimpleWeightValue(m_minCurvature, m_weightingParams, m_ds);
             m_lookupTable[0] = value;
         }
 
         float min = m_lookupTable[0];
         float max = m_lookupTable[0];
-        for (uint32_t i = 1; i <= weightingParams.numCurvatureSteps; ++i) {
+        for (uint32_t i = 1; i <= m_weightingParams.numCurvatureSteps; ++i) {
             float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-            float value = CalculateSimpleWeightValue(curvatureEval);
+            float value = CalculateSimpleWeightValue(curvatureEval, m_weightingParams, m_ds);
 
             m_lookupTable[i] = value;
 
@@ -332,17 +426,16 @@ namespace PathWeighting {
         std::cout << "\tMax Possible Weight Value: " << max << '\n';
         // Parameters
         std::cout << "\tTable construction params: " << '\n';
-        std::cout << "\t\tmu: " << weightingParams.mu << '\n';
-        std::cout << "\t\tnumStepsInt: " << weightingParams.numStepsInt << '\n';
-        std::cout << "\t\tm_minBound: " << weightingParams.minBound << '\n';
-        std::cout << "\t\tm_maxBound: " << weightingParams.maxBound << '\n';
-        std::cout << "\t\tm_eps: " << weightingParams.eps << '\n';
+        std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
+        std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
+        std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
+        std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
+        std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
         std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
         std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        std::cout << "\t\tm_numCurvatureSteps: " << weightingParams.numCurvatureSteps << std::endl;
+        std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
+                  << std::endl;
     }
-
-    SimpleWeightLookupTable::~SimpleWeightLookupTable() { }
 
     MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, float ds)
     {
