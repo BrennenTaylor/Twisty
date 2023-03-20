@@ -149,10 +149,7 @@ namespace PathWeighting {
 
         virtual void Initialize() override;
 
-        virtual const std::string ExportFilename() const override
-        {
-            return "WeightLookupTableIntegral_Values.csv";
-        }
+        virtual const std::string ExportFilename() const override { return "RT.csv"; }
 
        private:
         float Integrate(
@@ -167,10 +164,7 @@ namespace PathWeighting {
 
         virtual void Initialize() override;
 
-        virtual const std::string ExportFilename() const override
-        {
-            return "SimpleWeightLookupTable_Values.csv";
-        }
+        virtual const std::string ExportFilename() const override { return "Simple.csv"; }
     };
 
     struct MinMaxCurvature {

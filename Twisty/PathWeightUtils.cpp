@@ -64,13 +64,18 @@ namespace PathWeighting {
     void BaseWeightLookupTable::ExportValues(const std::string &directoryFileName) const
     {
         std::filesystem::path exportDirectory = directoryFileName;
-        exportDirectory = exportDirectory / (std::to_string(m_wtUUID.second) + "/");
         if (!std::filesystem::exists(exportDirectory)) {
             std::filesystem::create_directories(exportDirectory);
         }
 
-        std::cout << "Exporting table of size: " << m_lookupTable.size() << std::endl;
-        std::ofstream outputFile(exportDirectory.string() + ExportFilename());
+        std::stringstream dsSS;
+        dsSS << std::fixed << std::setprecision(4) << m_ds;
+
+        std::filesystem::path exportFile = exportDirectory.string();
+        exportFile /= (dsSS.str() + "_" + std::to_string(m_wtUUID.second) + "_" + ExportFilename());
+
+        // std::cout << "Exporting table of size: " << m_lookupTable.size() << std::endl;
+        std::ofstream outputFile(exportFile.c_str());
         if (!outputFile.is_open()) {
             throw std::runtime_error("Failed to export weight table");
         }
@@ -90,20 +95,20 @@ namespace PathWeighting {
         ifstream.read(reinterpret_cast<char *>(&m_minSegmentWeight), sizeof(float));
         ifstream.read(reinterpret_cast<char *>(&m_maxSegmentWeight), sizeof(float));
 
-        std::cout << "Finished path weight integral lookup table" << '\n';
-        std::cout << "\tMin Possible Weight Value: " << m_minSegmentWeight << '\n';
-        std::cout << "\tMax Possible Weight Value: " << m_maxSegmentWeight << '\n';
-        // Parameters
-        std::cout << "\tTable construction params: " << '\n';
-        std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
-        std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
-        std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
-        std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
-        std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
-        std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
-        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
-                  << std::endl;
+        // std::cout << "Finished path weight integral lookup table" << '\n';
+        // std::cout << "\tMin Possible Weight Value: " << m_minSegmentWeight << '\n';
+        // std::cout << "\tMax Possible Weight Value: " << m_maxSegmentWeight << '\n';
+        // // Parameters
+        // std::cout << "\tTable construction params: " << '\n';
+        // std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
+        // std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
+        // std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
+        // std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
+        // std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
+        // std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
+        // std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
+        // std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
+        //           << std::endl;
     }
 
     void BaseWeightLookupTable::StreamOut(std::ostream &outputStream) const
@@ -147,6 +152,15 @@ namespace PathWeighting {
         } else {
             std::cout << "No cached table found, we need to compute." << std::endl;
             Initialize();
+            // Write out the tables
+            std::filesystem::path writeTablesPath
+                  = exportDirectory / std::to_string(m_cwtUUID.second);
+            if (!std::filesystem::exists(writeTablesPath)) {
+                std::filesystem::create_directories(writeTablesPath);
+            }
+            for (auto &table : m_weightLookupTables) {
+                table->ExportValues(writeTablesPath.string());
+            }
         }
     }
 
@@ -300,20 +314,20 @@ namespace PathWeighting {
         m_minSegmentWeight = min;
         m_maxSegmentWeight = max;
 
-        std::cout << "Finished path weight integral lookup table" << '\n';
-        std::cout << "\tMin Possible Weight Value: " << min << '\n';
-        std::cout << "\tMax Possible Weight Value: " << max << '\n';
-        // Parameters
-        std::cout << "\tTable construction params: " << '\n';
-        std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
-        std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
-        std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
-        std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
-        std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
-        std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
-        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
-                  << std::endl;
+        // std::cout << "Finished path weight integral lookup table" << '\n';
+        // std::cout << "\tMin Possible Weight Value: " << min << '\n';
+        // std::cout << "\tMax Possible Weight Value: " << max << '\n';
+        // // Parameters
+        // std::cout << "\tTable construction params: " << '\n';
+        // std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
+        // std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
+        // std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
+        // std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
+        // std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
+        // std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
+        // std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
+        // std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
+        //           << std::endl;
     }
 
     float WeightLookupTableIntegral::Integrate(
@@ -421,20 +435,20 @@ namespace PathWeighting {
         m_minSegmentWeight = min;
         m_maxSegmentWeight = max;
 
-        std::cout << "Finished path weight integral lookup table" << '\n';
-        std::cout << "\tMin Possible Weight Value: " << min << '\n';
-        std::cout << "\tMax Possible Weight Value: " << max << '\n';
-        // Parameters
-        std::cout << "\tTable construction params: " << '\n';
-        std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
-        std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
-        std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
-        std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
-        std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
-        std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
-        std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
-                  << std::endl;
+        // std::cout << "Finished path weight integral lookup table" << '\n';
+        // std::cout << "\tMin Possible Weight Value: " << min << '\n';
+        // std::cout << "\tMax Possible Weight Value: " << max << '\n';
+        // // Parameters
+        // std::cout << "\tTable construction params: " << '\n';
+        // std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
+        // std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
+        // std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
+        // std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
+        // std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
+        // std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
+        // std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
+        // std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
+        //           << std::endl;
     }
 
     MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, float ds)

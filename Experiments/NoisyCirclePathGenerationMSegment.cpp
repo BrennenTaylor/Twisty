@@ -143,10 +143,10 @@ int main(int argc, char *argv[])
 
             // We are going to bake a big ol table, then use this whenever we need.
             const float minArclength = 10.0f;
-            const float maxArclength = 50.0f;
+            const float maxArclength = 20.0f;
             const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
             const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
-            const uint32_t numArclengths = 2;
+            const uint32_t numArclengths = 100;
 
             twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
                   experimentParams.weightingParameters, minDs, maxDs, numArclengths);
