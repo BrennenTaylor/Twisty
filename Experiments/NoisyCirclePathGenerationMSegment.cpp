@@ -121,6 +121,23 @@ int main(int argc, char *argv[])
         }
     }
 
+    const auto uuid = experimentParams.weightingParameters.GenerateStringUUID();
+    std::cout << "Weighting parameters hash: " << uuid.first << " \n"
+              << uuid.second << '\n'
+              << std::endl;
+
+    // We are going to bake a big ol table, then use this whenever we need.
+    const float minArclength = 10.0f;
+    const float maxArclength = 15.0f;
+    const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
+    const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
+    const uint32_t numArclengths = 10000;
+
+    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
+          experimentParams.weightingParameters, minDs, maxDs, numArclengths);
+
+    std::mt19937_64 rng(0);
+
     for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
         std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
         for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
@@ -129,80 +146,77 @@ int main(int argc, char *argv[])
             const Farlor::Vector3 recieverPos = centerOfFrame
                   + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
 
-            const double actualArclength = (recieverPos - emitterStart).Magnitude() + 0.0f;
+            const double minArclength = (recieverPos - emitterStart).Magnitude() + 0.0f;
+            std::uniform_real_distribution<float> uniformArclength(minArclength, 15.0f);
 
-            std::string currentArclengthString = std::to_string(actualArclength);
-            std::replace(currentArclengthString.begin(), currentArclengthString.end(), '.', '_');
+            const uint32_t numArclengthSamples = 10;
 
-            const float ds = actualArclength / experimentParams.numSegmentsPerCurve;
-
-            const auto uuid = experimentParams.weightingParameters.GenerateStringUUID();
-            std::cout << "Weighting parameters hash: " << uuid.first << " \n"
-                      << uuid.second << '\n'
-                      << std::endl;
-
-            // We are going to bake a big ol table, then use this whenever we need.
-            const float minArclength = 10.0f;
-            const float maxArclength = 20.0f;
-            const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
-            const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
-            const uint32_t numArclengths = 100;
-
-            twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
-                  experimentParams.weightingParameters, minDs, maxDs, numArclengths);
-
-
-            twisty::PerturbUtils::BoundaryConditions experimentGeometry;
-            experimentGeometry.m_startPos = emitterStart;
-            experimentGeometry.m_startDir = (recieverPos - emitterStart).Normalized();
-            experimentGeometry.m_endPos = recieverPos;
-            experimentGeometry.m_endDir = (recieverPos - emitterStart).Normalized();
-            experimentGeometry.arclength = experimentParams.arclength = actualArclength;
-
-            const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
-                  = (experimentParams.weightingParameters.weightingMethod
-                          != twisty::WeightingMethod::RadiativeTransfer)
-                  ? 1.0
-                  : twisty::PathWeighting::NormalizerStuff::Norm(
-                        experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
-
-            const double pathNormalizerLog10 = (pathNormalizer != 0.0)
-                  ? (double)boost::multiprecision::log10(pathNormalizer)
-                  : 0.0;
+            int numValidSamples = 0;
 
             const uint32_t frameIdx
                   = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
                   + (pixelIdxZ + halfFrameWidth);
 
-            // Single run start time
-            const auto startTime = std::chrono::high_resolution_clock::now();
+            for (int arclengthIdx = 0; arclengthIdx < numArclengthSamples; ++arclengthIdx) {
+                const float actualArclength = uniformArclength(rng);
 
-            const auto &weightLookupTable
-                  = *cachedLookupTable.GetWeightLookupTable(actualArclength);
-            const twisty::ExperimentBase::Result result
-                  = twisty::ExperimentBase::MSegmentPathGenerationMC(
-                        experimentParams.numPathsInExperiment, experimentParams.numSegmentsPerCurve,
-                        experimentGeometry, experimentParams, pathNormalizerLog10,
-                        weightLookupTable);
+                std::string currentArclengthString = std::to_string(actualArclength);
+                std::replace(
+                      currentArclengthString.begin(), currentArclengthString.end(), '.', '_');
 
-            // Single run end time
-            const auto endTime = std::chrono::high_resolution_clock::now();
-            // Add time difference to runTimes vector
-            const auto timeDiff
-                  = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-            runTimes.push_back(timeDiff.count());
+                const float ds = actualArclength / experimentParams.numSegmentsPerCurve;
 
-            std::cout << "Num valid paths: " << result.numValidPaths << "/" << result.numPathsTotal
-                      << std::endl;
-            std::cout << "Percent valid paths: "
-                      << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
-                      << std::endl;
-            std::cout << "Total weight: " << result.totalWeight << std::endl;
+                twisty::PerturbUtils::BoundaryConditions experimentGeometry;
+                experimentGeometry.m_startPos = emitterStart;
+                experimentGeometry.m_startDir = (recieverPos - emitterStart).Normalized();
+                experimentGeometry.m_endPos = recieverPos;
+                experimentGeometry.m_endDir = (recieverPos - emitterStart).Normalized();
+                experimentGeometry.arclength = experimentParams.arclength = actualArclength;
 
-            if (result.numValidPaths > 0) {
-                framePixels[frameIdx] = result.totalWeight;
+                const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
+                      = (experimentParams.weightingParameters.weightingMethod
+                              != twisty::WeightingMethod::RadiativeTransfer)
+                      ? 1.0
+                      : twisty::PathWeighting::NormalizerStuff::Norm(
+                            experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
+
+                const double pathNormalizerLog10 = (pathNormalizer != 0.0)
+                      ? (double)boost::multiprecision::log10(pathNormalizer)
+                      : 0.0;
+
+
+                // Single run start time
+                const auto startTime = std::chrono::high_resolution_clock::now();
+
+                const auto &weightLookupTable = *cachedLookupTable.GetWeightLookupTable(ds);
+                const twisty::ExperimentBase::Result result
+                      = twisty::ExperimentBase::MSegmentPathGenerationMC(
+                            experimentParams.numPathsInExperiment,
+                            experimentParams.numSegmentsPerCurve, experimentGeometry,
+                            experimentParams, pathNormalizerLog10, weightLookupTable);
+
+                // Single run end time
+                const auto endTime = std::chrono::high_resolution_clock::now();
+                // Add time difference to runTimes vector
+                const auto timeDiff
+                      = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+                runTimes.push_back(timeDiff.count());
+
+                std::cout << "Num valid paths: " << result.numValidPaths << "/"
+                          << result.numPathsTotal << std::endl;
+                std::cout << "Percent valid paths: "
+                          << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
+                          << std::endl;
+                std::cout << "Total weight: " << result.totalWeight << std::endl;
+
+                if (result.numValidPaths > 0) {
+                    framePixels[frameIdx] = result.totalWeight;
+                    numValidSamples++;
+                }
             }
-
+            if (numValidSamples > 0) {
+                framePixels[frameIdx] /= numValidSamples;
+            }
             std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
     }

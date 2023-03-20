@@ -168,6 +168,9 @@ namespace PathWeighting {
     {
         const float dsStepSize = (m_maxDs - m_minDs) / (m_numDsSteps - 1);
 
+        std::chrono::high_resolution_clock::time_point startTime
+              = std::chrono::high_resolution_clock::now();
+
         for (uint32_t i = 0; i < m_numDsSteps; ++i) {
             const float ds = m_minDs + i * dsStepSize;
             if (m_weightingParams.weightingMethod == WeightingMethod::RadiativeTransfer) {
@@ -179,6 +182,24 @@ namespace PathWeighting {
             }
             // We initialize since we are computing
             m_weightLookupTables[i]->Initialize();
+            std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
+                      << (100.0f * i) / m_numDsSteps << "%";
+
+            // Estimated time to completion
+            std::chrono::high_resolution_clock::time_point currentTime
+                  = std::chrono::high_resolution_clock::now();
+            // Elapsed time in seconds
+            const float elapsedSeconds = std::chrono::duration_cast<std::chrono::duration<float>>(
+                  currentTime - startTime)
+                                               .count();
+            const float secondsPerStep = elapsedSeconds / (i + 1);
+            const float secondsRemaining = secondsPerStep * (m_numDsSteps - i);
+
+            const float mins = std::floor(secondsRemaining / 60.0f);
+            const float secs = secondsRemaining - mins * 60.0f;
+
+            std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins << "m"
+                      << secs << "s\t\t";
         }
         CacheWeightTable();
     }
@@ -259,8 +280,6 @@ namespace PathWeighting {
 
     void WeightLookupTableIntegral::Initialize()
     {
-        std::cout << "Calcuating WeightLookupTableIntegral lookup table: " << m_ds << std::endl;
-
         std::vector<float> localLookupTable(m_weightingParams.numCurvatureSteps);
 
         // Handle first case
@@ -272,7 +291,6 @@ namespace PathWeighting {
         float max = localLookupTable[0];
 
         const int numThreads = omp_get_max_threads();
-        std::cout << "Num Threads for Weight Table Calc: " << numThreads << std::endl;
         std::vector<float> minValues(numThreads);
         std::vector<float> maxValues(numThreads);
         for (int i = 0; i < numThreads; ++i) {
