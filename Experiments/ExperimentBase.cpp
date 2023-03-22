@@ -1378,6 +1378,12 @@ namespace ExperimentBase {
               = (experimentGeometry.m_endPos - experimentGeometry.m_startPos).Magnitude();
         const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
 
+        if (maxDs < minDs) {
+            std::cout << "No solution for current environment" << std::endl;
+            return { 0, 0, 0.0f, 0.0,
+                0.0};
+        }
+
         std::cout << "Starting path generation" << std::endl;
 
 #pragma omp parallel for num_threads(maxThreads) default(none)                                     \
@@ -1389,10 +1395,6 @@ namespace ExperimentBase {
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
             const float ds
                   = pow(uniformRand(rngPerThread[threadId]), 3.0f) * (maxDs - minDs) + minDs;
-
-
-            // std::uniform_real_distribution<float> dsDist(minDs, maxDs);
-            // const float ds = dsDist(rngPerThread[threadId]);
 
             twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable
                   = *cachedWeightLookupTable.GetWeightLookupTable(ds);
