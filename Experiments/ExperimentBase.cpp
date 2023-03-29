@@ -1381,15 +1381,49 @@ namespace ExperimentBase {
         }
 
         // Min arclength
-        const float a
-              = Farlor::Vector3(0.0f, experimentGeometry.m_endPos.y, experimentGeometry.m_endPos.z)
-                      .Magnitude();
-        const float b = experimentGeometry.m_endPos.x;
-        const uint32_t M = experimentParams.numSegmentsPerCurve;
 
-        const float minArclength
-              = (std::sqrt(a * a * (M - 2) * M + b * b * (M - 2) * (M - 2)) - 2 * b) / (M - 4);
-        std::cout << "Min Arclength: " << minArclength << std::endl;
+        float minArclength = 0.0f;
+
+        // Old way
+        {
+            const float a = Farlor::Vector3(
+                  0.0f, experimentGeometry.m_endPos.y, experimentGeometry.m_endPos.z)
+                                  .Magnitude();
+            const float b = experimentGeometry.m_endPos.x;
+            const uint32_t M = experimentParams.numSegmentsPerCurve;
+
+            minArclength
+                  = (std::sqrt(a * a * (M - 2) * M + b * b * (M - 2) * (M - 2)) - 2 * b) / (M - 4);
+            std::cout << "Min Arclength: " << minArclength << std::endl;
+        }
+
+        // New Way
+        {
+            const uint32_t M = experimentParams.numSegmentsPerCurve;
+            const Farlor::Vector3 Xs = experimentGeometry.m_startPos;
+            const Farlor::Vector3 Xe = experimentGeometry.m_endPos;
+            const Farlor::Vector3 Ns = experimentGeometry.m_startDir;
+            const Farlor::Vector3 Ne = experimentGeometry.m_endDir;
+
+            const float a = Farlor::Vector3(Ns + Ne).Dot((Ns + Ne)) - ((M - 4.0f) * M + 4.0f);
+            const float b = 2.0f * M * (Ns + Ne).Dot((Xs - Xe));
+            const float c = M * M * Farlor::Vector3(Xs - Xe).Dot((Xs - Xe));
+
+            const float minArclengthCandidateOne
+                  = (-b - std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
+            const float minArclengthCandidateTwo
+                  = (-b + std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
+            std::cout << "Min Arclength candidate one: " << minArclengthCandidateOne << std::endl;
+            std::cout << "Min Arclength candidate two: " << minArclengthCandidateTwo << std::endl;
+
+            minArclength = 1000000.0f;
+            if (!std::isnan(minArclengthCandidateOne) && minArclengthCandidateOne > 0.0f)
+                minArclength = std::min(minArclength, minArclengthCandidateOne);
+            if (!std::isnan(minArclengthCandidateTwo) && minArclengthCandidateTwo > 0.0f)
+                minArclength = std::min(minArclength, minArclengthCandidateTwo);
+            std::cout << "Selected arclength = " << minArclength << std::endl;
+        }
+
 
         // const float minArclength
         //       = (experimentGeometry.m_endPos - experimentGeometry.m_startPos).Magnitude();
