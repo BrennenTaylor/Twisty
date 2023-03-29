@@ -36,7 +36,7 @@ add_subdirectory(Twisty)
 
 if(WIN32)
     add_subdirectory(Experiments)
-
+    add_subdirectory(Tests)
     add_subdirectory(Tools)
     add_subdirectory(Utils)
     add_subdirectory(Viewer)

@@ -1374,14 +1374,34 @@ namespace ExperimentBase {
             rngPerThread[i].seed(i);
         }
 
+        // Assume that the directions are aligned
+        if (experimentGeometry.m_startDir.Dot(experimentGeometry.m_endDir) < 0.999f) {
+            std::cout << "Start and end directions are not aligned" << std::endl;
+            return { 0, 0, 0.0f, 0.0, 0.0 };
+        }
+
+        // Min arclength
+        const float a
+              = Farlor::Vector3(0.0f, experimentGeometry.m_endPos.y, experimentGeometry.m_endPos.z)
+                      .Magnitude();
+        const float b = experimentGeometry.m_endPos.x;
+        const uint32_t M = experimentParams.numSegmentsPerCurve;
+
         const float minArclength
-              = (experimentGeometry.m_endPos - experimentGeometry.m_startPos).Magnitude();
+              = (std::sqrt(a * a * (M - 2) * M + b * b * (M - 2) * (M - 2)) - 2 * b) / (M - 4);
+        std::cout << "Min Arclength: " << minArclength << std::endl;
+
+        // const float minArclength
+        //       = (experimentGeometry.m_endPos - experimentGeometry.m_startPos).Magnitude();
+        // const float maxArclength = minArclength + 2.0f;
         const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
 
-        if (maxDs < minDs) {
+        const float actualMaxDs = maxDs + 2.0f;
+        //maxArclength / experimentParams.numSegmentsPerCurve;
+
+        if (actualMaxDs < minDs) {
             std::cout << "No solution for current environment" << std::endl;
-            return { 0, 0, 0.0f, 0.0,
-                0.0};
+            return { 0, 0, 0.0f, 0.0, 0.0 };
         }
 
         std::cout << "Starting path generation" << std::endl;
@@ -1394,7 +1414,7 @@ namespace ExperimentBase {
 
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
             const float ds
-                  = pow(uniformRand(rngPerThread[threadId]), 3.0f) * (maxDs - minDs) + minDs;
+                  = pow(uniformRand(rngPerThread[threadId]), 3.0f) * (actualMaxDs - minDs) + minDs;
 
             twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable
                   = *cachedWeightLookupTable.GetWeightLookupTable(ds);

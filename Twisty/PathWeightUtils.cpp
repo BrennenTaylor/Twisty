@@ -144,7 +144,7 @@ namespace PathWeighting {
         if (std::filesystem::exists(searchFilename)) {
             // Initialize from filename
             std::cout << "Found cached table, loading." << std::endl;
-            std::ifstream inputFile(searchFilename.string());
+            std::ifstream inputFile(searchFilename.string(), std::ios::binary);
             if (!inputFile.is_open()) {
                 throw std::runtime_error("Failed to open cached weight table");
             }

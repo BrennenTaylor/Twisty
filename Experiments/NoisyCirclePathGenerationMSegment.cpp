@@ -113,7 +113,6 @@ int main(int argc, char *argv[])
     // Vector storing each runs time
     std::vector<uint64_t> runTimes;
 
-
     for (uint32_t r = 0; r < experimentSpecificParams.framePixelCount; r++) {
         for (uint32_t c = 0; c < experimentSpecificParams.framePixelCount; c++) {
             const uint32_t frameIdx = r * experimentSpecificParams.framePixelCount + c;
@@ -128,10 +127,10 @@ int main(int argc, char *argv[])
 
     // We are going to bake a big ol table, then use this whenever we need.
     const float minArclength = 10.0f;
-    const float maxArclength = 11.0f;
+    const float maxArclength = 12.5f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
-    const uint32_t numArclengths = 100;
+    const uint32_t numArclengths = 10000;
 
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
@@ -150,25 +149,24 @@ int main(int argc, char *argv[])
                   = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
                   + (pixelIdxZ + halfFrameWidth);
 
+            // Emitter direction
+            const Farlor::Vector3 emitterDir = centerOfFrame.Normalized();
+
             twisty::PerturbUtils::BoundaryConditions experimentGeometry;
             experimentGeometry.m_startPos = emitterStart;
-            experimentGeometry.m_startDir = (recieverPos - emitterStart).Normalized();
+            experimentGeometry.m_startDir = emitterDir;
             experimentGeometry.m_endPos = recieverPos;
-            experimentGeometry.m_endDir = (recieverPos - emitterStart).Normalized();
+            experimentGeometry.m_endDir = emitterDir;
             experimentGeometry.arclength = 0.0f;
+
+            const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
+            const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
+            const float cosFactor = revserseDir.Dot(planeNormal);
 
             const double pathNormalizerLog10 = 0.0f;
 
-
             // Single run start time
             const auto startTime = std::chrono::high_resolution_clock::now();
-
-            // const auto &weightLookupTable = *cachedLookupTable.GetWeightLookupTable(ds);
-            // const twisty::ExperimentBase::Result result
-            //       = twisty::ExperimentBase::MSegmentPathGenerationMC(
-            //             experimentParams.numPathsInExperiment, experimentParams.numSegmentsPerCurve,
-            //             experimentGeometry, experimentParams, pathNormalizerLog10,
-            //             weightLookupTable);
 
             const twisty::ExperimentBase::Result result
                   = twisty::ExperimentBase::MSegmentPathGenerationMC(
@@ -189,9 +187,11 @@ int main(int argc, char *argv[])
                       << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
                       << std::endl;
             std::cout << "Total weight: " << result.totalWeight << std::endl;
+            std::cout << "Total weight w/ cos factor: " << result.totalWeight * cosFactor
+                      << std::endl;
 
             if (result.numValidPaths > 0) {
-                framePixels[frameIdx] = result.totalWeight;
+                framePixels[frameIdx] = result.totalWeight * cosFactor;
             }
             std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
