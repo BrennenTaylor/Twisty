@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 
     // We are going to bake a big ol table, then use this whenever we need.
     const float minArclength = 10.0f;
-    const float maxArclength = 12.5f;
+    const float maxArclength = 20.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 10000;
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
             experimentGeometry.m_startPos = emitterStart;
             experimentGeometry.m_startDir = emitterDir;
             experimentGeometry.m_endPos = recieverPos;
-            experimentGeometry.m_endDir = emitterDir;
+            experimentGeometry.m_endDir = (recieverPos - emitterStart).Normalized();
             experimentGeometry.arclength = 0.0f;
 
             const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;

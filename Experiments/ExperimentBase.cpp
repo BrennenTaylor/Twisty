@@ -1374,28 +1374,28 @@ namespace ExperimentBase {
             rngPerThread[i].seed(i);
         }
 
-        // Assume that the directions are aligned
-        if (experimentGeometry.m_startDir.Dot(experimentGeometry.m_endDir) < 0.999f) {
-            std::cout << "Start and end directions are not aligned" << std::endl;
-            return { 0, 0, 0.0f, 0.0, 0.0 };
-        }
+        // // Assume that the directions are aligned
+        // if (experimentGeometry.m_startDir.Dot(experimentGeometry.m_endDir) < 0.999f) {
+        //     std::cout << "Start and end directions are not aligned" << std::endl;
+        //     return { 0, 0, 0.0f, 0.0, 0.0 };
+        // }
 
         // Min arclength
 
         float minArclength = 0.0f;
 
         // Old way
-        {
-            const float a = Farlor::Vector3(
-                  0.0f, experimentGeometry.m_endPos.y, experimentGeometry.m_endPos.z)
-                                  .Magnitude();
-            const float b = experimentGeometry.m_endPos.x;
-            const uint32_t M = experimentParams.numSegmentsPerCurve;
+        // {
+        //     const float a = Farlor::Vector3(
+        //           0.0f, experimentGeometry.m_endPos.y, experimentGeometry.m_endPos.z)
+        //                           .Magnitude();
+        //     const float b = experimentGeometry.m_endPos.x;
+        //     const uint32_t M = experimentParams.numSegmentsPerCurve;
 
-            minArclength
-                  = (std::sqrt(a * a * (M - 2) * M + b * b * (M - 2) * (M - 2)) - 2 * b) / (M - 4);
-            std::cout << "Min Arclength: " << minArclength << std::endl;
-        }
+        //     minArclength
+        //           = (std::sqrt(a * a * (M - 2) * M + b * b * (M - 2) * (M - 2)) - 2 * b) / (M - 4);
+        //     std::cout << "Min Arclength: " << minArclength << std::endl;
+        // }
 
         // New Way
         {
@@ -1406,8 +1406,8 @@ namespace ExperimentBase {
             const Farlor::Vector3 Ne = experimentGeometry.m_endDir;
 
             const float a = Farlor::Vector3(Ns + Ne).Dot((Ns + Ne)) - ((M - 4.0f) * M + 4.0f);
-            const float b = 2.0f * M * (Ns + Ne).Dot((Xs - Xe));
-            const float c = M * M * Farlor::Vector3(Xs - Xe).Dot((Xs - Xe));
+            const float b = -2.0f * M * (Ns + Ne).Dot((Xe - Xs));
+            const float c = M * M * Farlor::Vector3(Xe - Xs).Dot((Xe - Xs));
 
             const float minArclengthCandidateOne
                   = (-b - std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
@@ -1424,13 +1424,9 @@ namespace ExperimentBase {
             std::cout << "Selected arclength = " << minArclength << std::endl;
         }
 
-
-        // const float minArclength
-        //       = (experimentGeometry.m_endPos - experimentGeometry.m_startPos).Magnitude();
-        // const float maxArclength = minArclength + 2.0f;
         const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
 
-        const float actualMaxDs = maxDs + 2.0f;
+        const float actualMaxDs = maxDs + 10.0f;
         //maxArclength / experimentParams.numSegmentsPerCurve;
 
         if (actualMaxDs < minDs) {
