@@ -135,6 +135,12 @@ int main(int argc, char *argv[])
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
 
+    const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
+    const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+    const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
+
+    const int32_t numRecieverDirections = 256;
+
     std::mt19937_64 rng(0);
 
     for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
@@ -142,57 +148,79 @@ int main(int argc, char *argv[])
         for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
             std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
 
-            const Farlor::Vector3 recieverPos = centerOfFrame
-                  + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
-
             const uint32_t frameIdx
                   = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
                   + (pixelIdxZ + halfFrameWidth);
 
-            // Emitter direction
-            const Farlor::Vector3 emitterDir = centerOfFrame.Normalized();
+            // Sample over a number of reciever directions
+            for (int32_t recieverDirIdx = 0; recieverDirIdx < numRecieverDirections;
+                  ++recieverDirIdx) {
+                // https://alexanderameye.github.io/notes/sampling-the-hemisphere/
+                // Reciever direction
+                const float e0 = uniformFloat(rng);
+                const float e1 = uniformFloat(rng);
 
-            twisty::PerturbUtils::BoundaryConditions experimentGeometry;
-            experimentGeometry.m_startPos = emitterStart;
-            experimentGeometry.m_startDir = emitterDir;
-            experimentGeometry.m_endPos = recieverPos;
-            experimentGeometry.m_endDir = (recieverPos - emitterStart).Normalized();
-            experimentGeometry.arclength = 0.0f;
+                const float theta = std::acos(e0);
+                const float phi = 2.0f * twisty::TwistyPi * e1;
 
-            const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
-            const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
-            const float cosFactor = revserseDir.Dot(planeNormal);
+                // Flip the plane normal so we are facing the correct way
+                const Farlor::Vector3 recieverDir = (-1.0f * planeNormal * std::cos(theta))
+                      + planeNormalO1 * std::sin(theta) * std::cos(phi)
+                      + planeNormalO2 * std::sin(theta) * std::sin(phi);
 
-            const double pathNormalizerLog10 = 0.0f;
 
-            // Single run start time
-            const auto startTime = std::chrono::high_resolution_clock::now();
+                const Farlor::Vector3 recieverPos = centerOfFrame
+                      + planeNormalO1 * (pixelIdxY * pixelLength)
+                      + planeNormalO2 * (pixelIdxZ * pixelLength);
 
-            const twisty::ExperimentBase::Result result
-                  = twisty::ExperimentBase::MSegmentPathGenerationMC(
-                        experimentParams.numPathsInExperiment, experimentParams.numSegmentsPerCurve,
-                        experimentGeometry, experimentParams, pathNormalizerLog10,
-                        cachedLookupTable, maxDs);
 
-            // Single run end time
-            const auto endTime = std::chrono::high_resolution_clock::now();
-            // Add time difference to runTimes vector
-            const auto timeDiff
-                  = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-            runTimes.push_back(timeDiff.count());
+                // Emitter direction
+                const Farlor::Vector3 emitterDir = centerOfFrame.Normalized();
 
-            std::cout << "Num valid paths: " << result.numValidPaths << "/" << result.numPathsTotal
-                      << std::endl;
-            std::cout << "Percent valid paths: "
-                      << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
-                      << std::endl;
-            std::cout << "Total weight: " << result.totalWeight << std::endl;
-            std::cout << "Total weight w/ cos factor: " << result.totalWeight * cosFactor
-                      << std::endl;
+                twisty::PerturbUtils::BoundaryConditions experimentGeometry;
+                experimentGeometry.m_startPos = emitterStart;
+                experimentGeometry.m_startDir = emitterDir;
+                experimentGeometry.m_endPos = recieverPos;
+                experimentGeometry.m_endDir = recieverDir;
+                experimentGeometry.arclength = 0.0f;
 
-            if (result.numValidPaths > 0) {
-                framePixels[frameIdx] = result.totalWeight * cosFactor;
+                const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
+                const float cosFactor = revserseDir.Dot(planeNormal);
+
+                const double pathNormalizerLog10 = 0.0f;
+
+                // Single run start time
+                const auto startTime = std::chrono::high_resolution_clock::now();
+
+                const twisty::ExperimentBase::Result result
+                      = twisty::ExperimentBase::MSegmentPathGenerationMC(
+                            experimentParams.numPathsInExperiment,
+                            experimentParams.numSegmentsPerCurve, experimentGeometry,
+                            experimentParams, pathNormalizerLog10, cachedLookupTable, maxDs);
+
+                // Single run end time
+                const auto endTime = std::chrono::high_resolution_clock::now();
+                // Add time difference to runTimes vector
+                const auto timeDiff
+                      = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+                runTimes.push_back(timeDiff.count());
+
+                std::cout << "Num valid paths: " << result.numValidPaths << "/"
+                          << result.numPathsTotal << std::endl;
+                std::cout << "Percent valid paths: "
+                          << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
+                          << std::endl;
+                std::cout << "Total weight: " << result.totalWeight << std::endl;
+                std::cout << "Total weight w/ cos factor: " << result.totalWeight * cosFactor
+                          << std::endl;
+
+                if (result.numValidPaths > 0) {
+                    framePixels[frameIdx]
+                          += result.totalWeight * cosFactor * (1.0f / (2.0f * twisty::TwistyPi));
+                }
             }
+
+            framePixels[frameIdx] /= numRecieverDirections;
             std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
     }
