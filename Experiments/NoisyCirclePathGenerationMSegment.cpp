@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 
-    const int32_t numRecieverDirections = 256;
+    const int32_t numRecieverDirections = 32;
 
     std::mt19937_64 rng(0);
 
@@ -167,6 +167,8 @@ int main(int argc, char *argv[])
                 const Farlor::Vector3 recieverDir = (-1.0f * planeNormal * std::cos(theta))
                       + planeNormalO1 * std::sin(theta) * std::cos(phi)
                       + planeNormalO2 * std::sin(theta) * std::sin(phi);
+
+                const float pdf = 1.0f / (2.0f * twisty::TwistyPi);
 
 
                 const Farlor::Vector3 recieverPos = centerOfFrame
@@ -197,6 +199,8 @@ int main(int argc, char *argv[])
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, cachedLookupTable, maxDs);
+                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
+                      = result.totalWeight / pdf;
 
                 // Single run end time
                 const auto endTime = std::chrono::high_resolution_clock::now();
@@ -210,13 +214,12 @@ int main(int argc, char *argv[])
                 std::cout << "Percent valid paths: "
                           << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
                           << std::endl;
-                std::cout << "Total weight: " << result.totalWeight << std::endl;
-                std::cout << "Total weight w/ cos factor: " << result.totalWeight * cosFactor
+                std::cout << "Total weight: " << importanceSampledWeight << std::endl;
+                std::cout << "Total weight w/ cos factor: " << importanceSampledWeight * cosFactor
                           << std::endl;
 
                 if (result.numValidPaths > 0) {
-                    framePixels[frameIdx]
-                          += result.totalWeight * cosFactor * (1.0f / (2.0f * twisty::TwistyPi));
+                    framePixels[frameIdx] += importanceSampledWeight * cosFactor;
                 }
             }
 
