@@ -26,6 +26,7 @@ Test_Normals/
 Optimal*
 *.csv
 CachedPython/
+CachedWeightTables/
 *.fnd
 *.zip
 python_sandbox/
