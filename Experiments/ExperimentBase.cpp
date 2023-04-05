@@ -1426,7 +1426,7 @@ namespace ExperimentBase {
 
         const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
 
-        const float actualMaxDs = maxDs + 10.0f;
+        const float actualMaxDs = maxDs;
         //maxArclength / experimentParams.numSegmentsPerCurve;
 
         if (actualMaxDs < minDs) {
@@ -1443,8 +1443,7 @@ namespace ExperimentBase {
             const int threadId = omp_get_thread_num();
 
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
-            const float ds
-                  = pow(uniformRand(rngPerThread[threadId]), 3.0f) * (actualMaxDs - minDs) + minDs;
+            const float ds = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs) + minDs;
 
             twisty::PathWeighting::BaseWeightLookupTable &weightLookupTable
                   = *cachedWeightLookupTable.GetWeightLookupTable(ds);

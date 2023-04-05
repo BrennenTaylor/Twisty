@@ -42,7 +42,7 @@ struct NoisyCircleParams {
 
     // Ok, we want to kick off an experiment per pixel.
     uint32_t numDirections = 1;
-    float arclengthStepSize = 1.0f;
+    float maxArclengthOffset = 1.0f;
     float distanceFromPlane = 1.0f;
 };
 
@@ -60,8 +60,8 @@ NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig
     // Ok, we want to kick off an experiment per pixel.
     params.numDirections
           = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
-    params.arclengthStepSize
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["arclengthStepSize"];
+    params.maxArclengthOffset
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["maxArclengthOffset"];
     params.distanceFromPlane
           = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
 
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 
-    const int32_t numRecieverDirections = 32;
+    const int32_t numRecieverDirections = experimentSpecificParams.numDirections;
 
     std::mt19937_64 rng(0);
 
@@ -174,7 +174,6 @@ int main(int argc, char *argv[])
                 const Farlor::Vector3 recieverPos = centerOfFrame
                       + planeNormalO1 * (pixelIdxY * pixelLength)
                       + planeNormalO2 * (pixelIdxZ * pixelLength);
-
 
                 // Emitter direction
                 const Farlor::Vector3 emitterDir = centerOfFrame.Normalized();
