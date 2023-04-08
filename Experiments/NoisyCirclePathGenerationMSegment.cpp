@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
     const float maxArclength = 20.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
-    const uint32_t numArclengths = 10000;
+    const uint32_t numArclengths = 1000;
 
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
@@ -193,8 +193,13 @@ int main(int argc, char *argv[])
                 // Single run start time
                 const auto startTime = std::chrono::high_resolution_clock::now();
 
+                // Get random seed
+                // uniform uint64_t generator
+                std::uniform_int_distribution<uint64_t> uniformUint64;
+                const uint64_t randomSeed = uniformUint64(rng);
+
                 const twisty::ExperimentBase::Result result
-                      = twisty::ExperimentBase::MSegmentPathGenerationMC(
+                      = twisty::ExperimentBase::MSegmentPathGenerationMC(randomSeed,
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, cachedLookupTable, maxDs);

@@ -69,7 +69,9 @@ namespace PathWeighting {
         }
 
         std::stringstream dsSS;
+        std::ios_base::fmtflags flags = dsSS.flags();
         dsSS << std::fixed << std::setprecision(4) << m_ds;
+        dsSS.flags(flags);
 
         std::filesystem::path exportFile = exportDirectory.string();
         exportFile /= (dsSS.str() + "_" + std::to_string(m_wtUUID.second) + "_" + ExportFilename());
@@ -122,15 +124,20 @@ namespace PathWeighting {
 
     void BaseWeightLookupTable::UpdateUUID()
     {
+        m_wpUUID = m_weightingParams.GenerateStringUUID();
         std::stringstream uuid;
-        uuid << std::fixed << std::setprecision(4) << "ds_" << m_ds << "wp_" << m_wpUUID.first;
+        std::ios_base::fmtflags flags = uuid.flags();
+        uuid << std::fixed << std::setprecision(4) << "ds_" << m_ds;
+        uuid.flags(flags);
+        uuid << "wp_" << m_wpUUID.first;
         m_wtUUID = std::make_pair<std::string, uint64_t>(
               uuid.str(), std::hash<std::string> {}(uuid.str()));
     }
 
     CachedMultiArclengthWeightLookupTable::CachedMultiArclengthWeightLookupTable(
           const WeightingParameters &weightingParams, float minDs, float maxDs, uint32_t numDsSteps)
-        : m_minDs(minDs)
+        : m_weightingParams(weightingParams)
+        , m_minDs(minDs)
         , m_maxDs(maxDs)
         , m_numDsSteps(numDsSteps)
     {
@@ -143,7 +150,7 @@ namespace PathWeighting {
               = exportDirectory / (std::to_string(m_cwtUUID.second) + ".cwt");
         if (std::filesystem::exists(searchFilename)) {
             // Initialize from filename
-            std::cout << "Found cached table, loading." << std::endl;
+            std::cout << "Found cached table, loading: " << searchFilename.string() << std::endl;
             std::ifstream inputFile(searchFilename.string(), std::ios::binary);
             if (!inputFile.is_open()) {
                 throw std::runtime_error("Failed to open cached weight table");
@@ -182,6 +189,7 @@ namespace PathWeighting {
             }
             // We initialize since we are computing
             m_weightLookupTables[i]->Initialize();
+            std::ios_base::fmtflags flags = std::cout.flags();
             std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
                       << (100.0f * i) / m_numDsSteps << "%";
 
@@ -200,6 +208,7 @@ namespace PathWeighting {
 
             std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins << "m"
                       << secs << "s\t\t";
+            std::cout.flags(flags);
         }
         CacheWeightTable();
     }
@@ -242,8 +251,10 @@ namespace PathWeighting {
     void CachedMultiArclengthWeightLookupTable::UpdateUUID()
     {
         std::stringstream uuid;
-        uuid << std::fixed << std::setprecision(4) << "minDs_" << m_minDs << "maxDs_" << m_maxDs
-             << "numDsSteps_" << m_numDsSteps << "wp_"
+        std::ios_base::fmtflags flags = uuid.flags();
+        uuid << std::fixed << std::setprecision(4) << "minDs_" << m_minDs << "maxDs_" << m_maxDs;
+        uuid.flags(flags);
+        uuid << "numDsSteps_" << m_numDsSteps << "wp_"
              << m_weightingParams.GenerateStringUUID().first;
         m_cwtUUID = std::make_pair<std::string, uint64_t>(
               uuid.str(), std::hash<std::string> {}(uuid.str()));

@@ -49,10 +49,12 @@ struct WeightingParameters {
     std::pair<std::string, uint64_t> GenerateStringUUID() const
     {
         std::stringstream uuid;
+        std::ios_base::fmtflags flags = uuid.flags();
         uuid << std::fixed << std::setprecision(4) << "mu_" << mu << "_numStepsInt_" << numStepsInt
              << "_minBound_" << minBound << "_maxBound_" << maxBound << "_eps_" << eps
              << "_scatter_" << scatter << "_absorption_" << absorption << "_numCurvatureSteps_"
              << numCurvatureSteps << "_weightingMethod_" << (int32_t)weightingMethod;
+        uuid.flags(flags);
 
         return std::make_pair<std::string, uint64_t>(
               uuid.str(), std::hash<std::string> {}(uuid.str()));
