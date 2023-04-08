@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
                 const float e0 = uniformFloat(rng);
                 const float e1 = uniformFloat(rng);
 
-                const float theta = std::acos(e0);
+                const float theta = std::acos(std::sqrt(e0));
                 const float phi = 2.0f * twisty::TwistyPi * e1;
 
                 // Flip the plane normal so we are facing the correct way
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
                       + planeNormalO1 * std::sin(theta) * std::cos(phi)
                       + planeNormalO2 * std::sin(theta) * std::sin(phi);
 
-                const float pdf = 1.0f / (2.0f * twisty::TwistyPi);
+                const float pdf = std::cos(theta) / twisty::TwistyPi;
 
 
                 const Farlor::Vector3 recieverPos = centerOfFrame
@@ -193,13 +193,12 @@ int main(int argc, char *argv[])
                 // Single run start time
                 const auto startTime = std::chrono::high_resolution_clock::now();
 
-                // Get random seed
-                // uniform uint64_t generator
-                std::uniform_int_distribution<uint64_t> uniformUint64;
-                const uint64_t randomSeed = uniformUint64(rng);
+                std::uniform_int_distribution<uint64_t> uniformInt(
+                      0, std::numeric_limits<uint64_t>::max() - 250);
+                const uint64_t rngSeed = uniformInt(rng);
 
                 const twisty::ExperimentBase::Result result
-                      = twisty::ExperimentBase::MSegmentPathGenerationMC(randomSeed,
+                      = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, cachedLookupTable, maxDs);
