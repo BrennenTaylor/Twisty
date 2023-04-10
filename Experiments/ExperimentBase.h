@@ -61,5 +61,15 @@ namespace ExperimentBase {
           const twisty::PathWeighting::CachedMultiArclengthWeightLookupTable
                 &cachedWeightLookupTable,
           const float maxDs);
+
+    Result MSegmentPathGenerationMC(const int64_t numExperimentPaths, const int numSegmentsPerCurve,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::CachedMultiArclengthWeightLookupTable
+                &environmentCachedWeightLookupTable,
+          const twisty::PathWeighting::CachedMultiArclengthWeightLookupTable
+                &objectCachedWeightLookupTable,
+          const float maxDs);
 }
 }

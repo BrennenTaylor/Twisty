@@ -132,8 +132,14 @@ int main(int argc, char *argv[])
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 1000;
 
-    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
+    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable environmentCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
+
+      twisty::WeightingParameters objectWeightingParams = experimentParams.weightingParameters;
+      objectWeightingParams.absorption = 0.1f;
+      objectWeightingParams.scatter *= 3.0f;
+    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
+          objectWeightingParams, minDs, maxDs, numArclengths);
 
     const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
@@ -201,7 +207,8 @@ int main(int argc, char *argv[])
                       = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
-                            experimentParams, pathNormalizerLog10, cachedLookupTable, maxDs);
+                            experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+                            objectCachedLookupTable, maxDs);
                 const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
                       = result.totalWeight / pdf;
 

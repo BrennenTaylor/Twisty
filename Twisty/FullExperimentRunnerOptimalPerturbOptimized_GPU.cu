@@ -1,5 +1,6 @@
 // Include these specifically to have all localized linking
 #define ACTUAL_IMPLEMENTATION
+
 #include "CombinedWeightUtils.h"
 #include "CurvePerturbUtils.h"
 #include "PathWeighters.h"

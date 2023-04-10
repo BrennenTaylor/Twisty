@@ -1544,5 +1544,193 @@ namespace ExperimentBase {
         return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
             overallMaxPathWeightLog10 };
     }
+
+    Result MSegmentPathGenerationMC(const int64_t numExperimentPaths, const int numSegmentsPerCurve,
+          const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
+          const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
+          const double pathNormalizerLog10,
+          const twisty::PathWeighting::CachedMultiArclengthWeightLookupTable
+                &environmentCachedWeightLookupTable,
+          const twisty::PathWeighting::CachedMultiArclengthWeightLookupTable
+                &objectCachedWeightLookupTable,
+          const float maxDs)
+    {
+        const uint64_t numTotalPaths = numExperimentPaths;
+
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValues;
+        combinedWeightValues.reserve(
+              (numTotalPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
+
+        const int maxThreads = omp_get_max_threads();
+        std::cout << "Max threads: " << maxThreads << '\n';
+        std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            twisty::CombinedWeightValues_C_Reset(combinedWeightValuesPerThread[i]);
+        }
+
+        // Per thread min values
+        std::vector<double> minPathWeightPerThread(maxThreads, std::numeric_limits<double>::max());
+        // Per thread max values
+        std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
+
+        // Random Gen per thread
+        std::vector<std::mt19937_64> rngPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            rngPerThread[i].seed(i);
+        }
+
+        // Min arclength
+
+        float minArclength = 0.0f;
+        // New Way
+        {
+            const uint32_t M = experimentParams.numSegmentsPerCurve;
+            const Farlor::Vector3 Xs = experimentGeometry.m_startPos;
+            const Farlor::Vector3 Xe = experimentGeometry.m_endPos;
+            const Farlor::Vector3 Ns = experimentGeometry.m_startDir;
+            const Farlor::Vector3 Ne = experimentGeometry.m_endDir;
+
+            const float a = Farlor::Vector3(Ns + Ne).Dot((Ns + Ne)) - ((M - 4.0f) * M + 4.0f);
+            const float b = -2.0f * M * (Ns + Ne).Dot((Xe - Xs));
+            const float c = M * M * Farlor::Vector3(Xe - Xs).Dot((Xe - Xs));
+
+            const float minArclengthCandidateOne
+                  = (-b - std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
+            const float minArclengthCandidateTwo
+                  = (-b + std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
+            std::cout << "Min Arclength candidate one: " << minArclengthCandidateOne << std::endl;
+            std::cout << "Min Arclength candidate two: " << minArclengthCandidateTwo << std::endl;
+
+            minArclength = 1000000.0f;
+            if (!std::isnan(minArclengthCandidateOne) && minArclengthCandidateOne > 0.0f)
+                minArclength = std::min(minArclength, minArclengthCandidateOne);
+            if (!std::isnan(minArclengthCandidateTwo) && minArclengthCandidateTwo > 0.0f)
+                minArclength = std::min(minArclength, minArclengthCandidateTwo);
+            std::cout << "Selected arclength = " << minArclength << std::endl;
+        }
+
+        const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
+
+        const float actualMaxDs = maxDs;
+        //maxArclength / experimentParams.numSegmentsPerCurve;
+
+        if (actualMaxDs < minDs) {
+            std::cout << "No solution for current environment" << std::endl;
+            return { 0, 0, 0.0f, 0.0, 0.0 };
+        }
+
+        std::cout << "Starting path generation" << std::endl;
+
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
+            environmentCachedWeightLookupTable, objectCachedWeightLookupTable)
+        for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
+            const int threadId = omp_get_thread_num();
+
+            std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
+            const float ds = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs) + minDs;
+
+            twisty::PathWeighting::BaseWeightLookupTable &environmentWeightLookupTable
+                  = *environmentCachedWeightLookupTable.GetWeightLookupTable(ds);
+
+            twisty::PathWeighting::BaseWeightLookupTable &objectWeightLookupTable
+                  = *objectCachedWeightLookupTable.GetWeightLookupTable(ds);
+
+            const Farlor::Vector3 point0 = experimentGeometry.m_startPos;
+            const Farlor::Vector3 point1
+                  = experimentGeometry.m_startPos + ds * experimentGeometry.m_startDir;
+
+            const Farlor::Vector3 pointM = experimentGeometry.m_endPos;
+            const Farlor::Vector3 pointMm1
+                  = experimentGeometry.m_endPos - ds * experimentGeometry.m_endDir;
+
+
+            std::vector<Farlor::Vector3> points;
+            points.resize(numSegmentsPerCurve + 1);
+            points[0] = point0;
+            points[1] = point1;
+            points[numSegmentsPerCurve - 1] = pointMm1;
+            points[numSegmentsPerCurve] = pointM;
+
+            const int numFreeSegments = numSegmentsPerCurve - 2;
+            ResolveEvenNumberOfSegments(
+                  numFreeSegments, points, 1, numSegmentsPerCurve - 1, ds, rngPerThread[threadId]);
+
+            std::vector<Farlor::Vector3> tangents;
+            tangents.resize(numSegmentsPerCurve);
+            std::vector<float> curvatures;
+            curvatures.resize(numSegmentsPerCurve - 1);
+
+            twisty::PerturbUtils::BoundaryConditions bcWithArclength = experimentGeometry;
+            bcWithArclength.arclength = ds * experimentParams.numSegmentsPerCurve;
+
+            twisty::PerturbUtils::UpdateTangentsFromPos(
+                  points.data(), tangents.data(), numSegmentsPerCurve, bcWithArclength);
+            twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
+                  tangents.data(), curvatures.data(), numSegmentsPerCurve, bcWithArclength);
+
+            double scatteringWeightLog10
+                  = twisty::PathWeighting::WeightCurveViaPositionLog10_PositionDependent(points,
+                        curvatures, environmentWeightLookupTable,
+                        objectWeightLookupTable);
+
+            if (isnan(scatteringWeightLog10)) {
+                throw std::runtime_error("We somehow got an invalid path weight");
+            }
+            scatteringWeightLog10 += pathNormalizerLog10;
+
+            // Update the min and max values
+            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            }
+
+            twisty::CombinedWeightValues_C &activeWeightValue
+                  = combinedWeightValuesPerThread[threadId];
+
+            if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            } else {
+#pragma omp critical
+                {
+                    combinedWeightValues.push_back(activeWeightValue);
+                }
+                twisty::CombinedWeightValues_C_Reset(activeWeightValue);
+                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+            }
+        }
+
+        const double overallMinPathWeightLog10
+              = *std::min_element(minPathWeightPerThread.begin(), minPathWeightPerThread.end());
+        const double overallMaxPathWeightLog10
+              = *std::max_element(maxPathWeightPerThread.begin(), maxPathWeightPerThread.end());
+
+        boost::multiprecision::cpp_dec_float_100 pathIntegralResult = 0.0;
+        uint64_t numValidPaths = 0;
+        for (const auto &combinedWeightValue : combinedWeightValues) {
+            pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+            numValidPaths += combinedWeightValue.m_numValues;
+        }
+
+        // Go through each current thread combined weight value and add it in
+        for (const auto &combinedWeightValue : combinedWeightValuesPerThread) {
+            if (combinedWeightValue.m_numValues > 0) {
+                pathIntegralResult += twisty::ExtractFinalValue(combinedWeightValue);
+                numValidPaths += combinedWeightValue.m_numValues;
+            }
+        }
+
+        boost::multiprecision::cpp_dec_float_100 finalResult = 0.0;
+
+        if (numValidPaths > 0) {
+            finalResult
+                  = boost::multiprecision::cpp_dec_float_100(pathIntegralResult / numValidPaths);
+        }
+
+        return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
+            overallMaxPathWeightLog10 };
+    }
 }
 }
