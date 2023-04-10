@@ -1545,7 +1545,8 @@ namespace ExperimentBase {
             overallMaxPathWeightLog10 };
     }
 
-    Result MSegmentPathGenerationMC(const int64_t numExperimentPaths, const int numSegmentsPerCurve,
+    Result MSegmentPathGenerationMC(const uint64_t seed, const int64_t numExperimentPaths,
+          const int numSegmentsPerCurve,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
           const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
           const double pathNormalizerLog10,
@@ -1576,7 +1577,7 @@ namespace ExperimentBase {
         // Random Gen per thread
         std::vector<std::mt19937_64> rngPerThread(maxThreads);
         for (int i = 0; i < maxThreads; i++) {
-            rngPerThread[i].seed(i);
+            rngPerThread[i].seed(seed + i);
         }
 
         // Min arclength
@@ -1670,9 +1671,8 @@ namespace ExperimentBase {
                   tangents.data(), curvatures.data(), numSegmentsPerCurve, bcWithArclength);
 
             double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaPositionLog10_PositionDependent(points,
-                        curvatures, environmentWeightLookupTable,
-                        objectWeightLookupTable);
+                  = twisty::PathWeighting::WeightCurveViaPositionLog10_PositionDependent(
+                        points, curvatures, environmentWeightLookupTable, objectWeightLookupTable);
 
             if (isnan(scatteringWeightLog10)) {
                 throw std::runtime_error("We somehow got an invalid path weight");

@@ -25,12 +25,19 @@
 std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
 
+std::vector<boost::multiprecision::cpp_dec_float_100> CalculateOffsetFrames(
+      const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
+
 void OutputRawData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawCombined,
       const int32_t framePixelCount);
 
 void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
+      const int32_t framePixelCount);
+
+void OutputOffsetData(const std::filesystem::path &outputDirectoryPath,
+      const std::vector<boost::multiprecision::cpp_dec_float_100> &offsetCombined,
       const int32_t framePixelCount);
 
 struct NoisyCircleParams {
@@ -135,9 +142,9 @@ int main(int argc, char *argv[])
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable environmentCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
 
-      twisty::WeightingParameters objectWeightingParams = experimentParams.weightingParameters;
-      objectWeightingParams.absorption = 0.1f;
-      objectWeightingParams.scatter *= 3.0f;
+    twisty::WeightingParameters objectWeightingParams = experimentParams.weightingParameters;
+    objectWeightingParams.absorption = 0.1f;
+    objectWeightingParams.scatter *= 3.0f;
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           objectWeightingParams, minDs, maxDs, numArclengths);
 
@@ -317,6 +324,8 @@ int main(int argc, char *argv[])
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedCombined
           = CalculateNormalizedFrames(framePixels);
+    const std::vector<boost::multiprecision::cpp_dec_float_100> offsetCombined
+          = CalculateOffsetFrames(framePixels);
 
     // Experiment end time
     const auto endTime = std::chrono::high_resolution_clock::now();
@@ -355,6 +364,7 @@ int main(int argc, char *argv[])
     OutputRawData(outputDirectoryPath, combinedPixels, experimentSpecificParams.framePixelCount);
     OutputNormalizedData(
           outputDirectoryPath, normalizedCombined, experimentSpecificParams.framePixelCount);
+    OutputOffsetData(outputDirectoryPath, offsetCombined, experimentSpecificParams.framePixelCount);
 
     std::cout << "Experiment done" << std::endl;
 
@@ -380,6 +390,26 @@ std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
           result.end(),
           [&minimum, &range](
                 boost::multiprecision::cpp_dec_float_100 &n) { n = ((n - minimum) / range); });
+    return result;
+}
+
+std::vector<boost::multiprecision::cpp_dec_float_100> CalculateOffsetFrames(
+      const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights)
+{
+    if (rawFrameWeights.empty()) {
+        return rawFrameWeights;
+    }
+    std::vector<boost::multiprecision::cpp_dec_float_100> result = rawFrameWeights;
+
+    boost::multiprecision::cpp_dec_float_100 maximum
+          = *std::max_element(rawFrameWeights.begin(), rawFrameWeights.end());
+    boost::multiprecision::cpp_dec_float_100 logVal
+          = boost::multiprecision::ceil(boost::multiprecision::log10(maximum));
+
+    std::for_each(
+          result.begin(), result.end(), [&logVal](boost::multiprecision::cpp_dec_float_100 &n) {
+              n = boost::multiprecision::pow(10, boost::multiprecision::log10(n) - logVal);
+          });
     return result;
 }
 
@@ -444,6 +474,38 @@ void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
             // Output pixel
             const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
             rawDataOutfile << normalizedCombined[frameIdx] << " ";
+        }
+        rawDataOutfile << std::endl;
+    }
+}
+
+void OutputOffsetData(const std::filesystem::path &outputDirectoryPath,
+      const std::vector<boost::multiprecision::cpp_dec_float_100> &offsetCombined,
+      const int32_t framePixelCount)
+{
+    std::filesystem::path rawDataFilepath = outputDirectoryPath;
+    rawDataFilepath /= "Combined/";
+
+    if (!std::filesystem::exists(rawDataFilepath)) {
+        std::filesystem::create_directories(rawDataFilepath);
+    }
+
+    rawDataFilepath /= "offsetData.dat";
+    std::ofstream rawDataOutfile(rawDataFilepath.string());
+    if (!rawDataOutfile.is_open()) {
+        std::cout << "Failed to create offsetData: " << rawDataFilepath.string() << std::endl;
+        exit(1);
+    }
+
+    // X
+    rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+
+    // Write out the pixel data
+    for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
+        for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+            // Output pixel
+            const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+            rawDataOutfile << offsetCombined[frameIdx] << " ";
         }
         rawDataOutfile << std::endl;
     }

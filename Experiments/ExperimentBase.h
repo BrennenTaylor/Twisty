@@ -62,7 +62,8 @@ namespace ExperimentBase {
                 &cachedWeightLookupTable,
           const float maxDs);
 
-    Result MSegmentPathGenerationMC(const int64_t numExperimentPaths, const int numSegmentsPerCurve,
+    Result MSegmentPathGenerationMC(const uint64_t seed, const int64_t numExperimentPaths,
+          const int numSegmentsPerCurve,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
           const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
           const double pathNormalizerLog10,
