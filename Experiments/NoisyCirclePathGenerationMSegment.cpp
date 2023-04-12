@@ -143,8 +143,8 @@ int main(int argc, char *argv[])
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
 
     twisty::WeightingParameters objectWeightingParams = experimentParams.weightingParameters;
-    objectWeightingParams.absorption = 0.1f;
-    objectWeightingParams.scatter *= 3.0f;
+    objectWeightingParams.absorption = 0.001f;
+    objectWeightingParams.scatter = 0.2f;
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           objectWeightingParams, minDs, maxDs, numArclengths);
 
@@ -403,13 +403,11 @@ std::vector<boost::multiprecision::cpp_dec_float_100> CalculateOffsetFrames(
 
     boost::multiprecision::cpp_dec_float_100 maximum
           = *std::max_element(rawFrameWeights.begin(), rawFrameWeights.end());
-    boost::multiprecision::cpp_dec_float_100 logVal
-          = boost::multiprecision::ceil(boost::multiprecision::log10(maximum));
+    boost::multiprecision::cpp_dec_float_100 invMax
+          = boost::multiprecision::cpp_dec_float_100(1.0) / maximum;
 
-    std::for_each(
-          result.begin(), result.end(), [&logVal](boost::multiprecision::cpp_dec_float_100 &n) {
-              n = boost::multiprecision::pow(10, boost::multiprecision::log10(n) - logVal);
-          });
+    std::for_each(result.begin(), result.end(),
+          [&invMax](boost::multiprecision::cpp_dec_float_100 &n) { n = n * invMax; });
     return result;
 }
 
