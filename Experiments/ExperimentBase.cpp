@@ -1671,8 +1671,9 @@ namespace ExperimentBase {
                   tangents.data(), curvatures.data(), numSegmentsPerCurve, bcWithArclength);
 
             double scatteringWeightLog10
-                  = twisty::PathWeighting::WeightCurveViaPositionLog10_PositionDependent(
-                        points, curvatures, environmentWeightLookupTable, objectWeightLookupTable);
+                  = twisty::PathWeighting::WeightCurveViaPositionLog10_PositionDependent(points,
+                        curvatures, environmentWeightLookupTable, objectWeightLookupTable,
+                        experimentParams.weightingParameters.absorption);
 
             if (isnan(scatteringWeightLog10)) {
                 throw std::runtime_error("We somehow got an invalid path weight");

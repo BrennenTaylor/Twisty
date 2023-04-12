@@ -292,7 +292,8 @@ FullExperimentRunnerOptimalPerturbOptimized_GPU::RunnerSpecificRunExperiment()
                   m_pFinalCombinedValues, csBoundaryConditions, m_pDeviceWeightLookupTable,
                   lookupEvaluator->AccessLookupTable().size(), lookupEvaluator->GetDs(),
                   lookupEvaluator->GetMinCurvature(), lookupEvaluator->GetMaxCurvature(),
-                  lookupEvaluator->GetCurvatureStepSize(), m_experimentParams.weightingParameters.absorption);
+                  lookupEvaluator->GetCurvatureStepSize(),
+                  m_experimentParams.weightingParameters.absorption);
 
             CudaSafeErrorCheck(cudaGetLastError(),
                   "FullExperimentRunnerOptimalPerturbOptimized_GPU_GeometryRandomKernel_"

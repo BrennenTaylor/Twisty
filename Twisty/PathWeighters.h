@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PathWeightUtils.h"
+#include "boost/math/special_functions/math_fwd.hpp"
 
 namespace twisty {
 namespace PathWeighting {
@@ -8,7 +9,8 @@ namespace PathWeighting {
     // TODO: We want to use span here, but currently not supported in compiler (is, but have to force latest verison).
     // Assumes that integral matches weighting params
     double WeightCurveViaCurvatureLog10(float *pCurvatureStart, uint32_t numCurvatures,
-          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral, const float absorption);
+          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral,
+          const float absorption);
 
     __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float *pCurvatureStart,
           uint32_t numCurvatures, const float *pWeightLookupTable,
@@ -18,7 +20,8 @@ namespace PathWeighting {
     double WeightCurveViaPositionLog10_PositionDependent(
           const std::vector<Farlor::Vector3> &positions, const std::vector<float> &curvatures,
           const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable,
-          const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable);
+          const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable,
+          const float environmentAbsorbtion);
 }
 }
 
@@ -30,7 +33,8 @@ namespace twisty {
 namespace PathWeighting {
     // Assume we have good pointers
     double WeightCurveViaCurvatureLog10(float *pCurvatureStart, uint32_t numCurvatures,
-          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral, const float absorption)
+          const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral,
+          const float absorption)
     {
         return WeightCurveViaCurvatureLog10_CudaSafe(pCurvatureStart, numCurvatures,
               weightIntegral.AccessLookupTable().data(),
@@ -114,12 +118,13 @@ namespace PathWeighting {
         return runningPathWeightLog10;
     }
 
-    double WeightCurveViaPositionLog10_PositionDependent(const std::vector<Farlor::Vector3>& positions,
-          const std::vector<float>& curvatures,
-          const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable, const twisty::PathWeighting::BaseWeightLookupTable& objectLookupTable)
+    double WeightCurveViaPositionLog10_PositionDependent(
+          const std::vector<Farlor::Vector3> &positions, const std::vector<float> &curvatures,
+          const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable,
+          const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable,
+          const float environmentAbsorption)
     {
-        if (curvatures.empty() || positions.empty())
-        {
+        if (curvatures.empty() || positions.empty()) {
             return 0.0;
         }
 
@@ -137,18 +142,18 @@ namespace PathWeighting {
 
             // TODO: Generalize
             // For now, hardcode the sphere
-            const Farlor::Vector3 sphereCenter(5.0f, 0.0f, 0.0f);
-            const float radius = 3.5f;
+            //const Farlor::Vector3 sphereCenter(5.0f, 0.0f, 0.0f);
+            //const float radius = 3.5f;
 
             // Lookup absorbtion factor based on position
-            float absorption = 0.004f;
+            float absorption = environmentAbsorption;
             float const *pWeightLookupTable = environmentLookupTable.AccessLookupTable().data();
-            if ((currentPosition - sphereCenter).SqrMagnitude()
-                  <= (radius * radius))
-            {
-                absorption = 0.1f;
-                pWeightLookupTable = objectLookupTable.AccessLookupTable().data();
-            }
+            //if ((currentPosition - sphereCenter).SqrMagnitude()
+            //     <= (radius * radius))
+            //{
+            //    absorption = 0.1f;
+            //    pWeightLookupTable = objectLookupTable.AccessLookupTable().data();
+            //}
 
             // Currently assumes that we dont need a world space lookup
             const double absorptionFactor = std::exp(-absorption * ds);
