@@ -1,4 +1,8 @@
-// #include "PathWeighters.h"
+#define ACTUAL_IMPLEMENTATION
+
+#include "CombinedWeightUtils.h"
+#include "CurvePerturbUtils.h"
+#include "PathWeighters.h"
 // #include <stdint.h>
 
 // namespace twisty {

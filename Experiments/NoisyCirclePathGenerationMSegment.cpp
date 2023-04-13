@@ -139,14 +139,15 @@ int main(int argc, char *argv[])
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 1000;
 
-    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable environmentCachedLookupTable(
+    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
 
-    twisty::WeightingParameters objectWeightingParams = experimentParams.weightingParameters;
-    objectWeightingParams.absorption = 0.001f;
-    objectWeightingParams.scatter = 0.2f;
-    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
-          objectWeightingParams, minDs, maxDs, numArclengths);
+    twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
+    environmentWeightingParams.absorption = 0.001f;
+    environmentWeightingParams.scatter = 0.001f;
+
+    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable environmentCachedLookupTable(
+          environmentWeightingParams, minDs, maxDs, numArclengths);
 
     const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
