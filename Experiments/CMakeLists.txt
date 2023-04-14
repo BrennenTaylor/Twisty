@@ -327,6 +327,28 @@ target_link_libraries(NoisyCirclePathGenerationMSegment
     PRIVATE nlohmann_json::nlohmann_json
 )
 
+add_executable(NoisyCirclePathGenerationMSegment_Pinhole
+    NoisyCirclePathGenerationMSegment_Pinhole.cpp
+)
+
+target_compile_features(NoisyCirclePathGenerationMSegment_Pinhole
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(NoisyCirclePathGenerationMSegment_Pinhole
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(NoisyCirclePathGenerationMSegment_Pinhole
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
 add_executable(Simple_FiveSegment_Analytical
     Simple_FiveSegment_Analytical.cpp
 )

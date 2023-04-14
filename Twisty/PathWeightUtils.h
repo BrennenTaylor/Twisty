@@ -50,7 +50,7 @@ struct WeightingParameters {
     {
         std::stringstream uuid;
         std::ios_base::fmtflags flags = uuid.flags();
-        uuid << std::fixed << std::setprecision(4) << "mu_" << mu << "_numStepsInt_" << numStepsInt
+        uuid << std::fixed << std::setprecision(10) << "mu_" << mu << "_numStepsInt_" << numStepsInt
              << "_minBound_" << minBound << "_maxBound_" << maxBound << "_eps_" << eps
              << "_scatter_" << scatter << "_absorption_" << absorption << "_numCurvatureSteps_"
              << numCurvatureSteps << "_weightingMethod_" << (int32_t)weightingMethod;
@@ -94,6 +94,7 @@ namespace PathWeighting {
         WeightingParameters GetWeightingParams() const { return m_weightingParams; }
 
         void ExportValues(const std::string &relativePath) const;
+        void ExportValues(const std::string &relativePath, const std::string &filename) const;
 
         void UpdateUUID();
 

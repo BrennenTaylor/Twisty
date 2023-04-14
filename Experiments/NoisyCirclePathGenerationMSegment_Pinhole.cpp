@@ -117,7 +117,10 @@ int main(int argc, char *argv[])
 
     const float pixelLength = experimentSpecificParams.frameLength
           / static_cast<float>(experimentSpecificParams.framePixelCount);
-    Farlor::Vector3 centerOfFrame(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
+
+    Farlor::Vector3 cameraCenter(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
+    Farlor::Vector3 centerOfFocalFrame(
+          experimentSpecificParams.distanceFromPlane * 0.5, 0.0f, 0.0f);
 
     // Bootstrap method
     const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
@@ -138,8 +141,8 @@ int main(int argc, char *argv[])
     }
 
     // We are going to bake a big ol table, then use this whenever we need.
-    const float minArclength = 10.0f;
-    const float maxArclength = 20.0f;
+    const float minArclength = 5.0f;
+    const float maxArclength = 15.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 1000;
@@ -182,12 +185,11 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 
-    const int32_t numRecieverDirections = experimentSpecificParams.numDirections;
 
     std::mt19937_64 rng(0);
 
-    int64_t totalOpCount = experimentSpecificParams.framePixelCount
-          * experimentSpecificParams.framePixelCount * numRecieverDirections;
+    int64_t totalOpCount
+          = experimentSpecificParams.framePixelCount * experimentSpecificParams.framePixelCount;
     int64_t currentOpCount = 0;
 
     for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
@@ -199,70 +201,54 @@ int main(int argc, char *argv[])
                   = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
                   + (pixelIdxZ + halfFrameWidth);
 
-            int numValidRecieverDirections = numRecieverDirections;
-            // Sample over a number of reciever directions
-            for (int32_t recieverDirIdx = 0; recieverDirIdx < numRecieverDirections;
-                  ++recieverDirIdx) {
-                // https://alexanderameye.github.io/notes/sampling-the-hemisphere/
-                // Reciever direction
-                const float e0 = uniformFloat(rng);
-                const float e1 = uniformFloat(rng);
 
-                const float theta = std::acos(std::sqrt(e0));
-                const float phi = 2.0f * twisty::TwistyPi * e1;
+            // Flip the plane normal so we are facing the correct way
 
-                // Flip the plane normal so we are facing the correct way
-                const Farlor::Vector3 recieverDir = (-1.0f * planeNormal * std::cos(theta))
-                      + planeNormalO1 * std::sin(theta) * std::cos(phi)
-                      + planeNormalO2 * std::sin(theta) * std::sin(phi);
+            const Farlor::Vector3 recieverPos = centerOfFocalFrame
+                  + planeNormalO1 * (pixelIdxY * pixelLength)
+                  + planeNormalO2 * (pixelIdxZ * pixelLength);
 
-                const float pdf = std::cos(theta) / twisty::TwistyPi;
+            const Farlor::Vector3 recieverDir = (cameraCenter - recieverPos).Normalized();
 
+            // Emitter direction
+            const Farlor::Vector3 emitterDir = (cameraCenter - emitterStart).Normalized();
 
-                const Farlor::Vector3 recieverPos = centerOfFrame
-                      + planeNormalO1 * (pixelIdxY * pixelLength)
-                      + planeNormalO2 * (pixelIdxZ * pixelLength);
+            twisty::PerturbUtils::BoundaryConditions experimentGeometry;
+            experimentGeometry.m_startPos = emitterStart;
+            experimentGeometry.m_startDir = emitterDir;
+            experimentGeometry.m_endPos = recieverPos;
+            experimentGeometry.m_endDir = recieverDir;
+            experimentGeometry.arclength = 0.0f;
 
-                // Emitter direction
-                const Farlor::Vector3 emitterDir = centerOfFrame.Normalized();
+            const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
+            const float cosFactor = revserseDir.Dot(planeNormal);
 
-                twisty::PerturbUtils::BoundaryConditions experimentGeometry;
-                experimentGeometry.m_startPos = emitterStart;
-                experimentGeometry.m_startDir = emitterDir;
-                experimentGeometry.m_endPos = recieverPos;
-                experimentGeometry.m_endDir = recieverDir;
-                experimentGeometry.arclength = 0.0f;
+            const double pathNormalizerLog10 = 0.0f;
 
-                const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
-                const float cosFactor = revserseDir.Dot(planeNormal);
+            // Single run start time
+            const auto singleRunStartTime = std::chrono::high_resolution_clock::now();
 
-                const double pathNormalizerLog10 = 0.0f;
+            std::uniform_int_distribution<uint64_t> uniformInt(
+                  0, std::numeric_limits<uint64_t>::max() - 250);
+            const uint64_t rngSeed = uniformInt(rng);
 
-                // Single run start time
-                const auto singleRunStartTime = std::chrono::high_resolution_clock::now();
+            const twisty::ExperimentBase::Result result
+                  = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
+                        experimentParams.numPathsInExperiment, experimentParams.numSegmentsPerCurve,
+                        experimentGeometry, experimentParams, pathNormalizerLog10,
+                        environmentCachedLookupTable, objectCachedLookupTable, maxDs);
+            const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
+                  = result.totalWeight;
 
-                std::uniform_int_distribution<uint64_t> uniformInt(
-                      0, std::numeric_limits<uint64_t>::max() - 250);
-                const uint64_t rngSeed = uniformInt(rng);
+            currentOpCount++;
 
-                const twisty::ExperimentBase::Result result
-                      = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
-                            experimentParams.numPathsInExperiment,
-                            experimentParams.numSegmentsPerCurve, experimentGeometry,
-                            experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
-                            objectCachedLookupTable, maxDs);
-                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
-                      = result.totalWeight / pdf;
-
-                currentOpCount++;
-
-                // Single run end time
-                const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
-                // Add time difference to runTimes vector
-                const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      singleRunEndTime - singleRunStartTime);
-                runTimes.push_back(timeDiff.count());
-                /*
+            // Single run end time
+            const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
+            // Add time difference to runTimes vector
+            const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  singleRunEndTime - singleRunStartTime);
+            runTimes.push_back(timeDiff.count());
+            /*
                 std::cout << "Num valid paths: " << result.numValidPaths << "/"
                           << result.numPathsTotal << std::endl;
                 std::cout << "Percent valid paths: "
@@ -274,42 +260,36 @@ int main(int argc, char *argv[])
 */
 
 
-                std::ios_base::fmtflags flags = std::cout.flags();
-                std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
-                          << (100.0f * currentOpCount) / totalOpCount << "%";
+            std::ios_base::fmtflags flags = std::cout.flags();
+            std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
+                      << (100.0f * currentOpCount) / totalOpCount << "%";
 
-                // Estimated time to completion
-                std::chrono::high_resolution_clock::time_point currentTime
-                      = std::chrono::high_resolution_clock::now();
-                // Elapsed time in seconds
-                const float elapsedSeconds
-                      = std::chrono::duration_cast<std::chrono::duration<float>>(
-                            currentTime - startTime)
-                              .count();
-                const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
-                const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
+            // Estimated time to completion
+            std::chrono::high_resolution_clock::time_point currentTime
+                  = std::chrono::high_resolution_clock::now();
+            // Elapsed time in seconds
+            const float elapsedSeconds = std::chrono::duration_cast<std::chrono::duration<float>>(
+                  currentTime - startTime)
+                                               .count();
+            const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
+            const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
 
-                const float mins = std::floor(secondsRemaining / 60.0f);
-                const float secs = secondsRemaining - mins * 60.0f;
+            const float mins = std::floor(secondsRemaining / 60.0f);
+            const float secs = secondsRemaining - mins * 60.0f;
 
-                std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins
-                          << "m" << secs << "s\t\t";
-                std::cout.flags(flags);
+            std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins << "m"
+                      << secs << "s\t\t";
+            std::cout.flags(flags);
 
-                boost::multiprecision::cpp_dec_float_100 weight_log10
-                      = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
-                if (weight_log10 > -10) {
-                    std::cout << "Odd bug encountered, lets toss the path" << std::endl;
-                    numValidRecieverDirections--;
-                } else {
-                    if (result.numValidPaths > 0) {
-                        framePixels[frameIdx] += importanceSampledWeight * cosFactor;
-                    }
+            boost::multiprecision::cpp_dec_float_100 weight_log10
+                  = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
+            if (weight_log10 > -10) {
+                std::cout << "Odd bug encountered, lets toss the path" << std::endl;
+            } else {
+                if (result.numValidPaths > 0) {
+                    framePixels[frameIdx] = importanceSampledWeight * cosFactor;
                 }
             }
-
-            framePixels[frameIdx] /= numValidRecieverDirections;
-            //std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
     }
 

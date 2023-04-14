@@ -63,6 +63,12 @@ namespace PathWeighting {
 
     void BaseWeightLookupTable::ExportValues(const std::string &directoryFileName) const
     {
+        ExportValues(directoryFileName, ExportFilename());
+    }
+
+    void BaseWeightLookupTable::ExportValues(
+          const std::string &directoryFileName, const std::string &filename) const
+    {
         std::filesystem::path exportDirectory = directoryFileName;
         if (!std::filesystem::exists(exportDirectory)) {
             std::filesystem::create_directories(exportDirectory);
@@ -70,11 +76,11 @@ namespace PathWeighting {
 
         std::stringstream dsSS;
         std::ios_base::fmtflags flags = dsSS.flags();
-        dsSS << std::fixed << std::setprecision(4) << m_ds;
+        dsSS << std::fixed << std::setprecision(10) << m_ds;
         dsSS.flags(flags);
 
         std::filesystem::path exportFile = exportDirectory.string();
-        exportFile /= (dsSS.str() + "_" + std::to_string(m_wtUUID.second) + "_" + ExportFilename());
+        exportFile /= (dsSS.str() + "_" + std::to_string(m_wtUUID.second) + "_" + filename);
 
         // std::cout << "Exporting table of size: " << m_lookupTable.size() << std::endl;
         std::ofstream outputFile(exportFile.c_str());
@@ -127,7 +133,7 @@ namespace PathWeighting {
         m_wpUUID = m_weightingParams.GenerateStringUUID();
         std::stringstream uuid;
         std::ios_base::fmtflags flags = uuid.flags();
-        uuid << std::fixed << std::setprecision(4) << "ds_" << m_ds;
+        uuid << std::fixed << std::setprecision(10) << "ds_" << m_ds;
         uuid.flags(flags);
         uuid << "wp_" << m_wpUUID.first;
         m_wtUUID = std::make_pair<std::string, uint64_t>(
@@ -252,7 +258,7 @@ namespace PathWeighting {
     {
         std::stringstream uuid;
         std::ios_base::fmtflags flags = uuid.flags();
-        uuid << std::fixed << std::setprecision(4) << "minDs_" << m_minDs << "maxDs_" << m_maxDs;
+        uuid << std::fixed << std::setprecision(10) << "minDs_" << m_minDs << "maxDs_" << m_maxDs;
         uuid.flags(flags);
         uuid << "numDsSteps_" << m_numDsSteps << "wp_"
              << m_weightingParams.GenerateStringUUID().first;
