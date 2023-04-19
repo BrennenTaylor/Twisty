@@ -7,12 +7,13 @@
 // We parameterize to allow exploration over different weight tables, as well as different numbers of segments
 // i.e. differet order of magnitude ranges of the final combined values
 
+#include <cmath>
+
 #include "Curve.h"
 #include "ExperimentRunner.h"
 #include "FMath/Quaternion.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "boost/multiprecision/cpp_dec_float.hpp"
-#include <corecrt_math_defines.h>
 #include <random>
 #include <stdexcept>
 
@@ -161,7 +162,7 @@ int main(int argc, char *argv[])
             weights[weightIdx] = weightingIntegralsRawPointer
                                        .AccessLookupTable()[weightIdxSampleDist(randomGenerator)];
             pathWeightDoubles *= static_cast<double>(weights[weightIdx]);
-            pathWeightLog10Doubles += static_cast<double>(std::log10f(weights[weightIdx]));
+            pathWeightLog10Doubles += static_cast<double>(std::log10(weights[weightIdx]));
 
             pathWeightBigFloat *= boost::multiprecision::cpp_dec_float_100(weights[weightIdx]);
             pathWeightLog10BigFloat += boost::multiprecision::log10(

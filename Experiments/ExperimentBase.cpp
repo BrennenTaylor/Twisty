@@ -119,9 +119,9 @@ namespace ExperimentBase {
 
                     // Now rotate randomly theta amount around the axis.
                     {
-                        const float sinRotAngle = std::sinf(theta2 / 2.0f);
+                        const float sinRotAngle = std::sin(theta2 / 2.0f);
                         float quaternionRotation[4]
-                              = { std::cosf(theta2 / 2.0f), lineUnitDir.x * sinRotAngle,
+                              = { std::cos(theta2 / 2.0f), lineUnitDir.x * sinRotAngle,
                                     lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
 
 
@@ -315,9 +315,9 @@ namespace ExperimentBase {
 
             // Now rotate randomly theta amount around the axis.
             {
-                const float sinRotAngle = std::sinf(theta2 / 2.0f);
+                const float sinRotAngle = std::sin(theta2 / 2.0f);
                 float quaternionRotation[4]
-                      = { std::cosf(theta2 / 2.0f), lineUnitDir.x * sinRotAngle,
+                      = { std::cos(theta2 / 2.0f), lineUnitDir.x * sinRotAngle,
                             lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
 
 
@@ -522,9 +522,9 @@ namespace ExperimentBase {
 
             // Now rotate randomly theta amount around the axis.
             {
-                const float sinRotAngle = std::sinf(theta3 / 2.0f);
+                const float sinRotAngle = std::sin(theta3 / 2.0f);
                 float quaternionRotation[4]
-                      = { std::cosf(theta3 / 2.0f), lineUnitDir.x * sinRotAngle,
+                      = { std::cos(theta3 / 2.0f), lineUnitDir.x * sinRotAngle,
                             lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
 
 
@@ -670,8 +670,8 @@ namespace ExperimentBase {
 
         // Now rotate randomly theta amount around the axis.
 
-        const float sinRotAngle = std::sinf(theta / 2.0f);
-        float quaternionRotation[4] = { std::cosf(theta / 2.0f), lineUnitDir.x * sinRotAngle,
+        const float sinRotAngle = std::sin(theta / 2.0f);
+        float quaternionRotation[4] = { std::cos(theta / 2.0f), lineUnitDir.x * sinRotAngle,
             lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
 
         Farlor::Vector3 shiftedPoint = x_t - leftSegmentStart;
@@ -1009,7 +1009,9 @@ namespace ExperimentBase {
         }
 
 #pragma omp parallel for num_threads(maxThreads) default(none)                                     \
-      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread)
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread, numExperimentPaths,\
+      point0, point1, point4, point5, rngPerThread, ds, experimentGeometry, experimentParams, weightLookupTable, \
+      pathNormalizerLog10, combinedWeightValues)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -1444,8 +1446,9 @@ namespace ExperimentBase {
         std::cout << "Starting path generation" << std::endl;
 
 #pragma omp parallel for num_threads(maxThreads) default(none)                                     \
-      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
-            cachedWeightLookupTable)
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread, numExperimentPaths,\
+      rngPerThread, experimentGeometry, experimentParams, actualMaxDs, minDs, cachedWeightLookupTable, \
+      pathNormalizerLog10, combinedWeightValues, numSegmentsPerCurve)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 

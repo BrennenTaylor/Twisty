@@ -1,4 +1,4 @@
-#include <boost\multiprecision\cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_dec_float.hpp>
 
 //typedef boost::multiprecision::number < boost::multiprecision::cpp_dec_float<1000>> cpp_dec_float_custom;
 typedef boost::multiprecision::cpp_dec_float_100 cpp_dec_float_custom;

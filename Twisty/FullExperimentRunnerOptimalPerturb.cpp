@@ -6,6 +6,7 @@
 #include "MathConsts.h"
 #include "PathWeighters.h"
 
+#include <cmath>
 #include <assert.h>
 #include <ctime>
 #include <fstream>
@@ -490,8 +491,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
 
             // Quaternion Rotation
             {
-                const float sinRotAngle = std::sinf(randRotationAngle / 2.0f);
-                float quaternionRotation[4] = { std::cosf(randRotationAngle / 2.0f),
+                const float sinRotAngle = std::sin(randRotationAngle / 2.0f);
+                float quaternionRotation[4] = { std::cos(randRotationAngle / 2.0f),
                     N.x * sinRotAngle, N.y * sinRotAngle, N.z * sinRotAngle };
 
                 for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
@@ -656,8 +657,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
 
             // Quaternion Rotation
             {
-                const float sinRotAngle = std::sinf(randRotationAngle / 2.0f);
-                float quaternionRotation[4] = { std::cosf(randRotationAngle / 2.0f),
+                const float sinRotAngle = std::sin(randRotationAngle / 2.0f);
+                float quaternionRotation[4] = { std::cos(randRotationAngle / 2.0f),
                     N.x * sinRotAngle, N.y * sinRotAngle, N.z * sinRotAngle };
 
                 for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
@@ -747,7 +748,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     const float phi1 = std::acos(segment1Dir.z);
                     const float x = segment1Dir.Dot(Farlor::Vector3(1.0f, 0.0f, 0.0f));
                     const float y = segment1Dir.Dot(Farlor::Vector3(0.0f, 1.0f, 0.0f));
-                    const float theta1 = std::atan2f(y, x);
+                    const float theta1 = std::atan2(y, x);
 
 
                     // Extract the theta2 value
@@ -765,7 +766,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     const float theta2_x = vectorInQuestion.Dot(theta2_X);
                     const float theta2_y = vectorInQuestion.Dot(theta2_Y);
 
-                    const float theta2 = std::atan2f(theta2_y, theta2_x);
+                    const float theta2 = std::atan2(theta2_y, theta2_x);
 
 
                     // Save off the values

@@ -16,7 +16,6 @@
 
 #include <FMath/Vector3.h>
 
-#include <corecrt_math.h>
 #include <nlohmann/json.hpp>
 
 #include <chrono>

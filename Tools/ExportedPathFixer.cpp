@@ -1,4 +1,4 @@
-#include <boost\multiprecision\cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #include "nlohmann/json.hpp"
 
@@ -158,4 +158,5 @@ int main(int argc, char *argv[])
     }
 
     std::cout << "Num Read: " << numRead << std::endl;
+    return 0;
 }

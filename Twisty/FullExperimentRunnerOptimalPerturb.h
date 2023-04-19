@@ -9,6 +9,8 @@
  *
  */
 
+#include <cmath>
+
 #include "ExperimentRunner.h"
 #include "PathWeightUtils.h"
 #include "PerturbUtils.h"

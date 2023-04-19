@@ -329,9 +329,9 @@ int main(int argc, char *argv[])
 
                 // Now rotate randomly theta amount around the axis.
                 {
-                    const float sinRotAngle = std::sinf(theta2 / 2.0f);
+                    const float sinRotAngle = std::sin(theta2 / 2.0f);
                     float quaternionRotation[4]
-                          = { std::cosf(theta2 / 2.0f), lineUnitDir.x * sinRotAngle,
+                          = { std::cos(theta2 / 2.0f), lineUnitDir.x * sinRotAngle,
                                 lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
 
 

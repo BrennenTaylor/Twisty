@@ -8,7 +8,7 @@
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 
 
-#include <boost\multiprecision\cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #include "CombinedWeightUtils.h"
 #include "CurvePerturbUtils.h"

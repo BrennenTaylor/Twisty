@@ -40,34 +40,20 @@ add_library(Twisty
 target_link_libraries(Twisty
     PUBLIC FMath::FMath
     PUBLIC glm
-    PUBLIC shlwapi
     PUBLIC nlohmann_json::nlohmann_json
     PUBLIC OpenMP::OpenMP_CXX
 )
+if(WIN32)
+target_link_libraries(Twisty
+    PUBLIC shlwapi
+)
+endif()
 
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}
     PUBLIC $<$<BOOL:${USE_CUDA}>:${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}>
 )
-
-target_compile_options(Twisty
-    PUBLIC $<$<NOT:$<BOOL:${WIN32}>>:"-lstdc++fs">
-)
-
-# if(WIN32)
-# target_compile_options(Twisty
-# PUBLIC $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=/openmp>
-# PUBLIC "/openmp"
-# )
-# endif()
-
-# We dont want to generate this on windows atm. Linker is only non-windows platforms
-if(NOT WIN32)
-    target_link_options(Twisty
-        PUBLIC "-pthread -lstdc++fs" >
-    )
-endif()
 
 if(USE_CUDA)
     set_target_properties(Twisty PROPERTIES CUDA_ARCHITECTURES "52;70;72")

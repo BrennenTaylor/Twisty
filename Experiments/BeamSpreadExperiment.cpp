@@ -1,6 +1,5 @@
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "boost/multiprecision/cpp_dec_float.hpp"
-#include <corecrt_math_defines.h>
 #include <stdexcept>
 
 #if defined(USE_CUDA)

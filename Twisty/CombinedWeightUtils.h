@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include <FMath\Vector3.h>
+#include <FMath/Vector3.h>
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
@@ -174,4 +174,4 @@ boost::multiprecision::cpp_dec_float_100 ExtractFinalValue(
 }
 }
 
-#endif ACTUAL_IMPLEMENTATION
+#endif //ACTUAL_IMPLEMENTATION
