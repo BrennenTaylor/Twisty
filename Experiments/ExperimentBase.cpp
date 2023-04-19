@@ -1633,7 +1633,9 @@ namespace ExperimentBase {
 
 #pragma omp parallel for num_threads(maxThreads) default(none)                                     \
       shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
-            environmentCachedWeightLookupTable, objectCachedWeightLookupTable)
+            environmentCachedWeightLookupTable, objectCachedWeightLookupTable, numExperimentPaths, \
+            rngPerThread, actualMaxDs, minDs, experimentGeometry, numSegmentsPerCurve, experimentParams, \
+            pathNormalizerLog10, std::cout, combinedWeightValues)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 

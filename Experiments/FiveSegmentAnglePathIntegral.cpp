@@ -292,7 +292,10 @@ int main(int argc, char *argv[])
         }
     }
 
-#pragma omp parallel for num_threads(maxThreads) default(none) shared(histogramPerThread)
+#pragma omp parallel for num_threads(maxThreads) default(none) shared(histogramPerThread, \
+      numPhi1Vals, dPhi1, numTheta1Vals, dTheta1, numTheta2Vals, dTheta2,\
+       ds, point0, point1, point4, point5, experimentGeometry, experimentParams, \
+       weightingIntegralsRawPointer, pathNormalizerLog10, result)
     for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
         const int threadId = omp_get_thread_num();
 

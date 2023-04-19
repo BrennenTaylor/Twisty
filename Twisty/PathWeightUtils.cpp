@@ -213,7 +213,7 @@ namespace PathWeighting {
             const float secs = secondsRemaining - mins * 60.0f;
 
             std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins << "m"
-                      << secs << "s\t\t";
+                      << secs << "s\t\t" << std::flush;
             std::cout.flags(flags);
         }
         CacheWeightTable();
