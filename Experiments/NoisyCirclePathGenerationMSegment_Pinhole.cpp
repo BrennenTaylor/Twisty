@@ -23,6 +23,92 @@
 #include <memory>
 #include <filesystem>
 
+#include <openvdb/openvdb.h>
+#include <openvdb/tools/LevelSetUtil.h>
+#include <openvdb/tools/LevelSetSphere.h>
+#include <openvdb/tools/Composite.h>
+
+class VDBVolume
+{
+public:
+
+    VDBVolume(const float outerRadius, float innerRadius) {
+        m_grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(outerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
+        openvdb::FloatGrid::Ptr removeGrid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(
+              innerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
+        m_grid = openvdb::tools::csgDifferenceCopy(*m_grid, *removeGrid);
+        if (m_grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
+            openvdb::tools::sdfToFogVolume(*m_grid);
+        }
+    }
+
+    VDBVolume(std::string filename, float scale, float xOffset, float yOffset, float zOffset) {
+        openvdb::io::File vdbFile(filename);
+        vdbFile.open();
+
+        openvdb::GridBase::Ptr baseGrid = vdbFile.readGrid(vdbFile.beginName().gridName());
+        vdbFile.close();
+
+        m_grid = openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
+        if (m_grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
+            openvdb::tools::sdfToFogVolume(*m_grid);
+        }
+
+        openvdb::math::Transform::Ptr linearTransform
+              = openvdb::math::Transform::createLinearTransform(scale);
+        linearTransform->postTranslate(openvdb::Vec3d(xOffset, yOffset, zOffset));
+        m_grid->setTransform(linearTransform);
+    }
+
+      // We auto center with just the scale
+    VDBVolume(std::string filename, float scale) {
+        openvdb::io::File vdbFile(filename);
+        vdbFile.open();
+
+        openvdb::GridBase::Ptr baseGrid = vdbFile.readGrid(vdbFile.beginName().gridName());
+        vdbFile.close();
+
+        m_grid = openvdb::gridPtrCast<openvdb::FloatGrid>(baseGrid);
+        if (m_grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
+            openvdb::tools::sdfToFogVolume(*m_grid);
+        }
+
+        openvdb::math::Transform::Ptr linearTransform
+              = openvdb::math::Transform::createLinearTransform(scale);
+        m_grid->setTransform(linearTransform);
+
+      openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        openvdb::Vec3d offset = m_grid->indexToWorld(bbox.max()) + m_grid->indexToWorld(bbox.min());
+            offset *= 0.5;
+
+        openvdb::math::Transform::Ptr offsetLinear
+              = openvdb::math::Transform::createLinearTransform(scale);
+        offsetLinear->postTranslate(-offset + openvdb::Vec3d(0.0f, 0.0f, 5.0f));
+        m_grid->setTransform(offsetLinear);
+    }
+
+    void PrintMetadata() const {
+        for (openvdb::MetaMap::MetaIterator iter = m_grid->beginMeta(); iter != m_grid->endMeta();
+              ++iter) {
+            const std::string &name = iter->first;
+            openvdb::Metadata::Ptr value = iter->second;
+            std::string valueAsString = value->str();
+            std::cout << name << " = " << valueAsString << std::endl;
+        }
+    }
+
+    void PrintWorldBB() {
+        openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        std::cout << m_grid->indexToWorld(bbox.min()) << ", " << m_grid->indexToWorld(bbox.max())
+                  << std::endl;
+    }
+
+    openvdb::FloatGrid::Ptr AccessGrid() { return m_grid; }
+
+private:
+    openvdb::FloatGrid::Ptr m_grid = nullptr;
+};
+
 std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
 
@@ -119,7 +205,7 @@ int main(int argc, char *argv[])
 
     Farlor::Vector3 cameraCenter(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
     Farlor::Vector3 centerOfFocalFrame(
-          experimentSpecificParams.distanceFromPlane * 0.5, 0.0f, 0.0f);
+          experimentSpecificParams.distanceFromPlane - 5.0, 0.0f, 0.0f);
 
     // Bootstrap method
     const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
@@ -164,8 +250,8 @@ int main(int argc, char *argv[])
           outputDirectoryPath.string(), std::string("objectLookupTable.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
-    environmentWeightingParams.absorption = 0.001f;
-    environmentWeightingParams.scatter = 0.0000001f;
+    environmentWeightingParams.absorption = 0.0000000001f;
+    environmentWeightingParams.scatter = 0.0f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -184,6 +270,13 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 
+// Must call once
+    openvdb::initialize();
+
+    VDBVolume bunny("bunny.vdb", 1.0f / 75.0f);
+    // VDBVolume bunny(OuterSphereRadius, InnerSphereRadius);
+    bunny.PrintMetadata();
+    bunny.PrintWorldBB();
 
     std::mt19937_64 rng(0);
 
@@ -232,10 +325,10 @@ int main(int argc, char *argv[])
             const uint64_t rngSeed = uniformInt(rng);
 
             const twisty::ExperimentBase::Result result
-                  = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
+                  = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
                         experimentParams.numPathsInExperiment, experimentParams.numSegmentsPerCurve,
                         experimentGeometry, experimentParams, pathNormalizerLog10,
-                        environmentCachedLookupTable, objectCachedLookupTable, maxDs);
+                        environmentCachedLookupTable, objectCachedLookupTable, maxDs, bunny.AccessGrid());
             const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
                   = result.totalWeight;
 
@@ -282,13 +375,13 @@ int main(int argc, char *argv[])
 
             boost::multiprecision::cpp_dec_float_100 weight_log10
                   = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
-            if (weight_log10 > -10) {
-                std::cout << "Odd bug encountered, lets toss the path" << std::endl;
-            } else {
+            // if (weight_log10 > -10) {
+            //     std::cout << "Odd bug encountered, lets toss the path" << std::endl;
+            // } else {
                 if (result.numValidPaths > 0) {
                     framePixels[frameIdx] = importanceSampledWeight * cosFactor;
                 }
-            }
+            // }
         }
     }
 
@@ -327,7 +420,7 @@ int main(int argc, char *argv[])
     std::cout << "Average run time: " << averageRunTimeMinutes << "m" << std::endl;
 
 
-    OutputRawData(outputDirectoryPath, combinedPixels, experimentSpecificParams.framePixelCount);
+    OutputRawData(outputDirectoryPath, framePixels, experimentSpecificParams.framePixelCount);
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedCombined
           = CalculateNormalizedFrames(framePixels);
@@ -382,7 +475,7 @@ std::vector<boost::multiprecision::cpp_dec_float_100> CalculateOffsetFrames(
     boost::multiprecision::cpp_dec_float_100 maximum
           = *std::max_element(rawFrameWeights.begin(), rawFrameWeights.end());
     boost::multiprecision::cpp_dec_float_100 invMax
-          = boost::multiprecision::cpp_dec_float_100(1.0) / maximum;
+          = boost::multiprecision::cpp_dec_float_100(100.0) / maximum;
 
     std::for_each(result.begin(), result.end(),
           [&invMax](boost::multiprecision::cpp_dec_float_100 &n) { n = n * invMax; });

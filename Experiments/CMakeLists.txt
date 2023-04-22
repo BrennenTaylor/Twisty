@@ -1,3 +1,9 @@
+if (LINUX)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
+# set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
+find_package(OpenVDB REQUIRED)
+endif()
+
 add_library(ExperimentBase
     ExperimentBase.h
     ExperimentBase.cpp
@@ -18,7 +24,9 @@ target_link_libraries(ExperimentBase
     PUBLIC Twisty
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
+    PUBLIC OpenVDB::openvdb
 )
+
 add_executable(FullExperiment
     FullExperiment.cpp
 )

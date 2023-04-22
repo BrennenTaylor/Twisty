@@ -285,10 +285,10 @@ namespace PathWeighting {
     // Lookup table integrand
     WeightLookupTableIntegral::WeightLookupTableIntegral(
           const WeightingParameters &weightingParams, float ds)
-        : BaseWeightLookupTable(weightingParams, ds, 0.0f, (2.3f / ds) * 1.1f)
+        : BaseWeightLookupTable(weightingParams, ds, 0.0f, (2.3f / ds) * 1.5f)
     {
         m_minCurvature = 0.0f;
-        m_maxCurvature = (2.3f / ds) * 1.1f;
+        m_maxCurvature = (2.3f / ds) * 1.5f;
         m_curvatureStepSize
               = (m_maxCurvature - m_minCurvature) / (m_weightingParams.numCurvatureSteps - 1);
     }
@@ -496,7 +496,7 @@ namespace PathWeighting {
 
                 MinMaxCurvature result;
                 result.minCurvature = 0.0f;
-                result.maxCurvature = (2.3f / ds) * 1.1f;
+                result.maxCurvature = (2.3f / ds) * 1.5f;
                 return result;
             } break;
             default: {

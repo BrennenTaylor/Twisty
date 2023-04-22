@@ -4,6 +4,8 @@
 #include "CurvePerturbUtils.h"
 #include "PathWeighters.h"
 
+#include <openvdb/tools/Interpolation.h>
+
 #include <stdint.h>
 
 namespace twisty {
@@ -126,6 +128,116 @@ namespace PathWeighting {
             float absorption = environmentAbsorption;
             float const *pWeightLookupTable = environmentLookupTable.AccessLookupTable().data();
             if ((currentPosition - sphereCenter).SqrMagnitude() <= (radius * radius)) {
+                pWeightLookupTable = objectLookupTable.AccessLookupTable().data();
+            }
+
+
+            // Currently assumes that we dont need a world space lookup
+            const double absorptionFactor = std::exp(-absorption * ds);
+
+            // Extract curvature
+            float curvature = curvatures[segIdx];
+
+            if ((curvature < minCurvature) && abs(curvature - minCurvature) < 1e-3) {
+                curvature = minCurvature;
+            }
+
+            if (curvature < minCurvature) {
+                printf("Error: curvature less than min curvature: %f < %f\n", curvature,
+                      minCurvature);
+                printf("Forcing to min curvature\n");
+                curvature = minCurvature;
+            }
+
+            if (curvature > maxCurvature) {
+                printf("Error: curvature greater than max curvature: %f > %f\n", curvature,
+                      maxCurvature);
+                printf("Forcing to max curvature\n");
+                curvature = maxCurvature;
+            }
+
+            float distanceFromMin = curvature - minCurvature;
+            float realIdx = distanceFromMin / curvatureStepSize;
+            int32_t leftIdx = (int32_t)floor(realIdx);
+            int32_t rightIdx = leftIdx + 1;
+
+            if (leftIdx == (weightLookupTableSize - 1)) {
+                rightIdx--;  // Bump it left 1, it doesnt really matter anymore anyways.
+            }
+
+            float leftLookup = pWeightLookupTable[leftIdx];
+            float rightLookup = pWeightLookupTable[rightIdx];
+
+            float interpDist = distanceFromMin - (leftIdx * curvatureStepSize);
+
+            double interpolatedResult
+                  = leftLookup * (1.0f - interpDist) + (rightLookup * interpDist);
+
+            // Adds in absorption per segment
+            interpolatedResult *= absorptionFactor;
+
+            // Take the natural log of the interpolated results
+            double interpolatedResultLog10 = log10(interpolatedResult);
+            if (isnan(interpolatedResultLog10)) {
+                printf("Error: invalid segment weight, is nan\n");
+                return { false, 0.0f };
+            }
+
+            // Update the running path weight. We also want to cache the segment weights
+            runningPathWeightLog10 += interpolatedResultLog10;
+        }
+        // Factor in absorption
+
+        if (isnan(runningPathWeightLog10)) {
+            printf("Error: running path weight is nan\n");
+            return { false, 0.0f };
+        }
+        return { true, runningPathWeightLog10 };
+    }
+
+    PathWeightValue WeightCurveViaPositionLog10_PositionDependent(
+          const std::vector<Farlor::Vector3> &positions, const std::vector<float> &curvatures,
+          const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable,
+          const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable,
+          const float environmentAbsorption, openvdb::FloatGrid::Ptr grid)
+    {
+        if (curvatures.empty() || positions.empty()) {
+            return { false, 0.0 };
+        }
+
+        const float ds = environmentLookupTable.GetDs();
+        const float minCurvature = environmentLookupTable.GetMinCurvature();
+        const float maxCurvature = environmentLookupTable.GetMaxCurvature();
+        const float curvatureStepSize = environmentLookupTable.GetCurvatureStepSize();
+        const uint32_t weightLookupTableSize = environmentLookupTable.AccessLookupTable().size();
+
+        // Calculate value
+        double runningPathWeightLog10 = 0.0;
+        for (int segIdx = 0; segIdx < curvatures.size(); ++segIdx) {
+            // We look at the end of the segment
+            const Farlor::Vector3 currentPosition = positions[segIdx + 1];
+
+            openvdb::Vec3d worldSpacePoint(currentPosition.z, currentPosition.y, currentPosition.x);
+            openvdb::Vec3d indexSpacePoint = grid->worldToIndex(worldSpacePoint);
+            // openvdb::Coord indexSpaceCoord(indexSpacePoint);
+            openvdb::FloatGrid::Accessor accessor = grid->getAccessor();
+            // const double value = accessor.getValue(indexSpaceCoord);
+
+            openvdb::FloatGrid::ValueType sampledDensity
+                  = openvdb::tools::BoxSampler::sample(grid->tree(), indexSpacePoint) * 1.0f;
+
+            // TODO: Generalize
+            // For now, hardcode the sphere
+            // const Farlor::Vector3 sphereCenter(5.0f, 0.0f, 0.0f);
+            // const float radius = 2.0f;
+
+            // Lookup absorbtion factor based on position
+            float absorption = environmentAbsorption;
+            float const *pWeightLookupTable = environmentLookupTable.AccessLookupTable().data();
+
+            // Access current density value
+            if (sampledDensity > 0.0) {
+                absorption = 0.1f;
                 pWeightLookupTable = objectLookupTable.AccessLookupTable().data();
             }
 

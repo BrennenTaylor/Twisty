@@ -58,7 +58,7 @@
             "binaryDir": "${sourceDir}/build_ninja_linux/",
             "cacheVariables": {
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_CXX_FLAGS": "-std=c++1z",
+                "CMAKE_CXX_FLAGS": "-std=c++1z -fPIC",
                 "BUILD_SHARED_LIBS": "OFF"
             }
         }
