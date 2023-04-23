@@ -4,6 +4,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
 find_package(OpenVDB REQUIRED)
 endif()
 
+FetchContent_Declare(tinyexr
+    GIT_REPOSITORY "https://github.com/syoyo/tinyexr"
+    GIT_TAG "release"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+)
+FetchContent_MakeAvailable(tinyexr)
+
 add_library(ExperimentBase
     ExperimentBase.h
     ExperimentBase.cpp
@@ -355,6 +363,29 @@ target_link_libraries(NoisyCirclePathGenerationMSegment_Pinhole
     PUBLIC Twisty
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
+)
+
+add_executable(NoisyCirclePathGenerationMSegment_RaycastVolume
+    NoisyCirclePathGenerationMSegment_RaycastVolume.cpp
+)
+
+target_compile_features(NoisyCirclePathGenerationMSegment_RaycastVolume
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(NoisyCirclePathGenerationMSegment_RaycastVolume
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(NoisyCirclePathGenerationMSegment_RaycastVolume
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+    PUBLIC tinyexr_include
 )
 
 add_executable(Simple_FiveSegment_Analytical
