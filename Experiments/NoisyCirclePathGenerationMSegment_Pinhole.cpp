@@ -226,11 +226,11 @@ int main(int argc, char *argv[])
     }
 
     // We are going to bake a big ol table, then use this whenever we need.
-    const float minArclength = 5.0f;
+    const float minArclength = 0.0f;
     const float maxArclength = 15.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
-    const uint32_t numArclengths = 1000;
+    const uint32_t numArclengths = 2000;
 
     std::filesystem::path outputDirectoryPath = experimentParams.experimentDirPath;
     if (!std::filesystem::exists(outputDirectoryPath)) {
