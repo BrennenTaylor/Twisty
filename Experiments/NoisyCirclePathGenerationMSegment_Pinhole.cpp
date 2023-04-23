@@ -28,21 +28,23 @@
 #include <openvdb/tools/LevelSetSphere.h>
 #include <openvdb/tools/Composite.h>
 
-class VDBVolume
-{
-public:
-
-    VDBVolume(const float outerRadius, float innerRadius) {
-        m_grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(outerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
-        openvdb::FloatGrid::Ptr removeGrid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(
-              innerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
+class VDBVolume {
+   public:
+    VDBVolume(const float outerRadius, float innerRadius)
+    {
+        m_grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(
+              outerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
+        openvdb::FloatGrid::Ptr removeGrid
+              = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>(
+                    innerRadius, openvdb::Vec3f(0.0f, 0.0f, 0.0f), 0.01f);
         m_grid = openvdb::tools::csgDifferenceCopy(*m_grid, *removeGrid);
         if (m_grid->getGridClass() == openvdb::GRID_LEVEL_SET) {
             openvdb::tools::sdfToFogVolume(*m_grid);
         }
     }
 
-    VDBVolume(std::string filename, float scale, float xOffset, float yOffset, float zOffset) {
+    VDBVolume(std::string filename, float scale, float xOffset, float yOffset, float zOffset)
+    {
         openvdb::io::File vdbFile(filename);
         vdbFile.open();
 
@@ -56,12 +58,14 @@ public:
 
         openvdb::math::Transform::Ptr linearTransform
               = openvdb::math::Transform::createLinearTransform(scale);
+        linearTransform->postRotate(-openvdb::math::pi<double>() / 2.0, openvdb::math::Y_AXIS);
         linearTransform->postTranslate(openvdb::Vec3d(xOffset, yOffset, zOffset));
         m_grid->setTransform(linearTransform);
     }
 
-      // We auto center with just the scale
-    VDBVolume(std::string filename, float scale) {
+    // We auto center with just the scale
+    VDBVolume(std::string filename, float scale)
+    {
         openvdb::io::File vdbFile(filename);
         vdbFile.open();
 
@@ -75,19 +79,22 @@ public:
 
         openvdb::math::Transform::Ptr linearTransform
               = openvdb::math::Transform::createLinearTransform(scale);
+        linearTransform->preRotate(-openvdb::math::pi<double>() / 2.0, openvdb::math::Y_AXIS);
         m_grid->setTransform(linearTransform);
 
-      openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
         openvdb::Vec3d offset = m_grid->indexToWorld(bbox.max()) + m_grid->indexToWorld(bbox.min());
-            offset *= 0.5;
+        offset *= 0.5;
 
         openvdb::math::Transform::Ptr offsetLinear
               = openvdb::math::Transform::createLinearTransform(scale);
-        offsetLinear->postTranslate(-offset + openvdb::Vec3d(0.0f, 0.0f, 5.0f));
+        offsetLinear->preRotate(-openvdb::math::pi<double>() / 2.0, openvdb::math::Y_AXIS);
+        offsetLinear->postTranslate(-offset + openvdb::Vec3d(8.0, 0.0, 0.0));
         m_grid->setTransform(offsetLinear);
     }
 
-    void PrintMetadata() const {
+    void PrintMetadata() const
+    {
         for (openvdb::MetaMap::MetaIterator iter = m_grid->beginMeta(); iter != m_grid->endMeta();
               ++iter) {
             const std::string &name = iter->first;
@@ -97,7 +104,8 @@ public:
         }
     }
 
-    void PrintWorldBB() {
+    void PrintWorldBB()
+    {
         openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
         std::cout << m_grid->indexToWorld(bbox.min()) << ", " << m_grid->indexToWorld(bbox.max())
                   << std::endl;
@@ -105,7 +113,7 @@ public:
 
     openvdb::FloatGrid::Ptr AccessGrid() { return m_grid; }
 
-private:
+   private:
     openvdb::FloatGrid::Ptr m_grid = nullptr;
 };
 

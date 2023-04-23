@@ -217,7 +217,7 @@ namespace PathWeighting {
             // We look at the end of the segment
             const Farlor::Vector3 currentPosition = positions[segIdx + 1];
 
-            openvdb::Vec3d worldSpacePoint(currentPosition.z, currentPosition.y, currentPosition.x);
+            openvdb::Vec3d worldSpacePoint(currentPosition.x, currentPosition.y, currentPosition.z);
             openvdb::Vec3d indexSpacePoint = grid->worldToIndex(worldSpacePoint);
             // openvdb::Coord indexSpaceCoord(indexSpacePoint);
             openvdb::FloatGrid::Accessor accessor = grid->getAccessor();
