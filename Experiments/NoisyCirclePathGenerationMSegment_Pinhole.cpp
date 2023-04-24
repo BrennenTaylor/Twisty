@@ -234,8 +234,8 @@ int main(int argc, char *argv[])
     }
 
     // We are going to bake a big ol table, then use this whenever we need.
-    const float minArclength = 0.0f;
-    const float maxArclength = 15.0f;
+    const float minArclength = 5.0f;
+    const float maxArclength = 20.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 2000;
@@ -304,11 +304,11 @@ int main(int argc, char *argv[])
 
             // Flip the plane normal so we are facing the correct way
 
-            const Farlor::Vector3 recieverPos = centerOfFocalFrame
+            const Farlor::Vector3 pixelCenter = centerOfFocalFrame
                   + planeNormalO1 * (pixelIdxY * pixelLength)
                   + planeNormalO2 * (pixelIdxZ * pixelLength);
 
-            const Farlor::Vector3 recieverDir = (cameraCenter - recieverPos).Normalized();
+            const Farlor::Vector3 recieverDir = (cameraCenter - pixelCenter).Normalized();
 
             // Emitter direction
             const Farlor::Vector3 emitterDir = (cameraCenter - emitterStart).Normalized();
@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
             twisty::PerturbUtils::BoundaryConditions experimentGeometry;
             experimentGeometry.m_startPos = emitterStart;
             experimentGeometry.m_startDir = emitterDir;
-            experimentGeometry.m_endPos = recieverPos;
+            experimentGeometry.m_endPos = cameraCenter;
             experimentGeometry.m_endDir = recieverDir;
             experimentGeometry.arclength = 0.0f;
 
