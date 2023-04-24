@@ -1641,7 +1641,7 @@ namespace ExperimentBase {
 
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
             const float ds
-                  = std::pow(uniformRand(rngPerThread[threadId]), 3.0f) * (actualMaxDs - minDs)
+                  = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs)
                   + minDs;
 
             twisty::PathWeighting::BaseWeightLookupTable &environmentWeightLookupTable
@@ -1852,7 +1852,7 @@ namespace ExperimentBase {
 
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
             const float ds
-                  = std::pow(uniformRand(rngPerThread[threadId]), 3.0f) * (actualMaxDs - minDs)
+                  = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs)
                   + minDs;
 
             twisty::PathWeighting::BaseWeightLookupTable &environmentWeightLookupTable
