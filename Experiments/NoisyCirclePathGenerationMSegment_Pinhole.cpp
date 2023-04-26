@@ -213,20 +213,43 @@ int main(int argc, char *argv[])
 
     Farlor::Vector3 cameraCenter(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
     Farlor::Vector3 centerOfFocalFrame(
-          experimentSpecificParams.distanceFromPlane - 5.0, 0.0f, 0.0f);
+          experimentSpecificParams.distanceFromPlane - 15.0, 0.0f, 0.0f);
 
-    // Bootstrap method
-    const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
+    std::vector<Farlor::Vector3> emitterLocations;
+//     emitterLocations.push_back(Farlor::Vector3(5.0f, 10.0f, 0.0f));
+//     emitterLocations.push_back(Farlor::Vector3(5.0f, -10.0f, 0.0f));
+//     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 10.0f));
+//     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, -10.0f)); 
 
-    int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
+        emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
+        emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
+        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
+        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
+        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
+        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
+        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
 
-    // Experiment start time
-    auto startTime = std::chrono::high_resolution_clock::now();
+        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
 
-    // Vector storing each runs time
-    std::vector<uint64_t> runTimes;
+        //     emitterLocations.push_back(Farlor::Vector3(24.0f, 0.0f, 0.0f));
 
-    for (uint32_t r = 0; r < experimentSpecificParams.framePixelCount; r++) {
+        std::vector<Farlor::Vector3> emitterDirections;
+        emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
+        emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
+        emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
+        emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
+        //     emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
+        //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
+        //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
+        //     emitterDirections.push_back(Farlor::Vector3(1.0f, 0.0f, 0.0f));
+        //     emitterDirections.push_back(Farlor::Vector3(-1.0f, 0.0f, 0.0f));
+
+        int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
+
+        // Vector storing each runs time
+        std::vector<uint64_t> runTimes;
+
+        for (uint32_t r = 0; r < experimentSpecificParams.framePixelCount; r++) {
         for (uint32_t c = 0; c < experimentSpecificParams.framePixelCount; c++) {
             const uint32_t frameIdx = r * experimentSpecificParams.framePixelCount + c;
             framePixels[frameIdx] = 0.0;
@@ -234,8 +257,8 @@ int main(int argc, char *argv[])
     }
 
     // We are going to bake a big ol table, then use this whenever we need.
-    const float minArclength = 5.0f;
-    const float maxArclength = 20.0f;
+    const float minArclength = 1.0f;
+    const float maxArclength = 40.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 2000;
@@ -252,14 +275,18 @@ int main(int argc, char *argv[])
                   << std::endl;
     }
 
+      std::cout << "Object scatter: " << experimentParams.weightingParameters.scatter << std::endl;
+      std::cout << "Object absorption: " << experimentParams.weightingParameters.absorption << std::endl;
+
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
     objectCachedLookupTable.GetWeightLookupTable(minDs)->ExportValues(
           outputDirectoryPath.string(), std::string("objectLookupTable.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
-    environmentWeightingParams.absorption = 0.0000000001f;
-    environmentWeightingParams.scatter = 0.0f;
+    environmentWeightingParams.absorption = 0.0001f;
+    environmentWeightingParams.scatter = 0.0001f;
+    environmentWeightingParams.mu = 0.0001f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -278,7 +305,7 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 
-// Must call once
+    // Must call once
     openvdb::initialize();
 
     VDBVolume bunny("bunny.vdb", 1.0f / 75.0f);
@@ -286,69 +313,81 @@ int main(int argc, char *argv[])
     bunny.PrintMetadata();
     bunny.PrintWorldBB();
 
-    std::mt19937_64 rng(0);
+    // Experiment start time
+    auto startTime = std::chrono::high_resolution_clock::now();
 
-    int64_t totalOpCount
-          = experimentSpecificParams.framePixelCount * experimentSpecificParams.framePixelCount;
+      // Setup random number generator
+    const uint32_t overallRngSeed = time(0);
+    std::cout << "Overall RNG Seed: " << overallRngSeed << std::endl;
+     std::mt19937_64 rng(overallRngSeed);
+
+    int64_t totalOpCount = experimentSpecificParams.framePixelCount
+          * experimentSpecificParams.framePixelCount * emitterLocations.size();
     int64_t currentOpCount = 0;
 
-    for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
-        //std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
-        for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
-            //std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
+    for (int emitterIdx = 0; emitterIdx < emitterLocations.size(); emitterIdx++) {
+        for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
+            //std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
+            for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
+                //std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
 
-            const uint32_t frameIdx
-                  = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
-                  + (pixelIdxZ + halfFrameWidth);
+                const uint32_t frameIdx
+                      = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
+                      + (pixelIdxZ + halfFrameWidth);
 
 
-            // Flip the plane normal so we are facing the correct way
+                // Flip the plane normal so we are facing the correct way
 
-            const Farlor::Vector3 pixelCenter = centerOfFocalFrame
-                  + planeNormalO1 * (pixelIdxY * pixelLength)
-                  + planeNormalO2 * (pixelIdxZ * pixelLength);
+                const Farlor::Vector3 pixelCenter = centerOfFocalFrame
+                      + planeNormalO1 * (pixelIdxY * pixelLength)
+                      + planeNormalO2 * (pixelIdxZ * pixelLength);
 
-            const Farlor::Vector3 recieverDir = (cameraCenter - pixelCenter).Normalized();
+                const Farlor::Vector3 recieverDir = (cameraCenter - pixelCenter).Normalized();
 
-            // Emitter direction
-            const Farlor::Vector3 emitterDir = (cameraCenter - emitterStart).Normalized();
+                // Emitter direction
+                twisty::PerturbUtils::BoundaryConditions experimentGeometry;
+                experimentGeometry.m_startPos = emitterLocations[emitterIdx];
+                experimentGeometry.m_startDir = emitterDirections[emitterIdx];
+                experimentGeometry.m_endPos = cameraCenter;
+                experimentGeometry.m_endDir = recieverDir;
+                experimentGeometry.arclength = 0.0f;
 
-            twisty::PerturbUtils::BoundaryConditions experimentGeometry;
-            experimentGeometry.m_startPos = emitterStart;
-            experimentGeometry.m_startDir = emitterDir;
-            experimentGeometry.m_endPos = cameraCenter;
-            experimentGeometry.m_endDir = recieverDir;
-            experimentGeometry.arclength = 0.0f;
+                const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
+                const float cosFactor = revserseDir.Dot(planeNormal);
 
-            const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
-            const float cosFactor = revserseDir.Dot(planeNormal);
+                const double pathNormalizerLog10 = 0.0f;
 
-            const double pathNormalizerLog10 = 0.0f;
+                // Single run start time
+                const auto singleRunStartTime = std::chrono::high_resolution_clock::now();
 
-            // Single run start time
-            const auto singleRunStartTime = std::chrono::high_resolution_clock::now();
+                std::uniform_int_distribution<uint64_t> uniformInt(
+                      0, std::numeric_limits<uint64_t>::max() - 250);
+                const uint64_t rngSeed = uniformInt(rng);
 
-            std::uniform_int_distribution<uint64_t> uniformInt(
-                  0, std::numeric_limits<uint64_t>::max() - 250);
-            const uint64_t rngSeed = uniformInt(rng);
+            //     const twisty::ExperimentBase::Result result
+            //           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
+            //                 experimentParams.numPathsInExperiment,
+            //                 experimentParams.numSegmentsPerCurve, experimentGeometry,
+            //                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+            //                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
+                const twisty::ExperimentBase::Result result
+                      = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
+                            experimentParams.numPathsInExperiment,
+                            experimentParams.numSegmentsPerCurve, experimentGeometry,
+                            experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+                            objectCachedLookupTable, maxDs);
+                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
+                      = result.totalWeight;
 
-            const twisty::ExperimentBase::Result result
-                  = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
-                        experimentParams.numPathsInExperiment, experimentParams.numSegmentsPerCurve,
-                        experimentGeometry, experimentParams, pathNormalizerLog10,
-                        environmentCachedLookupTable, objectCachedLookupTable, maxDs, bunny.AccessGrid());
-            const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
-                  = result.totalWeight;
+                currentOpCount++;
 
-            currentOpCount++;
-
-            // Single run end time
-            const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
-            // Add time difference to runTimes vector
-            const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
-                  singleRunEndTime - singleRunStartTime);
-            runTimes.push_back(timeDiff.count());
-            /*
+                // Single run end time
+                const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
+                // Add time difference to runTimes vector
+                const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                      singleRunEndTime - singleRunStartTime);
+                runTimes.push_back(timeDiff.count());
+                /*
                 std::cout << "Num valid paths: " << result.numValidPaths << "/"
                           << result.numPathsTotal << std::endl;
                 std::cout << "Percent valid paths: "
@@ -360,36 +399,39 @@ int main(int argc, char *argv[])
 */
 
 
-            std::ios_base::fmtflags flags = std::cout.flags();
-            std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
-                      << (100.0f * currentOpCount) / totalOpCount << "%";
+                std::ios_base::fmtflags flags = std::cout.flags();
+                std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
+                          << (100.0f * currentOpCount) / totalOpCount << "%";
 
-            // Estimated time to completion
-            std::chrono::high_resolution_clock::time_point currentTime
-                  = std::chrono::high_resolution_clock::now();
-            // Elapsed time in seconds
-            const float elapsedSeconds = std::chrono::duration_cast<std::chrono::duration<float>>(
-                  currentTime - startTime)
-                                               .count();
-            const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
-            const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
+                // Estimated time to completion
+                std::chrono::high_resolution_clock::time_point currentTime
+                      = std::chrono::high_resolution_clock::now();
+                // Elapsed time in seconds
+                const float elapsedSeconds
+                      = std::chrono::duration_cast<std::chrono::duration<float>>(
+                            currentTime - startTime)
+                              .count();
+                const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
+                const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
 
-            const float mins = std::floor(secondsRemaining / 60.0f);
-            const float secs = secondsRemaining - mins * 60.0f;
+                const float mins = std::floor(secondsRemaining / 60.0f);
+                const float secs = secondsRemaining - mins * 60.0f;
 
-            std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins << "m"
-                      << secs << "s\t\t";
-            std::cout.flags(flags);
+                std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins
+                          << "m" << secs << "s\t\t";
+                std::cout.flags(flags);
 
-            boost::multiprecision::cpp_dec_float_100 weight_log10
-                  = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
-            // if (weight_log10 > -10) {
-            //     std::cout << "Odd bug encountered, lets toss the path" << std::endl;
-            // } else {
+                boost::multiprecision::cpp_dec_float_100 weight_log10
+                      = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
+                // if (weight_log10 > -10) {
+                //     std::cout << "Odd bug encountered, lets toss the path" << std::endl;
+                // } else {
                 if (result.numValidPaths > 0) {
-                    framePixels[frameIdx] = importanceSampledWeight * cosFactor;
+                    framePixels[frameIdx]
+                          += importanceSampledWeight * cosFactor * (1.0f / emitterLocations.size());
                 }
-            // }
+                // }
+            }
         }
     }
 

@@ -121,13 +121,14 @@ namespace PathWeighting {
 
             // TODO: Generalize
             // For now, hardcode the sphere
-            const Farlor::Vector3 sphereCenter(5.0f, 0.0f, 0.0f);
-            const float radius = 2.0f;
+            const Farlor::Vector3 sphereCenter(0.0f, 0.0f, 0.0f);
+            const float radius = 5.0f;
 
             // Lookup absorbtion factor based on position
             float absorption = environmentAbsorption;
             float const *pWeightLookupTable = environmentLookupTable.AccessLookupTable().data();
             if ((currentPosition - sphereCenter).SqrMagnitude() <= (radius * radius)) {
+                absorption = 0.1f;
                 pWeightLookupTable = objectLookupTable.AccessLookupTable().data();
             }
 
