@@ -1976,6 +1976,6 @@ namespace ExperimentBase {
         return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
             overallMaxPathWeightLog10 };
     }
-}
 #endif
+}
 }
