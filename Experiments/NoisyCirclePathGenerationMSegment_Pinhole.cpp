@@ -221,15 +221,15 @@ int main(int argc, char *argv[])
 //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 10.0f));
 //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, -10.0f)); 
 
-        emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
-        emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
-        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
-        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
-        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
-        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
-        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
-
-        //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 0.0f));
+      //   emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
+      //   emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
+      //   emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
+      //   emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
+            
+            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
 
         //     emitterLocations.push_back(Farlor::Vector3(24.0f, 0.0f, 0.0f));
 
@@ -238,10 +238,11 @@ int main(int argc, char *argv[])
         emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
         emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
         emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
-        //     emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
-        //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
-        //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
-        //     emitterDirections.push_back(Farlor::Vector3(1.0f, 0.0f, 0.0f));
+
+            // emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
+            // emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
+            // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
+            // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
         //     emitterDirections.push_back(Farlor::Vector3(-1.0f, 0.0f, 0.0f));
 
         int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
@@ -278,15 +279,19 @@ int main(int argc, char *argv[])
       std::cout << "Object scatter: " << experimentParams.weightingParameters.scatter << std::endl;
       std::cout << "Object absorption: " << experimentParams.weightingParameters.absorption << std::endl;
 
+      // experimentParams.weightingParameters.bias = 10.0;//twisty::TwistyPi;
+
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
     objectCachedLookupTable.GetWeightLookupTable(minDs)->ExportValues(
-          outputDirectoryPath.string(), std::string("objectLookupTable.csv"));
+          outputDirectoryPath.string(), std::string("objectLookupTable_minDs.csv"));
+    objectCachedLookupTable.GetWeightLookupTable(maxDs)->ExportValues(
+          outputDirectoryPath.string(), std::string("objectLookupTable_maxDs.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
     environmentWeightingParams.absorption = 0.0001f;
     environmentWeightingParams.scatter = 0.0001f;
-    environmentWeightingParams.mu = 0.0001f;
+    environmentWeightingParams.mu = 0.01f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -299,7 +304,9 @@ int main(int argc, char *argv[])
           environmentWeightingParams, minDs, maxDs, numArclengths);
 
     environmentCachedLookupTable.GetWeightLookupTable(minDs)->ExportValues(
-          outputDirectoryPath.string(), std::string("environmentLookupTable.csv"));
+          outputDirectoryPath.string(), std::string("environmentLookupTable_minDs.csv"));
+    environmentCachedLookupTable.GetWeightLookupTable(maxDs)->ExportValues(
+          outputDirectoryPath.string(), std::string("environmentLookupTable_maxDs.csv"));
 
     const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);

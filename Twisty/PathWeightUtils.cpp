@@ -19,7 +19,7 @@ namespace PathWeighting {
     float SimpleGaussianPhase(float p, float mu)
     {
         const float val = (-mu * p * p) * 0.5f;
-        return expf(val);
+        return std::exp(val);
     }
 
     // TODO: We need to verify this. It's not clear if this is the correct form.
@@ -190,6 +190,7 @@ namespace PathWeighting {
                 m_weightLookupTables.push_back(std::move(
                       std::make_unique<WeightLookupTableIntegral>(m_weightingParams, ds)));
             } else {
+                std::cout << "Make sure you are wanting simple weight!" << std::endl;
                 m_weightLookupTables.push_back(
                       std::move(std::make_unique<SimpleWeightLookupTable>(m_weightingParams, ds)));
             }
@@ -300,10 +301,11 @@ namespace PathWeighting {
         std::vector<float> localLookupTable(m_weightingParams.numCurvatureSteps);
 
         // Handle first case
-        {
-            float value = Integrate(m_minCurvature, m_weightingParams, m_ds);
-            localLookupTable[0] = value;
-        }
+        // Straight case
+        const float noBendWeight = Integrate(0.0f, m_weightingParams, m_ds);
+        localLookupTable[0] = noBendWeight;// / noBendWeight;
+        // std::cout << "Setting first value to: " << localLookupTable[0] << std::endl;
+
         float min = localLookupTable[0];
         float max = localLookupTable[0];
 
@@ -316,10 +318,10 @@ namespace PathWeighting {
         }
 
 #pragma omp parallel for num_threads(numThreads) default(none)                                     \
-      shared(localLookupTable, minValues, maxValues)
+      shared(localLookupTable, minValues, maxValues, noBendWeight)
         for (int64_t i = 1; i < m_weightingParams.numCurvatureSteps; ++i) {
-            const float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
-            const float value = Integrate(curvatureEval, m_weightingParams, m_ds);
+            const float curvatureEval = m_minCurvature + (i * m_curvatureStepSize);
+            const float value = Integrate(curvatureEval, m_weightingParams, m_ds);// / noBendWeight;
             const int threadIdx = omp_get_thread_num();
 
             // Unique thread idx
@@ -334,7 +336,7 @@ namespace PathWeighting {
             }
         }
 
-        m_lookupTable = std::move(localLookupTable);
+        m_lookupTable = localLookupTable;
 
         min = *std::min_element(minValues.begin(), minValues.end());
         max = *std::max_element(maxValues.begin(), maxValues.end());
@@ -371,8 +373,6 @@ namespace PathWeighting {
         const float kds = curvature * ds;
         const float bds = weightingParams.scatter * ds;
 
-        const float transmissionFalloff = std::exp(-bds) / (2.0 * TwistyPi * TwistyPi);
-
         auto Integrand = [this, weightingParams](
                                const double p, const double kds, const double bds) -> double {
             double phaseFunction = GaussianPhase(p, weightingParams.mu);
@@ -383,18 +383,20 @@ namespace PathWeighting {
                               * (weightingParams.eps * weightingParams.eps * p * p
                                     * 0.5)  // regularizer
                   );
+            // float scatteringTerm = p
+            //       * (std::exp(bds * phaseFunction) - 1);
 
-            float sinTerm = 0.0f;
+            float sinTerm = p;
             // TODO: Should we implement this as if (kds < smallAngleThreshold?)
-            if (kds != 0.0) {
+            if (kds > 0.0) {
                 sinTerm = sinf(kds * p) / kds;
             }
             // With small angle apprimation, we have that kds is very small
             // As we approch, we have that sin(kds * p) => p
             // as well as                  1/kds -> 1/inf
-            else {
-                sinTerm = p;
-            }
+            // else {
+            //     sinTerm = 0,.;
+            // }
 
             return scatteringTerm * sinTerm;
         };
@@ -405,18 +407,18 @@ namespace PathWeighting {
         // deal with this?
 
         const double stepSize = (weightingParams.maxBound - weightingParams.minBound)
-              / (weightingParams.numStepsInt);
+              / (weightingParams.numStepsInt - 1);
 
         double firstVal = 0.0f;
         double normalizerWithZeroCurvature = 0.0f;
         {
-            for (uint32_t i = 0; i <= weightingParams.numStepsInt; ++i) {
+            for (uint32_t i = 0; i < weightingParams.numStepsInt; ++i) {
                 const double p = weightingParams.minBound + (i * stepSize);
                 firstVal += Integrand(p, kds, bds) * stepSize;
-                normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
+                // normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
             }
         }
-        return transmissionFalloff * firstVal / normalizerWithZeroCurvature;
+        return (firstVal / (2.0 * TwistyPi * TwistyPi)) * weightingParams.bias;
     }
 
     // Lookup table integrand
@@ -441,7 +443,7 @@ namespace PathWeighting {
             const float alpha = 1.0 / (wp.scatter * ds * wp.mu);
             const float leftComponent = std::exp(-1.0 * alpha) / (ds * ds * ds);
             const float rightComponent = std::exp(alpha * curvature);
-            return leftComponent * rightComponent;
+            return leftComponent * rightComponent * wp.bias;
         };
 
         // Handle first case
