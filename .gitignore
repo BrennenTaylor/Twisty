@@ -1,5 +1,8 @@
 *.txt
 *.cfg
+Neural/
+.cache/
+compile_commands.json
 !CMakeLists.txt
 build/
 build_cpu/
