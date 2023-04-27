@@ -23,6 +23,7 @@
 #include <memory>
 #include <filesystem>
 
+#ifdef __linux__
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/LevelSetUtil.h>
 #include <openvdb/tools/LevelSetSphere.h>
@@ -116,6 +117,7 @@ class VDBVolume {
    private:
     openvdb::FloatGrid::Ptr m_grid = nullptr;
 };
+#endif
 
 std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
@@ -312,6 +314,8 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 
+
+#ifdef __linux__
     // Must call once
     openvdb::initialize();
 
@@ -319,6 +323,7 @@ int main(int argc, char *argv[])
     // VDBVolume bunny(OuterSphereRadius, InnerSphereRadius);
     bunny.PrintMetadata();
     bunny.PrintWorldBB();
+#endif
 
     // Experiment start time
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -371,12 +376,14 @@ int main(int argc, char *argv[])
                       0, std::numeric_limits<uint64_t>::max() - 250);
                 const uint64_t rngSeed = uniformInt(rng);
 
-            //     const twisty::ExperimentBase::Result result
-            //           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
-            //                 experimentParams.numPathsInExperiment,
-            //                 experimentParams.numSegmentsPerCurve, experimentGeometry,
-            //                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
-            //                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
+#ifdef __linux__
+                //     const twisty::ExperimentBase::Result result
+                //           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
+                //                 experimentParams.numPathsInExperiment,
+                //                 experimentParams.numSegmentsPerCurve, experimentGeometry,
+                //                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+                //                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
+#endif
                 const twisty::ExperimentBase::Result result
                       = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
                             experimentParams.numPathsInExperiment,

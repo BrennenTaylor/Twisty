@@ -369,6 +369,7 @@ target_link_libraries(NoisyCirclePathGenerationMSegment_Pinhole
     PRIVATE nlohmann_json::nlohmann_json
 )
 
+if(LINUX)
 add_executable(NoisyCirclePathGenerationMSegment_RaycastVolume
     NoisyCirclePathGenerationMSegment_RaycastVolume.cpp
 )
@@ -391,6 +392,7 @@ target_link_libraries(NoisyCirclePathGenerationMSegment_RaycastVolume
     PRIVATE nlohmann_json::nlohmann_json
     PUBLIC tinyexr_include
 )
+endif()
 
 add_executable(Simple_FiveSegment_Analytical
     Simple_FiveSegment_Analytical.cpp
