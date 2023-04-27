@@ -3,7 +3,9 @@
 #include "PathWeightUtils.h"
 #include "boost/math/special_functions/math_fwd.hpp"
 
+#ifdef __linux__
 #include <openvdb/openvdb.h>
+#endif
 
 namespace twisty {
 namespace PathWeighting {
@@ -31,10 +33,12 @@ namespace PathWeighting {
           const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable,
           const float environmentAbsorbtion);
 
+#ifdef __linux__
     PathWeightValue WeightCurveViaPositionLog10_PositionDependent(
           const std::vector<Farlor::Vector3> &positions, const std::vector<float> &curvatures,
           const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable,
           const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable,
           const float environmentAbsorbtion, openvdb::FloatGrid::Ptr grid);
+#endif
 }
 }
