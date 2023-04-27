@@ -32,8 +32,12 @@ target_link_libraries(ExperimentBase
     PUBLIC Twisty
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
+)
+if (LINUX)
+target_link_libraries(ExperimentBase
     PUBLIC OpenVDB::openvdb
 )
+endif()
 
 add_executable(FullExperiment
     FullExperiment.cpp

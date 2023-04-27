@@ -221,15 +221,15 @@ int main(int argc, char *argv[])
 //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 10.0f));
 //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, -10.0f)); 
 
-      //   emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
-      //   emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
-      //   emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
-      //   emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
+        emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
+        emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
+        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
+        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
             
-            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-            emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
 
         //     emitterLocations.push_back(Farlor::Vector3(24.0f, 0.0f, 0.0f));
 

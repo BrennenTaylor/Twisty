@@ -5,7 +5,9 @@
 #include "MathConsts.h"
 #include "boost/multiprecision/detail/default_ops.hpp"
 
+#ifdef __linux__
 #include <openvdb/openvdb.h>
+#endif
 
 namespace twisty {
 namespace ExperimentBase {
@@ -75,6 +77,7 @@ namespace ExperimentBase {
                 &objectCachedWeightLookupTable,
           const float maxDs);
 
+#ifdef __linux__ 
       Result MSegmentPathGenerationMC_VDB(const uint64_t seed, const int64_t numExperimentPaths,
           const int numSegmentsPerCurve,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
@@ -85,5 +88,6 @@ namespace ExperimentBase {
           const twisty::PathWeighting::CachedMultiArclengthWeightLookupTable
                 &objectCachedWeightLookupTable,
           const float maxDs, openvdb::FloatGrid::Ptr grid);
+#endif
 }
 }
