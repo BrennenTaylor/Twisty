@@ -13,7 +13,7 @@
 namespace twisty {
 namespace PathWeighting {
     // Assume we have good pointers
-    double WeightCurveViaCurvatureLog10(float *pCurvatureStart, uint32_t numCurvatures,
+    PathWeightValue WeightCurveViaCurvatureLog10(float *pCurvatureStart, uint32_t numCurvatures,
           const twisty::PathWeighting::BaseWeightLookupTable &weightIntegral,
           const float absorption)
     {
@@ -24,13 +24,13 @@ namespace PathWeighting {
               weightIntegral.GetCurvatureStepSize(), absorption);
     }
 
-    __host__ __device__ double WeightCurveViaCurvatureLog10_CudaSafe(float *pCurvatureStart,
-          uint32_t numCurvatures, const float *pWeightLookupTable,
+    __host__ __device__ PathWeightValue WeightCurveViaCurvatureLog10_CudaSafe(
+          float *pCurvatureStart, uint32_t numCurvatures, const float *pWeightLookupTable,
           const int32_t weightLookupTableSize, const float ds, const float minCurvature,
           const float maxCurvature, const float curvatureStepSize, const float absorption)
     {
         if (!pCurvatureStart || (numCurvatures == 0)) {
-            return 0.0;
+            return { false, 0.0 };
         }
 
         // Currently assumes that we dont need a world space lookup
@@ -44,6 +44,10 @@ namespace PathWeighting {
 
             if ((curvature < minCurvature) && abs(curvature - minCurvature) < 1e-3) {
                 curvature = minCurvature;
+            }
+
+            if ((curvature > maxCurvature) && abs(maxCurvature - curvature) < 1e-3) {
+                curvature = maxCurvature;
             }
 
             if (curvature < minCurvature) {
@@ -84,7 +88,7 @@ namespace PathWeighting {
             double interpolatedResultLog10 = log10(interpolatedResult);
             if (isnan(interpolatedResultLog10)) {
                 printf("Error: invalid segment weight, is nan\n");
-                return 0.0;
+                return { false, 0.0 };
             }
 
             // Update the running path weight. We also want to cache the segment weights
@@ -94,9 +98,9 @@ namespace PathWeighting {
 
         if (isnan(runningPathWeightLog10)) {
             printf("Error: running path weight is nan\n");
-            return 0.0;
+            return { false, 0.0 };
         }
-        return runningPathWeightLog10;
+        return { true, runningPathWeightLog10 };
     }
 
     PathWeightValue WeightCurveViaPositionLog10_PositionDependent(
@@ -129,8 +133,7 @@ namespace PathWeighting {
             // Lookup absorbtion factor based on position
             float absorption = environmentAbsorption;
             float scatter = environmentLookupTable.GetWeightingParams().scatter;
-             float const *pWeightLookupTable
-                  = environmentLookupTable.AccessLookupTable().data();
+            float const *pWeightLookupTable = environmentLookupTable.AccessLookupTable().data();
             if ((currentPosition - sphereCenter).SqrMagnitude() <= (radius * radius)) {
                 absorption = 0.1f;
                 scatter = objectLookupTable.GetWeightingParams().scatter;
@@ -146,6 +149,10 @@ namespace PathWeighting {
 
             if ((curvature < minCurvature) && abs(curvature - minCurvature) < 1e-3) {
                 curvature = minCurvature;
+            }
+
+            if ((curvature > maxCurvature) && abs(maxCurvature - curvature) < 1e-3) {
+                curvature = maxCurvature;
             }
 
             if (curvature < minCurvature) {
@@ -259,6 +266,10 @@ namespace PathWeighting {
                 curvature = minCurvature;
             }
 
+            if ((curvature > maxCurvature) && abs(maxCurvature - curvature) < 1e-3) {
+                curvature = maxCurvature;
+            }
+
             if (curvature < minCurvature) {
                 printf("Error: curvature less than min curvature: %f < %f\n", curvature,
                       minCurvature);
@@ -311,6 +322,6 @@ namespace PathWeighting {
         }
         return { true, runningPathWeightLog10 };
     }
-    #endif
+#endif
 }
 }

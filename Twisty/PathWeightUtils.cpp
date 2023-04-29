@@ -303,7 +303,7 @@ namespace PathWeighting {
         // Handle first case
         // Straight case
         const float noBendWeight = Integrate(0.0f, m_weightingParams, m_ds);
-        localLookupTable[0] = noBendWeight;// / noBendWeight;
+        localLookupTable[0] = noBendWeight;  // / noBendWeight;
         // std::cout << "Setting first value to: " << localLookupTable[0] << std::endl;
 
         float min = localLookupTable[0];
@@ -321,7 +321,8 @@ namespace PathWeighting {
       shared(localLookupTable, minValues, maxValues, noBendWeight)
         for (int64_t i = 1; i < m_weightingParams.numCurvatureSteps; ++i) {
             const float curvatureEval = m_minCurvature + (i * m_curvatureStepSize);
-            const float value = Integrate(curvatureEval, m_weightingParams, m_ds);// / noBendWeight;
+            const float value
+                  = Integrate(curvatureEval, m_weightingParams, m_ds);  // / noBendWeight;
             const int threadIdx = omp_get_thread_num();
 
             // Unique thread idx
@@ -426,8 +427,8 @@ namespace PathWeighting {
           const twisty::WeightingParameters &weightingParams, float ds)
         : BaseWeightLookupTable(weightingParams, ds, -1.0f, 1.0f)
     {
-        std::cout << "Calcuating path weight integral lookup table: "
-                  << weightingParams.numCurvatureSteps << std::endl;
+        // std::cout << "Calcuating path weight integral lookup table: "
+        //           << weightingParams.numCurvatureSteps << std::endl;
         m_minCurvature = -1.0f;
         m_maxCurvature = 1.0f;
         m_curvatureStepSize
@@ -454,7 +455,7 @@ namespace PathWeighting {
 
         float min = m_lookupTable[0];
         float max = m_lookupTable[0];
-        for (uint32_t i = 1; i <= m_weightingParams.numCurvatureSteps; ++i) {
+        for (uint32_t i = 1; i < m_weightingParams.numCurvatureSteps; ++i) {
             float curvatureEval = m_minCurvature + i * m_curvatureStepSize;
             float value = CalculateSimpleWeightValue(curvatureEval, m_weightingParams, m_ds);
 

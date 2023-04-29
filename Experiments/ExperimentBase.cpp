@@ -59,10 +59,10 @@ namespace ExperimentBase {
         std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
 
 #pragma omp parallel for num_threads(maxThreads) default(none) shared(combinedWeightValues,        \
-      minPathWeightPerThread, maxPathWeightPerThread, numPhi1Vals, phi1Min, phi1Max, dPhi1,        \
-      numTheta1Vals, dTheta1, theta1Min, theta1Max, numTheta2Vals, dTheta2, theta2Min, theta2Max,  \
-      ds, point0, point1, point4, point5, experimentGeometry, experimentParams,                    \
-      pathNormalizerLog10, weightLookupTable, combinedWeightValuesPerThread)
+            minPathWeightPerThread, maxPathWeightPerThread, numPhi1Vals, phi1Min, phi1Max, dPhi1,  \
+            numTheta1Vals, dTheta1, theta1Min, theta1Max, numTheta2Vals, dTheta2, theta2Min,       \
+            theta2Max, ds, point0, point1, point4, point5, experimentGeometry, experimentParams,   \
+            pathNormalizerLog10, weightLookupTable, combinedWeightValuesPerThread)
         for (int phi1Idx = 0; phi1Idx < numPhi1Vals; phi1Idx++) {
             const int threadId = omp_get_thread_num();
 
@@ -151,18 +151,21 @@ namespace ExperimentBase {
                               tangents.data(), curvatures.data(), 5, experimentGeometry);
                     }
 
-                    const double scatteringWeightLog10
+                    twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                           = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(),
-                                  4, weightLookupTable,
-                                  experimentParams.weightingParameters.absorption)
-                          + pathNormalizerLog10;
+                                4, weightLookupTable,
+                                experimentParams.weightingParameters.absorption);
+
+                    if (!scatteringWeightLog10.isValid)
+                        continue;
+                    scatteringWeightLog10.weight += pathNormalizerLog10;
 
                     // Update the min and max values
-                    if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                        minPathWeightPerThread[threadId] = scatteringWeightLog10;
+                    if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
+                        minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
                     }
-                    if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                        maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+                    if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
+                        maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
                     }
 
                     twisty::CombinedWeightValues_C &activeWeightValue
@@ -170,7 +173,7 @@ namespace ExperimentBase {
 
                     if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
                         twisty::CombinedWeightValues_C_AddValue(
-                              activeWeightValue, scatteringWeightLog10);
+                              activeWeightValue, scatteringWeightLog10.weight);
                     } else {
 #pragma omp critical
                         {
@@ -178,7 +181,7 @@ namespace ExperimentBase {
                         }
                         twisty::CombinedWeightValues_C_Reset(activeWeightValue);
                         twisty::CombinedWeightValues_C_AddValue(
-                              activeWeightValue, scatteringWeightLog10);
+                              activeWeightValue, scatteringWeightLog10.weight);
                     }
                 }
             }
@@ -255,10 +258,11 @@ namespace ExperimentBase {
             randomGenPerThread[i].seed(i);
         }
 
-#pragma omp parallel for num_threads(maxThreads) default(none) shared(randomGenPerThread,          \
-      combinedWeightValues, minPathWeightPerThread, maxPathWeightPerThread, numExperimentPaths,    \
-      phiMin, phiMax, thetaMin, thetaMax, point1, point4, ds, experimentParams,                    \
-      experimentGeometry, pathNormalizerLog10, combinedWeightValuesPerThread, weightLookupTable)
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(randomGenPerThread, combinedWeightValues, minPathWeightPerThread,                     \
+                  maxPathWeightPerThread, numExperimentPaths, phiMin, phiMax, thetaMin, thetaMax,  \
+                  point1, point4, ds, experimentParams, experimentGeometry, pathNormalizerLog10,   \
+                  combinedWeightValuesPerThread, weightLookupTable)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -346,31 +350,36 @@ namespace ExperimentBase {
                       tangents.data(), curvatures.data(), 5, experimentGeometry);
             }
 
-            const double scatteringWeightLog10
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 4,
-                          weightLookupTable, experimentParams.weightingParameters.absorption)
-                  + pathNormalizerLog10;
+                        weightLookupTable, experimentParams.weightingParameters.absorption);
+
+            if (!scatteringWeightLog10.isValid)
+                continue;
+            scatteringWeightLog10.weight += pathNormalizerLog10;
 
             // Update the min and max values
-            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
-            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
 
             twisty::CombinedWeightValues_C &activeWeightValue
                   = combinedWeightValuesPerThread[threadId];
 
             if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             } else {
 #pragma omp critical
                 {
                     combinedWeightValues.push_back(activeWeightValue);
                 }
                 twisty::CombinedWeightValues_C_Reset(activeWeightValue);
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             }
         }
 
@@ -445,10 +454,11 @@ namespace ExperimentBase {
             randomGenPerThread[i].seed(i);
         }
 
-#pragma omp parallel for num_threads(maxThreads) default(none) shared(randomGenPerThread,          \
-      combinedWeightValues, minPathWeightPerThread, maxPathWeightPerThread, numExperimentPaths,    \
-      thetaMin, thetaMax, phiMin, phiMax, point1, point5, ds, experimentGeometry,                  \
-      weightLookupTable, pathNormalizerLog10, experimentParams, combinedWeightValuesPerThread)
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(randomGenPerThread, combinedWeightValues, minPathWeightPerThread,                     \
+                  maxPathWeightPerThread, numExperimentPaths, thetaMin, thetaMax, phiMin, phiMax,  \
+                  point1, point5, ds, experimentGeometry, weightLookupTable, pathNormalizerLog10,  \
+                  experimentParams, combinedWeightValuesPerThread)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -546,31 +556,36 @@ namespace ExperimentBase {
             twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
                   tangents.data(), curvatures.data(), 6, experimentGeometry);
 
-            const double scatteringWeightLog10
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 5,
-                          weightLookupTable, experimentParams.weightingParameters.absorption)
-                  + pathNormalizerLog10;
+                        weightLookupTable, experimentParams.weightingParameters.absorption);
+            scatteringWeightLog10.weight += pathNormalizerLog10;
 
-            // Update the min and max values
-            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (!scatteringWeightLog10.isValid) {
+                continue;
             }
-            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            // Update the min and max values
+            if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
+            }
+            if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
 
             twisty::CombinedWeightValues_C &activeWeightValue
                   = combinedWeightValuesPerThread[threadId];
 
             if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             } else {
 #pragma omp critical
                 {
                     combinedWeightValues.push_back(activeWeightValue);
                 }
                 twisty::CombinedWeightValues_C_Reset(activeWeightValue);
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             }
         }
 
@@ -1009,9 +1024,10 @@ namespace ExperimentBase {
         }
 
 #pragma omp parallel for num_threads(maxThreads) default(none)                                     \
-      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread, numExperimentPaths,\
-      point0, point1, point4, point5, rngPerThread, ds, experimentGeometry, experimentParams, weightLookupTable, \
-      pathNormalizerLog10, combinedWeightValues)
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
+                  numExperimentPaths, point0, point1, point4, point5, rngPerThread, ds,            \
+                  experimentGeometry, experimentParams, weightLookupTable, pathNormalizerLog10,    \
+                  combinedWeightValues)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -1036,31 +1052,33 @@ namespace ExperimentBase {
                       tangents.data(), curvatures.data(), 5, experimentGeometry);
             }
 
-            const double scatteringWeightLog10
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 4,
-                          weightLookupTable, experimentParams.weightingParameters.absorption)
-                  + pathNormalizerLog10;
+                        weightLookupTable, experimentParams.weightingParameters.absorption);
+            scatteringWeightLog10.weight += pathNormalizerLog10;
 
             // Update the min and max values
-            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
-            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
 
             twisty::CombinedWeightValues_C &activeWeightValue
                   = combinedWeightValuesPerThread[threadId];
 
             if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             } else {
 #pragma omp critical
                 {
                     combinedWeightValues.push_back(activeWeightValue);
                 }
                 twisty::CombinedWeightValues_C_Reset(activeWeightValue);
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             }
         }
 
@@ -1137,9 +1155,9 @@ namespace ExperimentBase {
         std::cout << "Starting path generation" << std::endl;
 
 #pragma omp parallel for num_threads(maxThreads) default(none) shared(                             \
-      combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread, point1,       \
-      point5, experimentGeometry, ds, pathNormalizerLog10, numExperimentPaths, point0, point6,     \
-      rngPerThread, weightLookupTable, experimentParams, combinedWeightValues)
+            combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread, point1, \
+            point5, experimentGeometry, ds, pathNormalizerLog10, numExperimentPaths, point0,       \
+            point6, rngPerThread, weightLookupTable, experimentParams, combinedWeightValues)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -1158,31 +1176,39 @@ namespace ExperimentBase {
             twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
                   tangents.data(), curvatures.data(), 6, experimentGeometry);
 
-            const double scatteringWeightLog10
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 5,
-                          weightLookupTable, experimentParams.weightingParameters.absorption)
-                  + pathNormalizerLog10;
+                        weightLookupTable, experimentParams.weightingParameters.absorption);
+
+            if (!scatteringWeightLog10.isValid) {
+                std::cout << "We have an invalid weight path, as it counts nothing, discard it"
+                          << std::endl;
+                continue;
+            }
+            scatteringWeightLog10.weight += pathNormalizerLog10;
 
             // Update the min and max values
-            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
-            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
 
             twisty::CombinedWeightValues_C &activeWeightValue
                   = combinedWeightValuesPerThread[threadId];
 
             if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             } else {
 #pragma omp critical
                 {
                     combinedWeightValues.push_back(activeWeightValue);
                 }
                 twisty::CombinedWeightValues_C_Reset(activeWeightValue);
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             }
         }
 
@@ -1260,9 +1286,9 @@ namespace ExperimentBase {
 
 #pragma omp parallel for num_threads(maxThreads) default(none)                                     \
       shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
-            numExperimentPaths, point0, point1, pointM, pointMm1, numSegmentsPerCurve,             \
-            rngPerThread, ds, experimentParams, experimentGeometry, weightLookupTable,             \
-            pathNormalizerLog10, combinedWeightValues)
+                  numExperimentPaths, point0, point1, pointM, pointMm1, numSegmentsPerCurve,       \
+                  rngPerThread, ds, experimentParams, experimentGeometry, weightLookupTable,       \
+                  pathNormalizerLog10, combinedWeightValues)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -1287,35 +1313,42 @@ namespace ExperimentBase {
             twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
                   tangents.data(), curvatures.data(), numSegmentsPerCurve, experimentGeometry);
 
-            double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                  curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable,
-                  experimentParams.weightingParameters.absorption);
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(),
+                        numSegmentsPerCurve - 1, weightLookupTable,
+                        experimentParams.weightingParameters.absorption);
 
-            if (isnan(scatteringWeightLog10)) {
+            if (!scatteringWeightLog10.isValid) {
+                continue;
+            }
+
+            if (isnan(scatteringWeightLog10.weight)) {
                 throw std::runtime_error("We somehow got an invalid path weight");
             }
-            scatteringWeightLog10 += pathNormalizerLog10;
+            scatteringWeightLog10.weight += pathNormalizerLog10;
 
             // Update the min and max values
-            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
-            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
 
             twisty::CombinedWeightValues_C &activeWeightValue
                   = combinedWeightValuesPerThread[threadId];
 
             if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             } else {
 #pragma omp critical
                 {
                     combinedWeightValues.push_back(activeWeightValue);
                 }
                 twisty::CombinedWeightValues_C_Reset(activeWeightValue);
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             }
         }
 
@@ -1446,9 +1479,10 @@ namespace ExperimentBase {
         std::cout << "Starting path generation" << std::endl;
 
 #pragma omp parallel for num_threads(maxThreads) default(none)                                     \
-      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread, numExperimentPaths,\
-      rngPerThread, experimentGeometry, experimentParams, actualMaxDs, minDs, cachedWeightLookupTable, \
-      pathNormalizerLog10, combinedWeightValues, numSegmentsPerCurve)
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
+                  numExperimentPaths, rngPerThread, experimentGeometry, experimentParams,          \
+                  actualMaxDs, minDs, cachedWeightLookupTable, pathNormalizerLog10,                \
+                  combinedWeightValues, numSegmentsPerCurve)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -1491,35 +1525,42 @@ namespace ExperimentBase {
             twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
                   tangents.data(), curvatures.data(), numSegmentsPerCurve, bcWithArclength);
 
-            double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                  curvatures.data(), numSegmentsPerCurve - 1, weightLookupTable,
-                  experimentParams.weightingParameters.absorption);
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
+                  = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(),
+                        numSegmentsPerCurve - 1, weightLookupTable,
+                        experimentParams.weightingParameters.absorption);
 
-            if (isnan(scatteringWeightLog10)) {
+            if (!scatteringWeightLog10.isValid) {
+                continue;
+            }
+
+            if (isnan(scatteringWeightLog10.weight)) {
                 throw std::runtime_error("We somehow got an invalid path weight");
             }
-            scatteringWeightLog10 += pathNormalizerLog10;
+            scatteringWeightLog10.weight += pathNormalizerLog10;
 
             // Update the min and max values
-            if (scatteringWeightLog10 < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
-            if (scatteringWeightLog10 > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10;
+            if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
             }
 
             twisty::CombinedWeightValues_C &activeWeightValue
                   = combinedWeightValuesPerThread[threadId];
 
             if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             } else {
 #pragma omp critical
                 {
                     combinedWeightValues.push_back(activeWeightValue);
                 }
                 twisty::CombinedWeightValues_C_Reset(activeWeightValue);
-                twisty::CombinedWeightValues_C_AddValue(activeWeightValue, scatteringWeightLog10);
+                twisty::CombinedWeightValues_C_AddValue(
+                      activeWeightValue, scatteringWeightLog10.weight);
             }
         }
 
@@ -1631,18 +1672,16 @@ namespace ExperimentBase {
 
         //std::cout << "Starting path generation" << std::endl;
 
-#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
-      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
+#pragma omp parallel for num_threads(maxThreads) default(none) shared(                             \
+            combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,         \
             environmentCachedWeightLookupTable, objectCachedWeightLookupTable, numExperimentPaths, \
-            rngPerThread, actualMaxDs, minDs, experimentGeometry, numSegmentsPerCurve, experimentParams, \
-            pathNormalizerLog10, std::cout, combinedWeightValues)
+            rngPerThread, actualMaxDs, minDs, experimentGeometry, numSegmentsPerCurve,             \
+            experimentParams, pathNormalizerLog10, std::cout, combinedWeightValues)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
-            const float ds
-                  = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs)
-                  + minDs;
+            const float ds = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs) + minDs;
 
             twisty::PathWeighting::BaseWeightLookupTable &environmentWeightLookupTable
                   = *environmentCachedWeightLookupTable.GetWeightLookupTable(ds);
@@ -1843,18 +1882,16 @@ namespace ExperimentBase {
 
         //std::cout << "Starting path generation" << std::endl;
 
-#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
-      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
+#pragma omp parallel for num_threads(maxThreads) default(none) shared(                             \
+            combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,         \
             environmentCachedWeightLookupTable, objectCachedWeightLookupTable, numExperimentPaths, \
-            rngPerThread, actualMaxDs, minDs, experimentGeometry, numSegmentsPerCurve, experimentParams, \
-            pathNormalizerLog10, std::cout, combinedWeightValues, grid)
+            rngPerThread, actualMaxDs, minDs, experimentGeometry, numSegmentsPerCurve,             \
+            experimentParams, pathNormalizerLog10, std::cout, combinedWeightValues, grid)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
-            const float ds
-                  = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs)
-                  + minDs;
+            const float ds = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs) + minDs;
 
             twisty::PathWeighting::BaseWeightLookupTable &environmentWeightLookupTable
                   = *environmentCachedWeightLookupTable.GetWeightLookupTable(ds);

@@ -18,7 +18,7 @@
 const float PI = 3.14159265358979323846f;
 
 twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
-      const nlohmann::json &experimentConfig)
+      const nlohmann::json &experimentConfig, bool tackOnDate = true)
 {
     twisty::ExperimentRunner::ExperimentParameters experimentParams;
 
@@ -31,9 +31,10 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.experimentName = experimentConfig["experiment"]["experimentParams"]["name"];
     experimentParams.experimentDirPath
           = experimentConfig["experiment"]["experimentParams"]["experimentDir"];
-    experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-    experimentParams.experimentDirPath += "/" + twisty::GetCurrentTimeForFileName() + "/";
-
+    experimentParams.experimentDirPath += "/" + experimentParams.experimentName + "/";
+    if (tackOnDate) {
+        experimentParams.experimentDirPath += twisty::GetCurrentTimeForFileName() + "/";
+    }
     experimentParams.maxPerturbThreads
           = experimentConfig["experiment"]["experimentParams"]["maxPerturbThreads"];
     experimentParams.maxWeightThreads
@@ -72,8 +73,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
         // Default to the simplified model
         default: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::RadiativeTransfer;
+            std::cout << "Error: Unknown weighting function specified";
+            exit(1);
         } break;
     }
 
@@ -125,8 +126,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2) {
-        std::cout << "Call as: " << argv[0] << " configFilename" << std::endl;
+    if (argc < 4) {
+        std::cout << "Call as: " << argv[0] << " configFilename arclength angle" << std::endl;
         return 1;
     }
     std::fstream configFile(argv[1]);
@@ -138,10 +139,21 @@ int main(int argc, char *argv[])
     nlohmann::json experimentConfig;
     configFile >> experimentConfig;
 
+    const float arclength = std::stof(argv[2]);
+    const float angle = std::stof(argv[3]);
+    const float angle_rad = angle * (M_PI / 180.0f);
+
     twisty::ExperimentRunner::ExperimentParameters experimentParams
-          = ParseExperimentParamsFromConfig(experimentConfig);
+          = ParseExperimentParamsFromConfig(experimentConfig, false);
     assert((experimentParams.numSegmentsPerCurve == 5)
           && "Must only target 5 segment curve configurations");
+
+    // tack on the info for experiment path
+    experimentParams.experimentDirPath += "/arclength_" + std::to_string((int)arclength);
+    experimentParams.experimentDirPath += "/angle_" + std::to_string((int)angle) + "/";
+
+    experimentParams.experimentName
+          = "/arclength_" + std::to_string((int)arclength) + "_angle_" + std::to_string((int)angle);
 
     if (!std::filesystem::exists(experimentParams.experimentDirPath)) {
         std::filesystem::create_directories(experimentParams.experimentDirPath);
@@ -183,45 +195,54 @@ int main(int argc, char *argv[])
         experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
     }
     {
-        float x = experimentConfig["experiment"]["basicExperiment"]["endDir"][0];
-        float y = experimentConfig["experiment"]["basicExperiment"]["endDir"][1];
-        float z = experimentConfig["experiment"]["basicExperiment"]["endDir"][2];
-        experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
+        // Compute end dir from angle
+        experimentGeometry.m_endDir
+              = Farlor::Vector3(std::cos(angle_rad), std::sin(angle_rad), 0.0f);
     }
-    // Force to a value
-    experimentGeometry.arclength = experimentParams.arclength
-          = experimentConfig["experiment"]["basicExperiment"]["arclength"];
+
+    experimentGeometry.arclength = arclength;
     std::cout << "Arclength: " << experimentGeometry.arclength << std::endl;
 
     const float ds = experimentGeometry.arclength / experimentParams.numSegmentsPerCurve;
 
     const uint64_t numExperimentPaths = experimentParams.numPathsInExperiment;
 
-    std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
-    if (experimentParams.weightingParameters.weightingMethod
-          == twisty::WeightingMethod::SimplifiedModel) {
-        lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
-              experimentParams.weightingParameters, ds);
-    } else {
-        lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
-              experimentParams.weightingParameters, ds);
-    }
-    lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
-    assert(lookupEvaluator);
-    twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
+    const float minDs = 9.0f / 5;
+    const float maxDs = 21.0f / 5;
+    const uint32_t numArclengths = 100;
+    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
+          experimentParams.weightingParameters, minDs, maxDs, numArclengths);
 
-    const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
-          = (experimentParams.weightingParameters.weightingMethod
-                  != twisty::WeightingMethod::RadiativeTransfer)
-          ? 1.0
-          : twisty::PathWeighting::NormalizerStuff::Norm(
-                experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
-    std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
+    twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer
+          = *cachedLookupTable.GetWeightLookupTable(ds);
+
+    //     std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
+    //     if (experimentParams.weightingParameters.weightingMethod
+    //           == twisty::WeightingMethod::SimplifiedModel) {
+    //         lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
+    //               experimentParams.weightingParameters, ds);
+    //     } else {
+    //         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
+    //               experimentParams.weightingParameters, ds);
+    //     }
+    //     lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
+    //     assert(lookupEvaluator);
+    //     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
+
+
+    const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0f;
+    //     = (experimentParams.weightingParameters.weightingMethod
+    //             != twisty::WeightingMethod::RadiativeTransfer)
+    //           ? 1.0
+    //           : twisty::PathWeighting::NormalizerStuff::Norm(
+    //                 experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
+    //     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
     const double pathNormalizerLog10 = (double)boost::multiprecision::log10(pathNormalizer);
 
-    const twisty::ExperimentBase::Result result
-          = twisty::ExperimentBase::FiveSegmentAngleSpaceMC(numExperimentPaths, experimentGeometry,
-                experimentParams, pathNormalizerLog10, weightingIntegralsRawPointer);
+    std::cout << "Starting Experiment" << std::endl;
+    const twisty::ExperimentBase::Result result = twisty::ExperimentBase::FiveSegmentAngleSpaceMC(
+          experimentParams.numPathsInExperiment, experimentGeometry, experimentParams,
+          pathNormalizerLog10, weightingIntegralsRawPointer);
 
     resultsOFS << "Num valid paths: " << result.numValidPaths << "/" << result.numPathsTotal
                << std::endl;

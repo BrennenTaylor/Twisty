@@ -211,6 +211,7 @@ target_compile_features(SixSegmentAnglePathIntegral
 
 target_link_libraries(SixSegmentAnglePathIntegral
     PUBLIC Twisty
+    PUBLIC ExperimentBase
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )

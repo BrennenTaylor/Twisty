@@ -100,7 +100,7 @@ double G_5(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
 }
 
 twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
-      const nlohmann::json &experimentConfig)
+      const nlohmann::json &experimentConfig, bool tackOnDate = true)
 {
     twisty::ExperimentRunner::ExperimentParameters experimentParams;
 
@@ -113,9 +113,10 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
     experimentParams.experimentName = experimentConfig["experiment"]["experimentParams"]["name"];
     experimentParams.experimentDirPath
           = experimentConfig["experiment"]["experimentParams"]["experimentDir"];
-    experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-    experimentParams.experimentDirPath += "/" + twisty::GetCurrentTimeForFileName() + "/";
-
+    experimentParams.experimentDirPath += "/" + experimentParams.experimentName + "/";
+    if (tackOnDate) {
+        experimentParams.experimentDirPath += twisty::GetCurrentTimeForFileName() + "/";
+    }
     experimentParams.maxPerturbThreads
           = experimentConfig["experiment"]["experimentParams"]["maxPerturbThreads"];
     experimentParams.maxWeightThreads
@@ -207,8 +208,8 @@ twisty::ExperimentRunner::ExperimentParameters ParseExperimentParamsFromConfig(
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2) {
-        std::cout << "Call as: " << argv[0] << " configFilename" << std::endl;
+    if (argc < 4) {
+        std::cout << "Call as: " << argv[0] << " configFilename arclength angle" << std::endl;
         return 1;
     }
     std::fstream configFile(argv[1]);
@@ -220,10 +221,21 @@ int main(int argc, char *argv[])
     nlohmann::json experimentConfig;
     configFile >> experimentConfig;
 
+    const float arclength = std::stof(argv[2]);
+    const float angle = std::stof(argv[3]);
+    const float angle_rad = angle * (M_PI / 180.0f);
+
     twisty::ExperimentRunner::ExperimentParameters experimentParams
-          = ParseExperimentParamsFromConfig(experimentConfig);
+          = ParseExperimentParamsFromConfig(experimentConfig, false);
     assert((experimentParams.numSegmentsPerCurve == 5)
           && "Must only target 5 segment curve configurations");
+
+    // tack on the info for experiment path
+    experimentParams.experimentDirPath += "/arclength_" + std::to_string((int)arclength);
+    experimentParams.experimentDirPath += "/angle_" + std::to_string((int)angle) + "/";
+
+    experimentParams.experimentName
+          = "/arclength_" + std::to_string((int)arclength) + "_angle_" + std::to_string((int)angle);
 
     if (!std::filesystem::exists(experimentParams.experimentDirPath)) {
         std::filesystem::create_directories(experimentParams.experimentDirPath);
@@ -265,14 +277,12 @@ int main(int argc, char *argv[])
         experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
     }
     {
-        float x = experimentConfig["experiment"]["basicExperiment"]["endDir"][0];
-        float y = experimentConfig["experiment"]["basicExperiment"]["endDir"][1];
-        float z = experimentConfig["experiment"]["basicExperiment"]["endDir"][2];
-        experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
+        // Compute end dir from angle
+        experimentGeometry.m_endDir
+              = Farlor::Vector3(std::cos(angle_rad), std::sin(angle_rad), 0.0f);
     }
 
-    experimentGeometry.arclength = experimentParams.arclength
-          = experimentConfig["experiment"]["basicExperiment"]["arclength"];
+    experimentGeometry.arclength = arclength;
     std::cout << "Arclength: " << experimentGeometry.arclength << std::endl;
 
     const float ds = experimentGeometry.arclength / experimentParams.numSegmentsPerCurve;
@@ -310,25 +320,6 @@ int main(int argc, char *argv[])
 
     resultsOFS << "Converged final weight: " << result.totalWeight << std::endl;
     std::cout << "Converged final weight: " << result.totalWeight << std::endl;
-
-
-    resultsOFS << "Min path weight log10: " << result.minPathWeightLog10 << std::endl;
-    resultsOFS << "Max path weight log10: " << result.maxPathWeightLog10 << std::endl;
-
-    std::cout << "Min path weight log10: " << result.minPathWeightLog10 << std::endl;
-    std::cout << "Max path weight log10: " << result.maxPathWeightLog10 << std::endl;
-
-    // Big float decompressed versions
-    const double overallMinPathWeightLog10Decompressed
-          = std::pow(10.0f, (double)result.minPathWeightLog10);
-    const double overallMaxPathWeightLog10Decompressed
-          = std::pow(10.0f, (double)result.maxPathWeightLog10);
-
-    resultsOFS << "Min path weight: " << overallMinPathWeightLog10Decompressed << std::endl;
-    resultsOFS << "Max path weight: " << overallMaxPathWeightLog10Decompressed << std::endl;
-
-    std::cout << "Min path weight: " << overallMinPathWeightLog10Decompressed << std::endl;
-    std::cout << "Max path weight: " << overallMaxPathWeightLog10Decompressed << std::endl;
 
     std::cout << "Done" << std::endl;
 }

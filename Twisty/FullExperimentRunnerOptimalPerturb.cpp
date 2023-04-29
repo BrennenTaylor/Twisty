@@ -381,9 +381,9 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
 #if EnableHistogramCalc
     // Combine histograms
     g_histogram.resize(g_numHistogramBuckets);
-      for (int64_t binIdx = 0; binIdx < g_numHistogramBuckets; ++binIdx) {
+    for (int64_t binIdx = 0; binIdx < g_numHistogramBuckets; ++binIdx) {
         g_histogram[binIdx] = 0;
-      }
+    }
 
     for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
         for (int64_t binIdx = 0; binIdx < g_numHistogramBuckets; ++binIdx) {
@@ -528,7 +528,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
             }
 
             // Normalized version
-            double scatteringWeightLog10
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
                         &(globalCurvatures[CurrentThreadCurvatureStartIdx]),
                         NumCurvaturesPerCurve,
@@ -540,21 +540,23 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
                         curvatureStepSize,
                         m_experimentParams.weightingParameters.absorption);
 
+            if (!scatteringWeightLog10.isValid) {
+                continue;
+            }
             if (pathCount < numPathsToSkipPerThread) {
                 // Skip
             } else {
 #if EnableHistogramCalc
                 const double scatteringWeightLog10Decompressed
-                      = std::pow(10.0, (scatteringWeightLog10 + g_normalizerLog10));
+                      = std::pow(10.0, (scatteringWeightLog10.weight + g_normalizerLog10));
 
-                const uint64_t binIdx =
-                      [scatteringWeightLog10Decompressed]()->uint64_t {
+                const uint64_t binIdx = [scatteringWeightLog10Decompressed]() -> uint64_t {
                     if (scatteringWeightLog10Decompressed < g_minWeight)
                         return 0;
                     if (scatteringWeightLog10Decompressed > g_maxWeight)
                         return (g_numHistogramBuckets - 1);
-                    return (scatteringWeightLog10Decompressed - g_minWeight) / (g_maxWeight - g_minWeight)
-                          * g_numHistogramBuckets;
+                    return (scatteringWeightLog10Decompressed - g_minWeight)
+                          / (g_maxWeight - g_minWeight) * g_numHistogramBuckets;
                 }();
                 g_perThreadHistograms[threadIdx][binIdx]++;
 #endif
@@ -575,7 +577,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
 
                 //printf("****************Adding Value: %d, %lf\n", combinedWeightValueIdx, scatteringWeightLog10);
                 CombinedWeightValues_C_AddValue(
-                      combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10);
+                      combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10.weight);
             }
         }
     }
@@ -694,7 +696,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
             }
 
             // Normalized version
-            double scatteringWeightLog10
+            twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                   = twisty::PathWeighting::WeightCurveViaCurvatureLog10_CudaSafe(
                         &(globalCurvatures[CurrentThreadCurvatureStartIdx]),
                         NumCurvaturesPerCurve,
@@ -706,6 +708,9 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                         curvatureStepSize,
                         m_experimentParams.weightingParameters.absorption);
 
+            if (!scatteringWeightLog10.isValid) {
+                continue;
+            }
             if (pathCount < numPathsToSkipPerThread) {
                 // Skip
             } else {
@@ -723,7 +728,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                 }
 
                 CombinedWeightValues_C_AddValue(
-                      combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10);
+                      combinedWeightValues[combinedWeightValueIdx], scatteringWeightLog10.weight);
 
                 // Add the path to the path batch
                 for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx) {
@@ -731,7 +736,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
                 }
                 log10PathWeightCache[numCurvesInBatch]
-                      = std::pow(10.0, (scatteringWeightLog10 + pathNormalizerLog10));
+                      = std::pow(10.0, (scatteringWeightLog10.weight + pathNormalizerLog10));
 
                 if (m_experimentParams.numSegmentsPerCurve == 5) {
                     // TODO: Extract out the three angles for 5 segment paths here
