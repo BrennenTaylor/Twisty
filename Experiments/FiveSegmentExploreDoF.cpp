@@ -354,10 +354,12 @@ int main(int argc, char *argv[])
                 twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
                       tangents.data(), curvatures.data(), 5, experimentGeometry);
 
-                double scatteringWeightLog10 = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
-                      curvatures.data(), 4, weightingIntegralsRawPointer, experimentParams.weightingParameters.absorption);
+                twisty::PathWeighting::PathWeightValue scatteringWeightLog10
+                      = twisty::PathWeighting::WeightCurveViaCurvatureLog10(curvatures.data(), 4,
+                            weightingIntegralsRawPointer,
+                            experimentParams.weightingParameters.absorption);
                 double normalizedPathWeight
-                      = std::pow(10.0, scatteringWeightLog10 + pathNormaizerLog10);
+                      = std::pow(10.0, scatteringWeightLog10.weight + pathNormaizerLog10);
 
                 weightsOFST << normalizedPathWeight << std::endl;
 

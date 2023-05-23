@@ -1,9 +1,10 @@
 find_package(OpenMP)
 
-if (LINUX)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
-# set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
-find_package(OpenVDB REQUIRED)
+if(LINUX)
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
+
+    # set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
+    find_package(OpenVDB REQUIRED)
 endif()
 
 add_library(Twisty
@@ -35,7 +36,7 @@ add_library(Twisty
     PathWeighters.h
 
     # CombinedWeightUtils.cpp
-    # CurvePerturbUtils.cpp
+    CurvePerturbUtils.cpp
     PathWeighters.cpp
     PathWeightUtils.h
     PathWeightUtils.cpp
@@ -49,15 +50,17 @@ target_link_libraries(Twisty
     PUBLIC nlohmann_json::nlohmann_json
     PUBLIC OpenMP::OpenMP_CXX
 )
+
 if(WIN32)
-target_link_libraries(Twisty
-    PUBLIC shlwapi
-)
+    target_link_libraries(Twisty
+        PUBLIC shlwapi
+    )
 endif()
+
 if(LINUX)
-target_link_libraries(Twisty
-    PUBLIC OpenVDB::openvdb
-)
+    target_link_libraries(Twisty
+        PUBLIC OpenVDB::openvdb
+    )
 endif()
 
 target_include_directories(Twisty

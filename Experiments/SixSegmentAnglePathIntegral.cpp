@@ -207,8 +207,8 @@ int main(int argc, char *argv[])
 
     const uint64_t numExperimentPaths = experimentParams.numPathsInExperiment;
 
-    const float minDs = 9.0f / 5;
-    const float maxDs = 21.0f / 5;
+    const float minDs = 9.0f / experimentParams.numSegmentsPerCurve;
+    const float maxDs = 21.0f / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 100;
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);

@@ -218,41 +218,41 @@ int main(int argc, char *argv[])
           experimentSpecificParams.distanceFromPlane - 15.0, 0.0f, 0.0f);
 
     std::vector<Farlor::Vector3> emitterLocations;
-//     emitterLocations.push_back(Farlor::Vector3(5.0f, 10.0f, 0.0f));
-//     emitterLocations.push_back(Farlor::Vector3(5.0f, -10.0f, 0.0f));
-//     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 10.0f));
-//     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, -10.0f)); 
+    //     emitterLocations.push_back(Farlor::Vector3(5.0f, 10.0f, 0.0f));
+    //     emitterLocations.push_back(Farlor::Vector3(5.0f, -10.0f, 0.0f));
+    //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 10.0f));
+    //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, -10.0f));
 
-        emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
-        emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
-        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
-        emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
-            
-            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-            // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+    emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
+    emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
+    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
+    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
 
-        //     emitterLocations.push_back(Farlor::Vector3(24.0f, 0.0f, 0.0f));
+    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
 
-        std::vector<Farlor::Vector3> emitterDirections;
-        emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
-        emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
-        emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
-        emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
+    //     emitterLocations.push_back(Farlor::Vector3(24.0f, 0.0f, 0.0f));
 
-            // emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
-            // emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
-            // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
-            // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
-        //     emitterDirections.push_back(Farlor::Vector3(-1.0f, 0.0f, 0.0f));
+    std::vector<Farlor::Vector3> emitterDirections;
+    emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
+    emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
+    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
+    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
 
-        int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
+    // emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
+    // emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
+    // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
+    // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
+    //     emitterDirections.push_back(Farlor::Vector3(-1.0f, 0.0f, 0.0f));
 
-        // Vector storing each runs time
-        std::vector<uint64_t> runTimes;
+    int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
 
-        for (uint32_t r = 0; r < experimentSpecificParams.framePixelCount; r++) {
+    // Vector storing each runs time
+    std::vector<uint64_t> runTimes;
+
+    for (uint32_t r = 0; r < experimentSpecificParams.framePixelCount; r++) {
         for (uint32_t c = 0; c < experimentSpecificParams.framePixelCount; c++) {
             const uint32_t frameIdx = r * experimentSpecificParams.framePixelCount + c;
             framePixels[frameIdx] = 0.0;
@@ -278,10 +278,11 @@ int main(int argc, char *argv[])
                   << std::endl;
     }
 
-      std::cout << "Object scatter: " << experimentParams.weightingParameters.scatter << std::endl;
-      std::cout << "Object absorption: " << experimentParams.weightingParameters.absorption << std::endl;
+    std::cout << "Object scatter: " << experimentParams.weightingParameters.scatter << std::endl;
+    std::cout << "Object absorption: " << experimentParams.weightingParameters.absorption
+              << std::endl;
 
-      // experimentParams.weightingParameters.bias = 10.0;//twisty::TwistyPi;
+    // experimentParams.weightingParameters.bias = 10.0;//twisty::TwistyPi;
 
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
@@ -328,10 +329,10 @@ int main(int argc, char *argv[])
     // Experiment start time
     auto startTime = std::chrono::high_resolution_clock::now();
 
-      // Setup random number generator
+    // Setup random number generator
     const uint32_t overallRngSeed = time(0);
     std::cout << "Overall RNG Seed: " << overallRngSeed << std::endl;
-     std::mt19937_64 rng(overallRngSeed);
+    std::mt19937_64 rng(overallRngSeed);
 
     int64_t totalOpCount = experimentSpecificParams.framePixelCount
           * experimentSpecificParams.framePixelCount * emitterLocations.size();

@@ -908,7 +908,7 @@ namespace ExperimentBase {
         double phiExtent = 0.0f;
 
 
-        const double h = 0.5 + (radiusPerSide2 - radiusPerSide2) / (2.0 * d2);
+        const double h = 0.5;
         const double a = std::sqrt(radiusPerSide2 - (h * h * d2));
 
         phiExtent = std::asin(a / radiusPerSide);
@@ -1276,10 +1276,12 @@ namespace ExperimentBase {
         // Per thread max values
         std::vector<double> maxPathWeightPerThread(maxThreads, -std::numeric_limits<double>::max());
 
+        const uint32_t baseSeed = time(0);
+
         // Random Gen per thread
         std::vector<std::mt19937_64> rngPerThread(maxThreads);
         for (int i = 0; i < maxThreads; i++) {
-            rngPerThread[i].seed(i);
+            rngPerThread[i].seed(baseSeed + i);
         }
 
         std::cout << "Starting path generation" << std::endl;

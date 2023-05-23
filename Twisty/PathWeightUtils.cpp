@@ -286,10 +286,10 @@ namespace PathWeighting {
     // Lookup table integrand
     WeightLookupTableIntegral::WeightLookupTableIntegral(
           const WeightingParameters &weightingParams, float ds)
-        : BaseWeightLookupTable(weightingParams, ds, 0.0f, (2.3f / ds) * 1.5f)
+        : BaseWeightLookupTable(weightingParams, ds, 0.0f, 0.0f)
     {
         m_minCurvature = 0.0f;
-        m_maxCurvature = (2.3f / ds) * 1.5f;
+        m_maxCurvature = (2.0 / ds) * 1.01f;
         m_curvatureStepSize
               = (m_maxCurvature - m_minCurvature) / (m_weightingParams.numCurvatureSteps - 1);
     }
@@ -499,7 +499,7 @@ namespace PathWeighting {
 
                 MinMaxCurvature result;
                 result.minCurvature = 0.0f;
-                result.maxCurvature = (2.3f / ds) * 1.5f;
+                result.maxCurvature = (2 / ds) * 1.01f;
                 return result;
             } break;
             default: {
@@ -667,7 +667,7 @@ namespace PathWeighting {
         const float rMag = std::sqrt((z * z) + 1.0 - (2.0 * z * x));                               \
                                                                                                    \
         NormalizerDoubleType result = 0.0;                                                         \
-        const uint32_t numSteps = 10000;                                                           \
+        const uint32_t numSteps = 1000;                                                            \
                                                                                                    \
         const float xMin = -1.0;                                                                   \
         const float xMax = 1.0;                                                                    \

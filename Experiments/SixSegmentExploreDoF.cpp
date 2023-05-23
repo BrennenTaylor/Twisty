@@ -386,12 +386,13 @@ int main(int argc, char *argv[])
                               tangents.data(), curvatures.data(), RequiredNumSegments,
                               experimentGeometry);
 
-                        double scatteringWeightLog10
+                        twisty::PathWeighting::PathWeightValue scatteringWeightLog10
                               = twisty::PathWeighting::WeightCurveViaCurvatureLog10(
                                     curvatures.data(), RequiredNumSegments - 1,
-                                    weightingIntegralsRawPointer, experimentParams.weightingParameters.absorption);
+                                    weightingIntegralsRawPointer,
+                                    experimentParams.weightingParameters.absorption);
                         double normalizedPathWeight
-                              = std::pow(10.0, scatteringWeightLog10 + pathNormaizerLog10);
+                              = std::pow(10.0, scatteringWeightLog10.weight + pathNormaizerLog10);
 
                         if (normalizedPathWeight > maxValue) {
                             maxValue = normalizedPathWeight;

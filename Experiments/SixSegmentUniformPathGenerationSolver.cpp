@@ -207,8 +207,8 @@ int main(int argc, char *argv[])
 
     const uint64_t numExperimentPaths = experimentParams.numPathsInExperiment;
 
-    const float minDs = 9.0f / 5;
-    const float maxDs = 21.0f / 5;
+    const float minDs = 9.0f / experimentParams.numSegmentsPerCurve;
+    const float maxDs = 21.0f / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 100;
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
@@ -230,9 +230,9 @@ int main(int argc, char *argv[])
     //     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
 
 
-    const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
-          = twisty::PathWeighting::NormalizerStuff::Norm(
-                experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
+    const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0f;
+    //     = twisty::PathWeighting::NormalizerStuff::Norm(
+    //           experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
     const double pathNormalizerLog10 = (double)boost::multiprecision::log10(pathNormalizer);
 

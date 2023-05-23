@@ -123,9 +123,6 @@ int main(int argc, char *argv[])
 
     int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
 
-    // Experiment start time
-    auto startTime = std::chrono::high_resolution_clock::now();
-
     // Vector storing each runs time
     std::vector<uint64_t> runTimes;
 
@@ -137,11 +134,11 @@ int main(int argc, char *argv[])
     }
 
     // We are going to bake a big ol table, then use this whenever we need.
-    const float minArclength = 10.0f;
-    const float maxArclength = 20.0f;
+    const float minArclength = 1.0f;
+    const float maxArclength = 40.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
-    const uint32_t numArclengths = 1000;
+    const uint32_t numArclengths = 2000;
 
     std::filesystem::path outputDirectoryPath = experimentParams.experimentDirPath;
     if (!std::filesystem::exists(outputDirectoryPath)) {
@@ -155,14 +152,20 @@ int main(int argc, char *argv[])
                   << std::endl;
     }
 
+    std::cout << "Object scatter: " << experimentParams.weightingParameters.scatter << std::endl;
+    std::cout << "Object absorption: " << experimentParams.weightingParameters.absorption
+              << std::endl;
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
     objectCachedLookupTable.GetWeightLookupTable(minDs)->ExportValues(
-          outputDirectoryPath.string(), std::string("objectLookupTable.csv"));
+          outputDirectoryPath.string(), std::string("objectLookupTable_minDs.csv"));
+    objectCachedLookupTable.GetWeightLookupTable(maxDs)->ExportValues(
+          outputDirectoryPath.string(), std::string("objectLookupTable_maxDs.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
-    environmentWeightingParams.absorption = 0.001f;
-    environmentWeightingParams.scatter = 0.0000001f;
+    //     environmentWeightingParams.absorption = 0.0001f;
+    //     environmentWeightingParams.scatter = 0.0001f;
+    //     environmentWeightingParams.mu = 0.01f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -175,7 +178,9 @@ int main(int argc, char *argv[])
           environmentWeightingParams, minDs, maxDs, numArclengths);
 
     environmentCachedLookupTable.GetWeightLookupTable(minDs)->ExportValues(
-          outputDirectoryPath.string(), std::string("environmentLookupTable.csv"));
+          outputDirectoryPath.string(), std::string("environmentLookupTable_minDs.csv"));
+    environmentCachedLookupTable.GetWeightLookupTable(maxDs)->ExportValues(
+          outputDirectoryPath.string(), std::string("environmentLookupTable_maxDs.csv"));
 
     const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
@@ -183,7 +188,13 @@ int main(int argc, char *argv[])
 
     const int32_t numRecieverDirections = experimentSpecificParams.numDirections;
 
-    std::mt19937_64 rng(0);
+    // Experiment start time
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    // Setup random number generator
+    const uint32_t overallRngSeed = time(0);
+    std::cout << "Overall RNG Seed: " << overallRngSeed << std::endl;
+    std::mt19937_64 rng(overallRngSeed);
 
     int64_t totalOpCount = experimentSpecificParams.framePixelCount
           * experimentSpecificParams.framePixelCount * numRecieverDirections;
@@ -250,8 +261,6 @@ int main(int argc, char *argv[])
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
                             objectCachedLookupTable, maxDs);
-                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
-                      = result.totalWeight / pdf;
 
                 currentOpCount++;
 
@@ -271,7 +280,6 @@ int main(int argc, char *argv[])
                 std::cout << "Total weight w/ cos factor: " << importanceSampledWeight * cosFactor
                           << std::endl;
 */
-
 
                 std::ios_base::fmtflags flags = std::cout.flags();
                 std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
@@ -295,16 +303,17 @@ int main(int argc, char *argv[])
                           << "m" << secs << "s\t\t";
                 std::cout.flags(flags);
 
+                if (result.numValidPaths <= 0) {
+                    numValidRecieverDirections--;
+                    continue;
+                }
+
+
+                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
+                      = result.totalWeight / pdf;
                 boost::multiprecision::cpp_dec_float_100 weight_log10
                       = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
-                if (weight_log10 > -10) {
-                    std::cout << "Odd bug encountered, lets toss the path" << std::endl;
-                    numValidRecieverDirections--;
-                } else {
-                    if (result.numValidPaths > 0) {
-                        framePixels[frameIdx] += importanceSampledWeight * cosFactor;
-                    }
-                }
+                framePixels[frameIdx] += importanceSampledWeight * cosFactor;
             }
 
             framePixels[frameIdx] /= numValidRecieverDirections;
@@ -347,7 +356,7 @@ int main(int argc, char *argv[])
     std::cout << "Average run time: " << averageRunTimeMinutes << "m" << std::endl;
 
 
-    OutputRawData(outputDirectoryPath, combinedPixels, experimentSpecificParams.framePixelCount);
+    OutputRawData(outputDirectoryPath, framePixels, experimentSpecificParams.framePixelCount);
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedCombined
           = CalculateNormalizedFrames(framePixels);
@@ -402,7 +411,7 @@ std::vector<boost::multiprecision::cpp_dec_float_100> CalculateOffsetFrames(
     boost::multiprecision::cpp_dec_float_100 maximum
           = *std::max_element(rawFrameWeights.begin(), rawFrameWeights.end());
     boost::multiprecision::cpp_dec_float_100 invMax
-          = boost::multiprecision::cpp_dec_float_100(1.0) / maximum;
+          = boost::multiprecision::cpp_dec_float_100(100.0) / maximum;
 
     std::for_each(result.begin(), result.end(),
           [&invMax](boost::multiprecision::cpp_dec_float_100 &n) { n = n * invMax; });

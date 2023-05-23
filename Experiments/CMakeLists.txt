@@ -1,7 +1,8 @@
-if (LINUX)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
-# set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
-find_package(OpenVDB REQUIRED)
+if(LINUX)
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
+
+    # set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
+    find_package(OpenVDB REQUIRED)
 endif()
 
 FetchContent_Declare(tinyexr
@@ -33,10 +34,11 @@ target_link_libraries(ExperimentBase
     PUBLIC glm
     PRIVATE nlohmann_json::nlohmann_json
 )
-if (LINUX)
-target_link_libraries(ExperimentBase
-    PUBLIC OpenVDB::openvdb
-)
+
+if(LINUX)
+    target_link_libraries(ExperimentBase
+        PUBLIC OpenVDB::openvdb
+    )
 endif()
 
 add_executable(FullExperiment
@@ -371,28 +373,28 @@ target_link_libraries(NoisyCirclePathGenerationMSegment_Pinhole
 )
 
 if(LINUX)
-add_executable(NoisyCirclePathGenerationMSegment_RaycastVolume
-    NoisyCirclePathGenerationMSegment_RaycastVolume.cpp
-)
-
-target_compile_features(NoisyCirclePathGenerationMSegment_RaycastVolume
-    PUBLIC cxx_static_assert
-    PUBLIC cxx_std_17
-)
-
-if(WIN32)
-    target_compile_options(NoisyCirclePathGenerationMSegment_RaycastVolume
-        PUBLIC "/openmp"
+    add_executable(NoisyCirclePathGenerationMSegment_RaycastVolume
+        NoisyCirclePathGenerationMSegment_RaycastVolume.cpp
     )
-endif()
 
-target_link_libraries(NoisyCirclePathGenerationMSegment_RaycastVolume
-    PUBLIC ExperimentBase
-    PUBLIC Twisty
-    PUBLIC glm
-    PRIVATE nlohmann_json::nlohmann_json
-    PUBLIC tinyexr_include
-)
+    target_compile_features(NoisyCirclePathGenerationMSegment_RaycastVolume
+        PUBLIC cxx_static_assert
+        PUBLIC cxx_std_17
+    )
+
+    if(WIN32)
+        target_compile_options(NoisyCirclePathGenerationMSegment_RaycastVolume
+            PUBLIC "/openmp"
+        )
+    endif()
+
+    target_link_libraries(NoisyCirclePathGenerationMSegment_RaycastVolume
+        PUBLIC ExperimentBase
+        PUBLIC Twisty
+        PUBLIC glm
+        PRIVATE nlohmann_json::nlohmann_json
+        PUBLIC tinyexr_include
+    )
 endif()
 
 add_executable(Simple_FiveSegment_Analytical
@@ -433,6 +435,28 @@ if(WIN32)
 endif()
 
 target_link_libraries(Simple_SixSegment_Analytical
+    PUBLIC ExperimentBase
+    PUBLIC Twisty
+    PUBLIC glm
+    PRIVATE nlohmann_json::nlohmann_json
+)
+
+add_executable(CalculateNormalizer
+    CalculateNormalizer.cpp
+)
+
+target_compile_features(CalculateNormalizer
+    PUBLIC cxx_static_assert
+    PUBLIC cxx_std_17
+)
+
+if(WIN32)
+    target_compile_options(CalculateNormalizer
+        PUBLIC "/openmp"
+    )
+endif()
+
+target_link_libraries(CalculateNormalizer
     PUBLIC ExperimentBase
     PUBLIC Twisty
     PUBLIC glm

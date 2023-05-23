@@ -145,8 +145,6 @@ int main(int argc, char *argv[])
 
     twisty::ExperimentRunner::ExperimentParameters experimentParams
           = ParseExperimentParamsFromConfig(experimentConfig, false);
-    assert((experimentParams.numSegmentsPerCurve == 5)
-          && "Must only target 5 segment curve configurations");
 
     // tack on the info for experiment path
     experimentParams.experimentDirPath += "/arclength_" + std::to_string((int)arclength);
@@ -207,72 +205,16 @@ int main(int argc, char *argv[])
 
     const uint64_t numExperimentPaths = experimentParams.numPathsInExperiment;
 
-    const float minDs = 9.0f / 5;
-    const float maxDs = 21.0f / 5;
-    const uint32_t numArclengths = 100;
-    twisty::PathWeighting::CachedMultiArclengthWeightLookupTable cachedLookupTable(
-          experimentParams.weightingParameters, minDs, maxDs, numArclengths);
-
-    twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer
-          = *cachedLookupTable.GetWeightLookupTable(ds);
-
-    //     std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
-    //     if (experimentParams.weightingParameters.weightingMethod
-    //           == twisty::WeightingMethod::SimplifiedModel) {
-    //         lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
-    //               experimentParams.weightingParameters, ds);
-    //     } else {
-    //         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
-    //               experimentParams.weightingParameters, ds);
-    //     }
-    //     lookupEvaluator->ExportValues(experimentParams.experimentDirPath);
-    //     assert(lookupEvaluator);
-    //     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
-
-
-    const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer = 1.0;
-    //     = twisty::PathWeighting::NormalizerStuff::Norm(
-    //           experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
+    const twisty::PathWeighting::NormalizerStuff::NormalizerDoubleType pathNormalizer
+          = twisty::PathWeighting::NormalizerStuff::Norm(
+                experimentParams.numSegmentsPerCurve, ds, experimentGeometry);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
+    resultsOFS << "PathNormalizer: " << pathNormalizer << std::endl;
+
     const double pathNormalizerLog10 = (double)boost::multiprecision::log10(pathNormalizer);
 
-    std::cout << "Starting Experiment" << std::endl;
-    const twisty::ExperimentBase::Result result
-          = twisty::ExperimentBase::FiveSegmentPathGenerationMC(numExperimentPaths,
-                experimentGeometry, experimentParams, pathNormalizerLog10,
-                weightingIntegralsRawPointer);
-
-    resultsOFS << "Num valid paths: " << result.numValidPaths << "/" << result.numPathsTotal
-               << std::endl;
-    resultsOFS << "Percent valid paths: "
-               << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%" << std::endl;
-
-    std::cout << "Num valid paths: " << result.numValidPaths << "/" << result.numPathsTotal
-              << std::endl;
-    std::cout << "Percent valid paths: "
-              << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%" << std::endl;
-
-    resultsOFS << "Converged final weight: " << result.totalWeight << std::endl;
-    std::cout << "Converged final weight: " << result.totalWeight << std::endl;
-
-
-    resultsOFS << "Min path weight log10: " << result.minPathWeightLog10 << std::endl;
-    resultsOFS << "Max path weight log10: " << result.maxPathWeightLog10 << std::endl;
-
-    std::cout << "Min path weight log10: " << result.minPathWeightLog10 << std::endl;
-    std::cout << "Max path weight log10: " << result.maxPathWeightLog10 << std::endl;
-
-    // Big float decompressed versions
-    const double overallMinPathWeightLog10Decompressed
-          = std::pow(10.0f, (double)result.minPathWeightLog10);
-    const double overallMaxPathWeightLog10Decompressed
-          = std::pow(10.0f, (double)result.maxPathWeightLog10);
-
-    resultsOFS << "Min path weight: " << overallMinPathWeightLog10Decompressed << std::endl;
-    resultsOFS << "Max path weight: " << overallMaxPathWeightLog10Decompressed << std::endl;
-
-    std::cout << "Min path weight: " << overallMinPathWeightLog10Decompressed << std::endl;
-    std::cout << "Max path weight: " << overallMaxPathWeightLog10Decompressed << std::endl;
+    std::cout << "PathNormalizerLog10: " << pathNormalizerLog10 << std::endl;
+    resultsOFS << "PathNormalizerLog10: " << pathNormalizerLog10 << std::endl;
 
     std::cout << "Done" << std::endl;
 }
