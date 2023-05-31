@@ -1672,7 +1672,14 @@ namespace ExperimentBase {
             return { 0, 0, 0.0f, 0.0, 0.0 };
         }
 
-        //std::cout << "Starting path generation" << std::endl;
+        std::vector<int> firstSamplePerThread(maxThreads, 1);
+        std::vector<std::vector<Farlor::Vector3>> samplePointsPerThread(maxThreads);
+        for (int i = 0; i < maxThreads; i++) {
+            samplePointsPerThread[i].reserve(numSegmentsPerCurve + 1);
+        }
+
+        std::vector<twisty::PathWeighting::PathWeightValue> previousSampleWeightsValuesPerThread(
+              maxThreads);
 
 #pragma omp parallel for num_threads(maxThreads) default(none) shared(                             \
             combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,         \
@@ -1698,7 +1705,6 @@ namespace ExperimentBase {
             const Farlor::Vector3 pointM = experimentGeometry.m_endPos;
             const Farlor::Vector3 pointMm1
                   = experimentGeometry.m_endPos - ds * experimentGeometry.m_endDir;
-
 
             std::vector<Farlor::Vector3> points;
             points.resize(numSegmentsPerCurve + 1);
@@ -1741,21 +1747,42 @@ namespace ExperimentBase {
 
             scatteringWeightLog10.weight += pathNormalizerLog10;
 
-            // Detect the case we get a wildly insane path weight
-            // if (scatteringWeightLog10.weight > -10) {
-            //     std::cout << scatteringWeightLog10.weight << std::endl;
-            //     std::cout << "Not sure what is going on, but this path weight is suspect as "
-            //                  "hell.\nDont include it."
-            //               << std::endl;
-            //     continue;
-            // }
+            if (firstSamplePerThread[threadId] == 1) {
+                firstSamplePerThread[threadId] = 0;
+                for (int i = 0; i < numSegmentsPerCurve + 1; i++) {
+                    samplePointsPerThread[threadId][i] = points[i];
+                }
+                previousSampleWeightsValuesPerThread[threadId] = scatteringWeightLog10;
+            } else {
+                // Here, we want to perform metropolis hastings
+                const double currentSampleWeight = std::pow(10.0f, scatteringWeightLog10.weight);
+                const double previousSampleWeight
+                      = std::pow(10.0f, previousSampleWeightsValuesPerThread[threadId].weight);
+
+                const double acceptanceProb = currentSampleWeight / previousSampleWeight;
+                const double randomAcceptanceProb = uniformRand(rngPerThread[threadId]);
+
+                if (randomAcceptanceProb <= acceptanceProb) {
+                    // We accept the sample
+                    // Update the previous sample weight
+                    for (int i = 0; i < numSegmentsPerCurve + 1; i++) {
+                        samplePointsPerThread[threadId][i] = points[i];
+                    }
+                    previousSampleWeightsValuesPerThread[threadId] = scatteringWeightLog10;
+                } else {
+                    // We utilize the sample previously found
+                }
+            }
+
+            const twisty::PathWeighting::PathWeightValue &acceptedWeightValue
+                  = previousSampleWeightsValuesPerThread[threadId];
 
             // Update the min and max values
-            if (scatteringWeightLog10.weight < minPathWeightPerThread[threadId]) {
-                minPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
+            if (acceptedWeightValue.weight < minPathWeightPerThread[threadId]) {
+                minPathWeightPerThread[threadId] = acceptedWeightValue.weight;
             }
-            if (scatteringWeightLog10.weight > maxPathWeightPerThread[threadId]) {
-                maxPathWeightPerThread[threadId] = scatteringWeightLog10.weight;
+            if (acceptedWeightValue.weight > maxPathWeightPerThread[threadId]) {
+                maxPathWeightPerThread[threadId] = acceptedWeightValue.weight;
             }
 
             twisty::CombinedWeightValues_C &activeWeightValue
@@ -1763,7 +1790,7 @@ namespace ExperimentBase {
 
             if (activeWeightValue.m_numValues < MaxNumPathsPerCombinedWeight) {
                 twisty::CombinedWeightValues_C_AddValue(
-                      activeWeightValue, scatteringWeightLog10.weight);
+                      activeWeightValue, acceptedWeightValue.weight);
             } else {
 #pragma omp critical
                 {
@@ -1771,7 +1798,7 @@ namespace ExperimentBase {
                 }
                 twisty::CombinedWeightValues_C_Reset(activeWeightValue);
                 twisty::CombinedWeightValues_C_AddValue(
-                      activeWeightValue, scatteringWeightLog10.weight);
+                      activeWeightValue, acceptedWeightValue.weight);
             }
         }
 

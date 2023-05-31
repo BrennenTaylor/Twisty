@@ -156,6 +156,7 @@ struct NoisyCircleParams {
     uint32_t numDirections = 1;
     float maxArclengthOffset = 1.0f;
     float distanceFromPlane = 1.0f;
+    float eyeDistanceFromFocal = 1.0f;
 };
 
 NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
@@ -176,6 +177,8 @@ NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig
           = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["maxArclengthOffset"];
     params.distanceFromPlane
           = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
+    params.eyeDistanceFromFocal
+          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["eyeDistanceFromFocal"];
 
     assert(params.startX < params.framePixelCount);
     assert(params.startY < params.framePixelCount);
@@ -214,38 +217,21 @@ int main(int argc, char *argv[])
           / static_cast<float>(experimentSpecificParams.framePixelCount);
 
     Farlor::Vector3 cameraCenter(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
-    Farlor::Vector3 centerOfFocalFrame(
-          experimentSpecificParams.distanceFromPlane - 15.0, 0.0f, 0.0f);
+    Farlor::Vector3 centerOfFocalFrame(experimentSpecificParams.distanceFromPlane
+                - experimentSpecificParams.eyeDistanceFromFocal,
+          0.0f, 0.0f);
 
     std::vector<Farlor::Vector3> emitterLocations;
-    //     emitterLocations.push_back(Farlor::Vector3(5.0f, 10.0f, 0.0f));
+    emitterLocations.push_back(Farlor::Vector3(5.0f, 10.0f, 0.0f));
     //     emitterLocations.push_back(Farlor::Vector3(5.0f, -10.0f, 0.0f));
     //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 10.0f));
     //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, -10.0f));
 
-    emitterLocations.push_back(Farlor::Vector3(0.0f, 8.0f, 0.0f));
-    emitterLocations.push_back(Farlor::Vector3(0.0f, -8.0f, 0.0f));
-    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 8.0f));
-    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -8.0f));
-
-    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-    // emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
-
-    //     emitterLocations.push_back(Farlor::Vector3(24.0f, 0.0f, 0.0f));
-
     std::vector<Farlor::Vector3> emitterDirections;
     emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
-    emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
-    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
-    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
-
-    // emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
-    // emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
-    // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
-    // emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
-    //     emitterDirections.push_back(Farlor::Vector3(-1.0f, 0.0f, 0.0f));
+    //     emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
+    //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
+    //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
 
     int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
 
@@ -281,9 +267,6 @@ int main(int argc, char *argv[])
     std::cout << "Object scatter: " << experimentParams.weightingParameters.scatter << std::endl;
     std::cout << "Object absorption: " << experimentParams.weightingParameters.absorption
               << std::endl;
-
-    // experimentParams.weightingParameters.bias = 10.0;//twisty::TwistyPi;
-
     twisty::PathWeighting::CachedMultiArclengthWeightLookupTable objectCachedLookupTable(
           experimentParams.weightingParameters, minDs, maxDs, numArclengths);
     objectCachedLookupTable.GetWeightLookupTable(minDs)->ExportValues(
@@ -292,9 +275,7 @@ int main(int argc, char *argv[])
           outputDirectoryPath.string(), std::string("objectLookupTable_maxDs.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
-    environmentWeightingParams.absorption = 0.0001f;
-    environmentWeightingParams.scatter = 0.0001f;
-    environmentWeightingParams.mu = 0.01f;
+    environmentWeightingParams.scatter = 0.001f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -314,7 +295,6 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
-
 
 #ifdef __linux__
     // Must call once
@@ -338,17 +318,19 @@ int main(int argc, char *argv[])
           * experimentSpecificParams.framePixelCount * emitterLocations.size();
     int64_t currentOpCount = 0;
 
-    for (int emitterIdx = 0; emitterIdx < emitterLocations.size(); emitterIdx++) {
-        for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
-            //std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
-            for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
-                //std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
 
-                const uint32_t frameIdx
-                      = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
-                      + (pixelIdxZ + halfFrameWidth);
+    for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
+        //std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
+        for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
+            //std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
 
+            const uint32_t frameIdx
+                  = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
+                  + (pixelIdxZ + halfFrameWidth);
 
+            int64_t numValidEmitterSolutions = emitterLocations.size();
+
+            for (int emitterIdx = 0; emitterIdx < emitterLocations.size(); emitterIdx++) {
                 // Flip the plane normal so we are facing the correct way
 
                 const Farlor::Vector3 pixelCenter = centerOfFocalFrame
@@ -391,8 +373,6 @@ int main(int argc, char *argv[])
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
                             objectCachedLookupTable, maxDs);
-                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
-                      = result.totalWeight;
 
                 currentOpCount++;
 
@@ -402,17 +382,6 @@ int main(int argc, char *argv[])
                 const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
                       singleRunEndTime - singleRunStartTime);
                 runTimes.push_back(timeDiff.count());
-                /*
-                std::cout << "Num valid paths: " << result.numValidPaths << "/"
-                          << result.numPathsTotal << std::endl;
-                std::cout << "Percent valid paths: "
-                          << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
-                          << std::endl;
-                std::cout << "Total weight: " << importanceSampledWeight << std::endl;
-                std::cout << "Total weight w/ cos factor: " << importanceSampledWeight * cosFactor
-                          << std::endl;
-*/
-
 
                 std::ios_base::fmtflags flags = std::cout.flags();
                 std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
@@ -436,16 +405,18 @@ int main(int argc, char *argv[])
                           << "m" << secs << "s\t\t";
                 std::cout.flags(flags);
 
+                if (result.numValidPaths <= 0) {
+                    numValidEmitterSolutions--;
+                    continue;
+                }
+                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
+                      = result.totalWeight;
                 boost::multiprecision::cpp_dec_float_100 weight_log10
                       = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
-                // if (weight_log10 > -10) {
-                //     std::cout << "Odd bug encountered, lets toss the path" << std::endl;
-                // } else {
-                if (result.numValidPaths > 0) {
-                    framePixels[frameIdx]
-                          += importanceSampledWeight * cosFactor * (1.0f / emitterLocations.size());
-                }
-                // }
+                framePixels[frameIdx] += importanceSampledWeight * cosFactor;
+            }
+            if (numValidEmitterSolutions > 0) {
+                framePixels[frameIdx] /= numValidEmitterSolutions;
             }
         }
     }

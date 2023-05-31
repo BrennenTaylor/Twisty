@@ -118,9 +118,6 @@ int main(int argc, char *argv[])
           / static_cast<float>(experimentSpecificParams.framePixelCount);
     Farlor::Vector3 centerOfFrame(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
 
-    // Bootstrap method
-    const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
-
     int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
 
     // Vector storing each runs time
@@ -163,9 +160,7 @@ int main(int argc, char *argv[])
           outputDirectoryPath.string(), std::string("objectLookupTable_maxDs.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
-    //     environmentWeightingParams.absorption = 0.0001f;
-    //     environmentWeightingParams.scatter = 0.0001f;
-    //     environmentWeightingParams.mu = 0.01f;
+    environmentWeightingParams.scatter = 0.001f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -218,8 +213,8 @@ int main(int argc, char *argv[])
                 const float e0 = uniformFloat(rng);
                 const float e1 = uniformFloat(rng);
 
-                const float theta = std::acos(std::sqrt(e0));
-                const float phi = 2.0f * twisty::TwistyPi * e1;
+                const float theta = 0.0f;  //std::acos(std::sqrt(e0));
+                const float phi = 0.0f;    //2.0f * twisty::TwistyPi * e1;
 
                 // Flip the plane normal so we are facing the correct way
                 const Farlor::Vector3 recieverDir = (-1.0f * planeNormal * std::cos(theta))
@@ -237,8 +232,9 @@ int main(int argc, char *argv[])
                 const Farlor::Vector3 emitterDir = centerOfFrame.Normalized();
 
                 twisty::PerturbUtils::BoundaryConditions experimentGeometry;
-                experimentGeometry.m_startPos = emitterStart;
-                experimentGeometry.m_startDir = emitterDir;
+                const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
+                experimentGeometry.m_startPos = Farlor::Vector3(5.0f, 0.0f, -10.0f);
+                experimentGeometry.m_startDir = Farlor::Vector3(0.0f, 0.0f, 1.0f);
                 experimentGeometry.m_endPos = recieverPos;
                 experimentGeometry.m_endDir = recieverDir;
                 experimentGeometry.arclength = 0.0f;
@@ -270,16 +266,6 @@ int main(int argc, char *argv[])
                 const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
                       singleRunEndTime - singleRunStartTime);
                 runTimes.push_back(timeDiff.count());
-                /*
-                std::cout << "Num valid paths: " << result.numValidPaths << "/"
-                          << result.numPathsTotal << std::endl;
-                std::cout << "Percent valid paths: "
-                          << (result.numValidPaths / (float)result.numPathsTotal) * 100.0f << "%"
-                          << std::endl;
-                std::cout << "Total weight: " << importanceSampledWeight << std::endl;
-                std::cout << "Total weight w/ cos factor: " << importanceSampledWeight * cosFactor
-                          << std::endl;
-*/
 
                 std::ios_base::fmtflags flags = std::cout.flags();
                 std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
@@ -317,7 +303,6 @@ int main(int argc, char *argv[])
             }
 
             framePixels[frameIdx] /= numValidRecieverDirections;
-            //std::cout << "Pixel Weight: " << framePixels[frameIdx] << std::endl;
         }
     }
 
