@@ -1,5 +1,6 @@
 *.txt
 *.cfg
+*.exr
 Neural/
 .cache/
 compile_commands.json
