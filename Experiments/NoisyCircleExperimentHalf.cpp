@@ -4,7 +4,7 @@
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 #endif
 
-#include "Bootstrapper.h"
+#include "PathGeneration.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
@@ -229,11 +229,14 @@ int main(int argc, char *argv[])
             {
                 const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
 
+                twisty::PerturbUtils::BoundaryConditions arclengthGeometry;
+                arclengthGeometry.m_startPos = emitterStart;
+                arclengthGeometry.m_startDir = emitterDir;
+                arclengthGeometry.m_endPos = recieverPos;
+                arclengthGeometry.m_endDir = recieverDir;
 
-                const float minArclength
-                      = twisty::Bootstrapper::CalculateMinimumArclength(
-                              experimentParams.numSegmentsPerCurve, emitterStart, recieverPos)
-                      * 1.1f;
+                const float minArclength = twisty::PathGeneration::CalculateMinimumArclength(
+                      arclengthGeometry, experimentParams.numSegmentsPerCurve);
                 const float maxArclength = minArclength * 1.5f;
                 const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
 
@@ -269,8 +272,6 @@ int main(int argc, char *argv[])
                             experimentGeometry.m_endDir = recieverDir;
                             experimentGeometry.arclength = targetArclength;
 
-                            twisty::Bootstrapper bootstrapper(experimentGeometry);
-
                             std::stringstream perExperimentSS;
                             perExperimentSS << "x_" << pixelIdxX << "_y_" << pixelIdxY << "_a_"
                                             << arclengthIdx << "_ic_" << initialCurveIdx << "_ci_"
@@ -283,14 +284,13 @@ int main(int argc, char *argv[])
                             if (experimentParams.useGpu) {
                                 upExperimentRunner = std::make_unique<
                                       twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU>(
-                                      experimentParams, bootstrapper);
+                                      experimentParams);
                                 std::cout << "Selected Runner Method: "
                                              "FullExperimentRunnerOptimalPerturb_Gpu"
                                           << std::endl;
                             } else {
                                 upExperimentRunner = std::make_unique<
-                                      twisty::FullExperimentRunnerOptimalPerturb>(
-                                      experimentParams, bootstrapper);
+                                      twisty::FullExperimentRunnerOptimalPerturb>(experimentParams);
                                 std::cout << "Selected Runner Method: "
                                              "FullExperimentRunnerOptimalPerturb"
                                           << std::endl;
@@ -304,11 +304,12 @@ int main(int argc, char *argv[])
                             }
                             upExperimentRunner
                                   = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                                        experimentParams, bootstrapper);
+                                        experimentParams);
 #endif
 
                             std::optional<twisty::ExperimentRunner::ExperimentResults>
-                                  optionalResults = upExperimentRunner->RunExperiment();
+                                  optionalResults
+                                  = upExperimentRunner->RunExperiment(experimentGeometry);
                             if (!optionalResults.has_value()) {
                                 std::cout << "Experiment failed: no results returned." << std::endl;
                                 return 1;

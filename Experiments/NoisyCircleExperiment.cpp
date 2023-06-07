@@ -320,8 +320,6 @@ int main(int argc, char *argv[])
                         experimentGeometry.m_endDir = recieverDir;
                         experimentGeometry.arclength = currentArclength;
 
-                        twisty::Bootstrapper bootstrapper(experimentGeometry);
-
                         std::stringstream perExperimentSS;
                         perExperimentSS << currentArclengthString << "/"
                                         << "x_" << pixelIdxZ << "_y_" << pixelIdxY << "_a_"
@@ -335,14 +333,14 @@ int main(int argc, char *argv[])
                         if (experimentParams.useGpu) {
                             upExperimentRunner = std::make_unique<
                                   twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU>(
-                                  experimentParams, bootstrapper);
+                                  experimentParams);
                             std::cout << "Selected Runner Method: "
                                          "FullExperimentRunnerOptimalPerturb_Gpu"
                                       << std::endl;
                         } else {
                             upExperimentRunner
                                   = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                                        experimentParams, bootstrapper);
+                                        experimentParams);
                             std::cout << "Selected Runner Method: "
                                          "FullExperimentRunnerOptimalPerturb"
                                       << std::endl;
@@ -356,11 +354,11 @@ int main(int argc, char *argv[])
                         }
                         upExperimentRunner
                               = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                                    experimentParams, bootstrapper);
+                                    experimentParams);
 #endif
 
                         std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults
-                              = upExperimentRunner->RunExperiment();
+                              = upExperimentRunner->RunExperiment(experimentGeometry);
                         if (!optionalResults.has_value()) {
                             std::cout << "Experiment failed: no results returned." << std::endl;
                             return 1;

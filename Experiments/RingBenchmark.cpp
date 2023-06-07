@@ -4,8 +4,6 @@
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 #endif
 
-#include "Bootstrapper.h"
-
 #include <FMath/Vector3.h>
 
 #include <nlohmann/json.hpp>
@@ -207,8 +205,6 @@ int main(int argc, char *argv[])
         experimentGeometry.arclength = std::max(experimentGeometry.arclength, 3.0f);
         experimentParams.arclength = experimentGeometry.arclength;
 
-        twisty::Bootstrapper bootstrapper(experimentGeometry);
-
         std::cout << "Experiment Path Count: " << experimentParams.numPathsInExperiment
                   << std::endl;
 
@@ -218,12 +214,12 @@ int main(int argc, char *argv[])
         if (experimentParams.useGpu) {
             upExperimentRunner
                   = std::make_unique<twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU>(
-                        experimentParams, bootstrapper);
+                        experimentParams);
             std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb_Gpu"
                       << std::endl;
         } else {
-            upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                  experimentParams, bootstrapper);
+            upExperimentRunner
+                  = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams);
             std::cout << "Selected Runner Method: FullExperimentRunnerOptimalPerturb" << std::endl;
         }
 #else
@@ -232,13 +228,13 @@ int main(int argc, char *argv[])
                          "to CPU"
                       << std::endl;
         }
-        upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-              experimentParams, bootstrapper);
+        upExperimentRunner
+              = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(experimentParams);
 #endif
 
         auto start = std::chrono::high_resolution_clock::now();
         std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults
-              = upExperimentRunner->RunExperiment();
+              = upExperimentRunner->RunExperiment(experimentGeometry);
         auto end = std::chrono::high_resolution_clock::now();
         auto timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         auto timeSec = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();

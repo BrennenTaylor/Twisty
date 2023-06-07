@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 
     const float arclength = std::stof(argv[2]);
     const float angle = std::stof(argv[3]);
-    const float angle_rad = angle * (M_PI / 180.0f);
+    const float angle_rad = angle * (PI / 180.0f);
 
     twisty::ExperimentRunner::ExperimentParameters experimentParams
           = ParseExperimentParamsFromConfig(experimentConfig, false);

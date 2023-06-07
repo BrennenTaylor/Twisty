@@ -1,7 +1,5 @@
 #include <FMath/Vector3.h>
 
-#include <Bootstrapper.h>
-
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -12,6 +10,8 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
+#define PI 3.1415926535897932384626433832795028841971693993751058209749445923078164062
+
 const float distanceFromPlane = 10.0f;
 
 const double zMin = 0.0;
@@ -19,10 +19,10 @@ const double zMax = 10.0;
 
 const double ringRadius = 1.75;
 
-double GreensFunctionApprox(double scatteringCoefficient, double absorptionCoefficient, double s, const Farlor::Vector3& x2, const Farlor::Vector3& n2, const Farlor::Vector3& x1, const Farlor::Vector3& n1)
+double GreensFunctionApprox(double scatteringCoefficient, double absorptionCoefficient, double s,
+      const Farlor::Vector3 &x2, const Farlor::Vector3 &n2, const Farlor::Vector3 &x1,
+      const Farlor::Vector3 &n1)
 {
-
-
     const double p = scatteringCoefficient / 2.0;
 
     const Farlor::Vector3 r = (float)p * (x2 - x1);
@@ -34,17 +34,17 @@ double GreensFunctionApprox(double scatteringCoefficient, double absorptionCoeff
     const double F = (3.0 / 2.0) * A;
 
 
-
     double normalization = 1.0f;
     {
         normalization *= (p * p * p);
         double num = sqrt(F) * (E * E - 2.0 * D * F);
-        double den = 4.0 * pow(M_PI, (5.0 / 2.0)) * (exp((E * E) / (F - D)) - exp(D));
+        double den = 4.0 * pow(PI, (5.0 / 2.0)) * (exp((E * E) / (F - D)) - exp(D));
         normalization *= (num / den);
         normalization *= exp(C);
     }
 
-    double inside = (-C - D * n2.Dot(n1) + E * r.Dot(n2 + n1) - F * r.SqrMagnitude() - absorptionCoefficient * s);
+    double inside = (-C - D * n2.Dot(n1) + E * r.Dot(n2 + n1) - F * r.SqrMagnitude()
+          - absorptionCoefficient * s);
     double result = normalization * exp(inside);
 
 
@@ -55,16 +55,18 @@ Farlor::Vector3 UniformlySampleHemisphereFacingNegativeX(const float u, const fl
 {
     float z = u;
     float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
-    float phi = 2.0f * (float)M_PI * v;
+    float phi = 2.0f * (float)PI * v;
 
     return Farlor::Vector3(-1.0f * r * std::sin(phi), r * std::cos(phi), z).Normalized();
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    if (argc < 7)
-    {
-        std::cout << "Call as: " << argv[0] << " numZValues experimentName experimentOutputPath numNormals normalSeed numArclengths" << std::endl;
+    if (argc < 7) {
+        std::cout << "Call as: " << argv[0]
+                  << " numZValues experimentName experimentOutputPath numNormals normalSeed "
+                     "numArclengths"
+                  << std::endl;
         return 1;
     }
 
@@ -77,29 +79,25 @@ int main(int argc, char* argv[])
 
     std::filesystem::path outputDirectoryPath = std::filesystem::path(experimentOutputPath);
     std::cout << "Output Directory Path: " << outputDirectoryPath << std::endl;
-    if (!std::filesystem::exists(outputDirectoryPath))
-    {
+    if (!std::filesystem::exists(outputDirectoryPath)) {
         std::filesystem::create_directories(outputDirectoryPath);
     }
 
     // We have a rotated and non-rotated version to test for initial seed curve impact
     std::vector<boost::multiprecision::cpp_dec_float_100> measuredZValues(numZValues);
-    for (uint32_t z = 0; z < numZValues; z++)
-    {
+    for (uint32_t z = 0; z < numZValues; z++) {
         measuredZValues[z] = 0.0;
     }
 
     // Ok, we want the ray emitter
-    const Farlor::Vector3 emitterStart{ 0.0f, 0.0f, 0.0f };
+    const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
     const Farlor::Vector3 emitterDir = Farlor::Vector3(0.0f, 0.0f, 1.0f).Normalized();
-    twisty::Bootstrapper::RayGeometry rayEmitter(emitterStart, emitterDir);
 
     const double scatteringCoefficient = 0.99;
     const double absorptionCoefficient = 1.0 - scatteringCoefficient;
 
     const double deltaZ = (zMax - zMin) / (numZValues - 1);
-    for (uint32_t z = 0; z < numZValues; ++z)
-    {
+    for (uint32_t z = 0; z < numZValues; ++z) {
         const double receiverZ = zMin + deltaZ * z;
         const Farlor::Vector3 recieverPos = Farlor::Vector3(ringRadius, 0.0f, receiverZ);
 
@@ -119,21 +117,24 @@ int main(int argc, char* argv[])
         const float deltaArclength = (maxArclength - minArclength) / (numArclengths - 1);
 
         boost::multiprecision::cpp_dec_float_100 averagedResult = 0.0;
-        for (uint32_t arclengthIdx = 0; arclengthIdx < numArclengths; ++arclengthIdx)
-        {
+        for (uint32_t arclengthIdx = 0; arclengthIdx < numArclengths; ++arclengthIdx) {
             const float arclengthToUse = minArclength + arclengthIdx * deltaArclength;
 
             std::mt19937 normalGen(normalSeed);
-            for (uint32_t normalIdx = 0; normalIdx < numNormals; ++normalIdx)
-            {
+            for (uint32_t normalIdx = 0; normalIdx < numNormals; ++normalIdx) {
                 std::uniform_real_distribution<float> uniformFloats(0.0f, 1.0f);
 
-                Farlor::Vector3 targetNormal = UniformlySampleHemisphereFacingNegativeX(uniformFloats(normalGen), uniformFloats(normalGen));
-               
-                std::cout << "\tTarget arclength " << arclengthIdx << ": " << arclengthToUse << std::endl;
+                Farlor::Vector3 targetNormal = UniformlySampleHemisphereFacingNegativeX(
+                      uniformFloats(normalGen), uniformFloats(normalGen));
+
+                std::cout << "\tTarget arclength " << arclengthIdx << ": " << arclengthToUse
+                          << std::endl;
                 std::cout << "\tTarget normal " << normalIdx << ": " << targetNormal << std::endl;
 
-                averagedResult = GreensFunctionApprox(scatteringCoefficient, absorptionCoefficient, arclengthToUse, recieverPos, targetNormal, emitterStart, emitterDir) * (1.0 / (numNormals * numArclengths));
+                averagedResult
+                      = GreensFunctionApprox(scatteringCoefficient, absorptionCoefficient,
+                              arclengthToUse, recieverPos, targetNormal, emitterStart, emitterDir)
+                      * (1.0 / (numNormals * numArclengths));
             }
         }
 
@@ -147,8 +148,7 @@ int main(int argc, char* argv[])
         zValuesOutputPath.append("ZValues.dat");
 
         std::ofstream zValuesOutputStream(zValuesOutputPath.string());
-        if (!zValuesOutputStream.is_open())
-        {
+        if (!zValuesOutputStream.is_open()) {
             std::cout << "Failed to create z values outfile" << std::endl;
             exit(1);
         }
@@ -157,15 +157,13 @@ int main(int argc, char* argv[])
         zDistancesOutputPath.append("ZDistances.dat");
 
         std::ofstream zDistancesOutputStream(zDistancesOutputPath.string());
-        if (!zDistancesOutputStream.is_open())
-        {
+        if (!zDistancesOutputStream.is_open()) {
             std::cout << "Failed to create z distances outfile" << std::endl;
             exit(1);
         }
 
         // Write out the pixel data
-        for (uint32_t z = 0; z < numZValues; ++z)
-        {
+        for (uint32_t z = 0; z < numZValues; ++z) {
             zValuesOutputStream << measuredZValues[z] << std::endl;
             zDistancesOutputStream << (zMin + deltaZ * z) << std::endl;
         }
