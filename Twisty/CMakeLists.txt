@@ -34,9 +34,12 @@ add_library(Twisty
     Integrate.h
     MathConsts.h
     PathWeighters.h
+    PathGeneration.h
+
 
     # CombinedWeightUtils.cpp
     CurvePerturbUtils.cpp
+    PathGeneration.cpp
     PathWeighters.cpp
     PathWeightUtils.h
     PathWeightUtils.cpp

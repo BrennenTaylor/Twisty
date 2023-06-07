@@ -1633,35 +1633,8 @@ namespace ExperimentBase {
         }
 
         // Min arclength
-
-        float minArclength = 0.0f;
-        // New Way
-        {
-            const uint32_t M = experimentParams.numSegmentsPerCurve;
-            const Farlor::Vector3 Xs = experimentGeometry.m_startPos;
-            const Farlor::Vector3 Xe = experimentGeometry.m_endPos;
-            const Farlor::Vector3 Ns = experimentGeometry.m_startDir;
-            const Farlor::Vector3 Ne = experimentGeometry.m_endDir;
-
-            const float a = Farlor::Vector3(Ns + Ne).Dot((Ns + Ne)) - ((M - 4.0f) * M + 4.0f);
-            const float b = -2.0f * M * (Ns + Ne).Dot((Xe - Xs));
-            const float c = M * M * Farlor::Vector3(Xe - Xs).Dot((Xe - Xs));
-
-            const float minArclengthCandidateOne
-                  = (-b - std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
-            const float minArclengthCandidateTwo
-                  = (-b + std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
-            //std::cout << "Min Arclength candidate one: " << minArclengthCandidateOne << std::endl;
-            //std::cout << "Min Arclength candidate two: " << minArclengthCandidateTwo << std::endl;
-
-            minArclength = 1000000.0f;
-            if (!std::isnan(minArclengthCandidateOne) && minArclengthCandidateOne > 0.0f)
-                minArclength = std::min(minArclength, minArclengthCandidateOne);
-            if (!std::isnan(minArclengthCandidateTwo) && minArclengthCandidateTwo > 0.0f)
-                minArclength = std::min(minArclength, minArclengthCandidateTwo);
-            //std::cout << "Selected arclength = " << minArclength << std::endl;
-        }
-
+        float minArclength = twisty::PathGeneration::CalculateMinimumArclength(
+              experimentGeometry, experimentParams.numSegmentsPerCurve);
         const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
 
         const float actualMaxDs = maxDs;

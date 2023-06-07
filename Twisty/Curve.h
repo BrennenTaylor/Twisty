@@ -33,6 +33,8 @@ namespace twisty {
 class Curve {
    public:
     Curve(uint32_t numSegments = 0);
+    void SetBoundaryConditions(const twisty::PerturbUtils::BoundaryConditions &boundaryConditions);
+
     static std::unique_ptr<Curve> LoadCurveFromStream(std::ifstream &ifstream);
     static void WriteCurveToStream(std::ofstream &outputStream, const twisty::Curve &seedCurve);
 

@@ -1,4 +1,5 @@
 #include <ExperimentRunner.h>
+#include <PathGeneration.h>
 #include <PathWeighters.h>
 #include "CombinedWeightUtils.h"
 

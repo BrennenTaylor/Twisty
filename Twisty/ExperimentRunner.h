@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Bootstrapper.h"
-
 #include "PathWeightUtils.h"
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
@@ -84,11 +82,10 @@ class ExperimentRunner {
     };
 
    public:
-    ExperimentRunner(ExperimentParameters &experimentParams, Bootstrapper &bootstrapper);
+    ExperimentRunner(ExperimentParameters &experimentParams);
     virtual ~ExperimentRunner();
-    std::optional<ExperimentResults> RunExperiment();
-
-    Curve *GetInitialCurvePtr() const { return m_upInitialCurve.get(); }
+    std::optional<ExperimentResults> RunExperiment(
+          twisty::PerturbUtils::BoundaryConditions boundaryConditions);
 
    protected:
     struct RunnerSpecificResults {
@@ -99,9 +96,11 @@ class ExperimentRunner {
         std::chrono::milliseconds::rep weightingMs = 0;
     };
 
-    virtual RunnerSpecificResults RunnerSpecificRunExperiment() = 0;
+    virtual RunnerSpecificResults RunnerSpecificRunExperiment(
+          twisty::PerturbUtils::BoundaryConditions boundaryConditions)
+          = 0;
 
-    bool BeginPathBatchOutput();
+    bool BeginPathBatchOutput(twisty::PerturbUtils::BoundaryConditions boundaryConditions, uint32_t numSegments);
     void OutputPathBatch(PathBatch &pathBatch);
     void EndPathBatchOutput();
 
@@ -112,8 +111,6 @@ class ExperimentRunner {
 
    protected:
     ExperimentParameters &m_experimentParams;
-    Bootstrapper &m_bootstrapper;
-    std::unique_ptr<Curve> m_upInitialCurve;
     std::string m_pathBatchOutputPath;
 
     std::filesystem::path m_experimentDirPath;
@@ -124,7 +121,6 @@ class ExperimentRunner {
     std::ofstream m_log10PathWeightsBinaryFile;
     std::ofstream m_log10PathWeightsTextFile;
     std::ofstream m_fiveSegmentBinaryFile;
-
 
     std::ofstream m_weightConvergenceFile;
     uint64_t m_numWeightConvergencePaths = 0;

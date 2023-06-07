@@ -141,12 +141,12 @@ ExperimentRunner::ExperimentParameters ExperimentRunner::ParseExperimentParamsFr
     experimentParams.weightingParameters.absorption
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorption"];
 
-      // In the case we have the simplified model, we need to disable absorption
-      if (experimentParams.weightingParameters.weightingMethod
-            == twisty::WeightingMethod::SimplifiedModel) {
-          std::cout << "Disabling absorption for simplified model." << std::endl;
-          experimentParams.weightingParameters.absorption = 0.0f;
-      }
+    // In the case we have the simplified model, we need to disable absorption
+    if (experimentParams.weightingParameters.weightingMethod
+          == twisty::WeightingMethod::SimplifiedModel) {
+        std::cout << "Disabling absorption for simplified model." << std::endl;
+        experimentParams.weightingParameters.absorption = 0.0f;
+    }
 
     experimentParams.weightingParameters.scatter
           = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];
@@ -160,11 +160,8 @@ ExperimentRunner::ExperimentParameters ExperimentRunner::ParseExperimentParamsFr
 }
 
 
-ExperimentRunner::ExperimentRunner(
-      ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
+ExperimentRunner::ExperimentRunner(ExperimentParameters &experimentParams)
     : m_experimentParams(experimentParams)
-    , m_bootstrapper(bootstrapper)
-    , m_upInitialCurve(nullptr)
     , m_exportPathBatchesMutex()
     , m_pathBatchJsonIndex()
 {
@@ -179,7 +176,8 @@ ExperimentRunner::ExperimentRunner(
 
 ExperimentRunner::~ExperimentRunner() { }
 
-std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperiment()
+std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperiment(
+      twisty::PerturbUtils::BoundaryConditions boundaryConditions)
 {
     auto runExperimentTimeStart = std::chrono::high_resolution_clock::now();
     /* --------------------- */
@@ -188,19 +186,12 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
     std::cout << "\tBootstrap seed: " << m_experimentParams.bootstrapSeed << std::endl;
     std::cout << "\tPerturb seed: " << m_experimentParams.curvePurturbSeed << std::endl;
 
-    m_upInitialCurve = m_bootstrapper.CreateCurveGeometricSafe(
-          m_experimentParams.numSegmentsPerCurve, m_experimentParams.arclength);
-    if (!m_upInitialCurve) {
-        printf("Curve bootstrapping failed.\n");
-        throw std::runtime_error("Failed to generate bootstrap curve");
-    }
-
     if (m_experimentParams.outputBigFloatWeights) {
         StartWeightConvergenceWrite();
     }
 
     if (m_experimentParams.outputPathBatches) {
-        BeginPathBatchOutput();
+        BeginPathBatchOutput(boundaryConditions, m_experimentParams.numSegmentsPerCurve);
 
         std::stringstream pathMetadataFilenameSS;
         pathMetadataFilenameSS << m_experimentParams.pathBatchPrepend;
@@ -253,7 +244,7 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
         }
     }
 
-    RunnerSpecificResults runnerSpecificResult = RunnerSpecificRunExperiment();
+    RunnerSpecificResults runnerSpecificResult = RunnerSpecificRunExperiment(boundaryConditions);
 
     auto runExperimentTimeEnd = std::chrono::high_resolution_clock::now();
 
@@ -292,7 +283,8 @@ std::optional<ExperimentRunner::ExperimentResults> ExperimentRunner::RunExperime
     return runnerSpecificResult.experimentResults;
 }
 
-bool ExperimentRunner::BeginPathBatchOutput()
+bool ExperimentRunner::BeginPathBatchOutput(
+      twisty::PerturbUtils::BoundaryConditions boundaryConditions, uint32_t numSegments)
 {
     std::filesystem::path generatedCurvesDirPath = m_experimentDirPath;
     generatedCurvesDirPath /= "GeneratedCurves";
@@ -305,8 +297,6 @@ bool ExperimentRunner::BeginPathBatchOutput()
 
     // Export geometry
     {
-        const auto &boundaryConditions = m_upInitialCurve->GetBoundaryConditions();
-
         std::filesystem::path outputDirectoryPath
               = std::filesystem::path(m_pathBatchOutputPath) / "BoundaryConditions.bcf";
 
@@ -325,27 +315,14 @@ bool ExperimentRunner::BeginPathBatchOutput()
         boundaryConditionFile.write(
               (char *)boundaryConditions.m_endDir.m_data.data(), sizeof(Farlor::Vector3));
         boundaryConditionFile.write((char *)&boundaryConditions.arclength, sizeof(float));
-        boundaryConditionFile.write((char *)&m_upInitialCurve->m_numSegments, sizeof(uint32_t));
+        boundaryConditionFile.write((char *)&numSegments, sizeof(uint32_t));
     }
 
 
     m_pathBatchJsonIndex.clear();
 
     m_pathBatchJsonIndex["experiment_name"] = m_experimentParams.experimentName;
-
-    std::stringstream seedCurveSS;
-    seedCurveSS << m_experimentParams.experimentName;
-    seedCurveSS << "_Seed_Curve.tcf";
-
-    std::filesystem::path seedCurvePath = generatedCurvesDirPath;
-    seedCurvePath.append(seedCurveSS.str());
-    m_pathBatchJsonIndex["seed_curve"] = seedCurveSS.str();
-
     m_pathBatchJsonIndex["path_batch_links"] = nlohmann::json::array();
-
-    // TODO: Collapse this into one function?
-    std::ofstream seedCurveOutfile(seedCurvePath.string(), std::ios::binary);
-    twisty::Curve::WriteCurveToStream(seedCurveOutfile, *m_upInitialCurve);
 
     return true;
 }

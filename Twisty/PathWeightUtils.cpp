@@ -747,22 +747,10 @@ namespace PathWeighting {
                 case 6: {
                     return K6(z, ds);
                 } break;
-                case 7: {
-                    return K7(z, ds);
-                } break;
-                case 8: {
-                    return K8(z, ds);
-                } break;
-                case 9: {
-                    return K9(z, ds);
-                } break;
-                case 10: {
-                    return K10(z, ds);
-                } break;
                 default: {
                     std::cout << "Invalid number of segments, currently cannot calculate normalizer"
                               << std::endl;
-                    return 0.0;
+                    return 1.0;
                 } break;
             };
         }

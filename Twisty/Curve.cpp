@@ -17,6 +17,18 @@ Curve::Curve(uint32_t numSegments)
 {
 }
 
+void Curve::SetBoundaryConditions(
+      const twisty::PerturbUtils::BoundaryConditions &boundaryConditions)
+{
+    m_boundaryConditions = boundaryConditions;
+    m_ds = m_boundaryConditions.arclength / m_numSegments;
+    m_positions[0] = boundaryConditions.m_startPos;
+    m_positions[1] = boundaryConditions.m_startPos + boundaryConditions.m_startDir * m_ds;
+    m_positions[m_numSegments - 1]
+          = boundaryConditions.m_endPos - boundaryConditions.m_endDir * m_ds;
+    m_positions[m_numSegments] = boundaryConditions.m_endPos;
+}
+
 // Must be an open, binary ofstream
 void Curve::WriteCurveToStream(std::ofstream &outputStream, const twisty::Curve &seedCurve)
 {

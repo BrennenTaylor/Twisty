@@ -6,9 +6,9 @@
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 #endif
 
-#include "Bootstrapper.h"
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
+#include "PathGeneration.h"
 
 #include <FMath/Vector3.h>
 
@@ -187,13 +187,19 @@ int main(int argc, char *argv[])
     const float e1 = uniformFloatGen(randomGenerator);
 
     Farlor::Vector3 endDir(n1,
-          std::cos(2 * M_PI * e1) * std::sqrt(1 - (n1 * n1)),
-          std::sin(2 * M_PI * e1) * std::sqrt(1 - (n1 * n1)));
+          std::cos(2 * twisty::TwistyPi * e1) * std::sqrt(1 - (n1 * n1)),
+          std::sin(2 * twisty::TwistyPi * e1) * std::sqrt(1 - (n1 * n1)));
     Farlor::Vector3 endPos = startPos + sphereRadius * endDir;
 
-    const float minArclength = twisty::Bootstrapper::CalculateMinimumArclength(
-                                     experimentParams.numSegmentsPerCurve, startPos, endPos)
-          * 1.01f;
+    twisty::PerturbUtils::BoundaryConditions boundaryConditions;
+    boundaryConditions.m_startPos = startPos;
+    boundaryConditions.m_startDir = startDir.Normalized();
+    boundaryConditions.m_endPos = endPos;
+    boundaryConditions.m_endDir = endDir.Normalized();
+
+    const float minArclength = twisty::PathGeneration::CalculateMinimumArclength(
+          boundaryConditions, experimentParams.numSegmentsPerCurve);
+
     std::cout << "Min arclength: " << minArclength << std::endl;
 
     const float arclengthStepSize = (maxArclength - minArclength) / (numArclengths);
@@ -231,21 +237,19 @@ int main(int argc, char *argv[])
 
                 experimentParams.arclength = experimentGeometry.arclength;
 
-                twisty::Bootstrapper bootstrapper(experimentGeometry);
-
                 std::unique_ptr<twisty::ExperimentRunner> upExperimentRunner = nullptr;
 #if defined(USE_CUDA)
                 if (experimentParams.useGpu) {
                     upExperimentRunner = std::make_unique<
                           twisty::FullExperimentRunnerOptimalPerturbOptimized_GPU>(
-                          experimentParams, bootstrapper);
+                          experimentParams);
                     std::cout << "Selected Runner Method: "
                                  "FullExperimentRunnerOptimalPerturb_Gpu"
                               << std::endl;
                 } else {
                     upExperimentRunner
                           = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                                experimentParams, bootstrapper);
+                                experimentParams);
                     std::cout << "Selected Runner Method: "
                                  "FullExperimentRunnerOptimalPerturb"
                               << std::endl;
@@ -258,11 +262,11 @@ int main(int argc, char *argv[])
                               << std::endl;
                 }
                 upExperimentRunner = std::make_unique<twisty::FullExperimentRunnerOptimalPerturb>(
-                      experimentParams, bootstrapper);
+                      experimentParams);
 #endif
 
                 std::optional<twisty::ExperimentRunner::ExperimentResults> optionalResults
-                      = upExperimentRunner->RunExperiment();
+                      = upExperimentRunner->RunExperiment(boundaryConditions);
                 if (!optionalResults.has_value()) {
                     std::cout << "Experiment failed: no results returned." << std::endl;
                     return 1;

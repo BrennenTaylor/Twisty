@@ -6,6 +6,8 @@
 #include "MathConsts.h"
 #include "PathWeighters.h"
 
+#include "PathGeneration.h"
+
 #include <cmath>
 #include <assert.h>
 #include <ctime>
@@ -36,34 +38,36 @@ static std::ofstream g_histogramFile;
 
 namespace twisty {
 FullExperimentRunnerOptimalPerturb::FullExperimentRunnerOptimalPerturb(
-      ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper)
-    : ExperimentRunner(experimentParams, bootstrapper)
+      ExperimentRunner::ExperimentParameters &experimentParams)
+    : ExperimentRunner(experimentParams)
 {
 }
 
 FullExperimentRunnerOptimalPerturb::~FullExperimentRunnerOptimalPerturb() { }
 
 ExperimentRunner::RunnerSpecificResults
-FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
+FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment(
+      twisty::PerturbUtils::BoundaryConditions boundaryConditions)
 {
     auto setupTimeStart = std::chrono::high_resolution_clock::now();
+
+    assert(boundaryConditions.arclength > 0);
+
+
+    const float ds = boundaryConditions.arclength / m_experimentParams.numSegmentsPerCurve;
 
     std::unique_ptr<twisty::PathWeighting::BaseWeightLookupTable> lookupEvaluator = nullptr;
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::SimplifiedModel) {
         lookupEvaluator = std::make_unique<twisty::PathWeighting::SimpleWeightLookupTable>(
-              m_experimentParams.weightingParameters, m_upInitialCurve->m_ds);
+              m_experimentParams.weightingParameters, ds);
     } else {
         lookupEvaluator = std::make_unique<twisty::PathWeighting::WeightLookupTableIntegral>(
-              m_experimentParams.weightingParameters, m_upInitialCurve->m_ds);
+              m_experimentParams.weightingParameters, ds);
     }
     assert(lookupEvaluator);
     lookupEvaluator->ExportValues(m_experimentDirPath.string());
     twisty::PathWeighting::BaseWeightLookupTable &weightingIntegralsRawPointer = (*lookupEvaluator);
-
-    const twisty::PerturbUtils::BoundaryConditions boundaryConditions
-          = m_upInitialCurve->GetBoundaryConditions();
-    assert(boundaryConditions.arclength > 0);
 
     // Constants
     const int64_t numSystemThreads = std::thread::hardware_concurrency();
@@ -115,24 +119,35 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
         perThreadRngGenerators[i] = std::mt19937_64(seed + i);
     }
 
+    // We need to generate a curve
+    Curve initialCurve(m_experimentParams.numSegmentsPerCurve);
+    initialCurve.SetBoundaryConditions(boundaryConditions);
+
+    // Initialize the curve
+    std::mt19937_64 initialCurveGenerator(m_experimentParams.bootstrapSeed);
+
+    const int numFreeSegments = initialCurve.m_numSegments - 2;
+    twisty::PathGeneration::ResolveEvenNumberOfSegments(numFreeSegments, initialCurve.m_positions,
+          1, initialCurve.m_numSegments - 1, ds, initialCurveGenerator);
+
     // Setup data structures
-    std::vector<Farlor::Vector3> initialCurvePositions = m_upInitialCurve->m_positions;
+    std::vector<Farlor::Vector3> initialCurvePositions = initialCurve.m_positions;
     std::vector<Farlor::Vector3> initialCurveTangents(initialCurvePositions.size() - 1);
     std::vector<float> initialCurveCurvatures(initialCurvePositions.size() - 2);
 
     // Update tangents
     twisty::PerturbUtils::UpdateTangentsFromPos(initialCurvePositions.data(),
-          initialCurveTangents.data(), m_upInitialCurve->m_numSegments, boundaryConditions);
+          initialCurveTangents.data(), initialCurve.m_numSegments, boundaryConditions);
 
     if (m_experimentParams.weightingParameters.weightingMethod
           == WeightingMethod::RadiativeTransfer) {
         twisty::PerturbUtils::UpdateCurvaturesFromTangents_RadiativeTransfer(
               initialCurveTangents.data(), initialCurveCurvatures.data(),
-              m_upInitialCurve->m_numSegments, boundaryConditions);
+              initialCurve.m_numSegments, boundaryConditions);
     } else {
         twisty::PerturbUtils::UpdateCurvaturesFromTangents_SimplifiedModel(
               initialCurveTangents.data(), initialCurveCurvatures.data(),
-              m_upInitialCurve->m_numSegments, boundaryConditions);
+              initialCurve.m_numSegments, boundaryConditions);
     }
 
     const int64_t NumPosPerCurve = initialCurvePositions.size();
@@ -187,7 +202,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                   != WeightingMethod::RadiativeTransfer)
           ? 1.0
           : PathWeighting::NormalizerStuff::Norm(
-                m_upInitialCurve->m_numSegments, m_upInitialCurve->m_ds, boundaryConditions);
+                initialCurve.m_numSegments, ds, boundaryConditions);
     std::cout << "PathNormalizer: " << pathNormalizer << std::endl;
     const double pathNormalizerLog10
           = static_cast<double>(boost::multiprecision::log10(pathNormalizer));
@@ -274,8 +289,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                                       std::ref(perThreadCurvePositions),
                                       std::ref(perThreadCurveTangents),
                                       std::ref(perThreadCurveCurvatures),
-                                      std::ref(perDispatchCombinedWeightValues),
-                                      m_upInitialCurve->m_ds,
+                                      std::ref(perDispatchCombinedWeightValues), ds,
                                       lookupEvaluator->AccessLookupTable().data(),
                                       lookupEvaluator->AccessLookupTable().size(),
                                       lookupEvaluator->GetDs(), lookupEvaluator->GetMinCurvature(),
@@ -293,8 +307,7 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment()
                                       std::ref(perThreadCurvePositions),
                                       std::ref(perThreadCurveTangents),
                                       std::ref(perThreadCurveCurvatures),
-                                      std::ref(perDispatchCombinedWeightValues),
-                                      m_upInitialCurve->m_ds,
+                                      std::ref(perDispatchCombinedWeightValues), ds,
                                       lookupEvaluator->AccessLookupTable().data(),
                                       lookupEvaluator->AccessLookupTable().size(),
                                       lookupEvaluator->GetDs(), lookupEvaluator->GetMinCurvature(),

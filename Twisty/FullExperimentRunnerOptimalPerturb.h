@@ -25,11 +25,11 @@
 namespace twisty {
 class FullExperimentRunnerOptimalPerturb : public ExperimentRunner {
    public:
-    FullExperimentRunnerOptimalPerturb(
-          ExperimentRunner::ExperimentParameters &experimentParams, Bootstrapper &bootstrapper);
+    FullExperimentRunnerOptimalPerturb(ExperimentRunner::ExperimentParameters &experimentParams);
     virtual ~FullExperimentRunnerOptimalPerturb();
 
-    virtual ExperimentRunner::RunnerSpecificResults RunnerSpecificRunExperiment() override;
+    virtual ExperimentRunner::RunnerSpecificResults RunnerSpecificRunExperiment(
+          twisty::PerturbUtils::BoundaryConditions boundaryConditions) override;
 
    private:
     void GeometryRandom(int64_t threadIdx,
