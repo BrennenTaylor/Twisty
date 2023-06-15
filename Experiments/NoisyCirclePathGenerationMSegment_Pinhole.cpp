@@ -222,16 +222,10 @@ int main(int argc, char *argv[])
           0.0f, 0.0f);
 
     std::vector<Farlor::Vector3> emitterLocations;
-    emitterLocations.push_back(Farlor::Vector3(5.0f, 10.0f, 0.0f));
-    //     emitterLocations.push_back(Farlor::Vector3(5.0f, -10.0f, 0.0f));
-    //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, 10.0f));
-    //     emitterLocations.push_back(Farlor::Vector3(5.0f, 0.0f, -10.0f));
+    emitterLocations.push_back(Farlor::Vector3(8.0f, -10.0f, 0.0f));
 
     std::vector<Farlor::Vector3> emitterDirections;
-    emitterDirections.push_back(Farlor::Vector3(0.0f, -1.0f, 0.0f));
-    //     emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
-    //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, -1.0f));
-    //     emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
+    emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
 
     int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
 
@@ -275,7 +269,9 @@ int main(int argc, char *argv[])
           outputDirectoryPath.string(), std::string("objectLookupTable_maxDs.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
-    environmentWeightingParams.scatter = 0.001f;
+    environmentWeightingParams.absorption = 0.0001f;
+    environmentWeightingParams.scatter = 0.0001f;
+    environmentWeightingParams.mu = 0.01f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -343,7 +339,7 @@ int main(int argc, char *argv[])
                 twisty::PerturbUtils::BoundaryConditions experimentGeometry;
                 experimentGeometry.m_startPos = emitterLocations[emitterIdx];
                 experimentGeometry.m_startDir = emitterDirections[emitterIdx];
-                experimentGeometry.m_endPos = cameraCenter;
+                experimentGeometry.m_endPos = pixelCenter;
                 experimentGeometry.m_endDir = recieverDir;
                 experimentGeometry.arclength = 0.0f;
 
@@ -360,60 +356,61 @@ int main(int argc, char *argv[])
                 const uint64_t rngSeed = uniformInt(rng);
 
 #ifdef __linux__
-                //     const twisty::ExperimentBase::Result result
-                //           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
-                //                 experimentParams.numPathsInExperiment,
-                //                 experimentParams.numSegmentsPerCurve, experimentGeometry,
-                //                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
-                //                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
-#endif
+      // std::cout << "Linux vdb bunny version" << std::endl;
+                    const twisty::ExperimentBase::Result result
+                          = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
+                                experimentParams.numPathsInExperiment,
+                                experimentParams.numSegmentsPerCurve, experimentGeometry,
+                                experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+                                objectCachedLookupTable, maxDs, bunny.AccessGrid());
+#else
                 const twisty::ExperimentBase::Result result
                       = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
                             objectCachedLookupTable, maxDs);
+#endif
+                    currentOpCount++;
 
-                currentOpCount++;
+                    // Single run end time
+                    const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
+                    // Add time difference to runTimes vector
+                    const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          singleRunEndTime - singleRunStartTime);
+                    runTimes.push_back(timeDiff.count());
 
-                // Single run end time
-                const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
-                // Add time difference to runTimes vector
-                const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      singleRunEndTime - singleRunStartTime);
-                runTimes.push_back(timeDiff.count());
+                    std::ios_base::fmtflags flags = std::cout.flags();
+                    std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
+                              << (100.0f * currentOpCount) / totalOpCount << "%";
 
-                std::ios_base::fmtflags flags = std::cout.flags();
-                std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
-                          << (100.0f * currentOpCount) / totalOpCount << "%";
+                    // Estimated time to completion
+                    std::chrono::high_resolution_clock::time_point currentTime
+                          = std::chrono::high_resolution_clock::now();
+                    // Elapsed time in seconds
+                    const float elapsedSeconds
+                          = std::chrono::duration_cast<std::chrono::duration<float>>(
+                                currentTime - startTime)
+                                  .count();
+                    const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
+                    const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
 
-                // Estimated time to completion
-                std::chrono::high_resolution_clock::time_point currentTime
-                      = std::chrono::high_resolution_clock::now();
-                // Elapsed time in seconds
-                const float elapsedSeconds
-                      = std::chrono::duration_cast<std::chrono::duration<float>>(
-                            currentTime - startTime)
-                              .count();
-                const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
-                const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
+                    const float mins = std::floor(secondsRemaining / 60.0f);
+                    const float secs = secondsRemaining - mins * 60.0f;
 
-                const float mins = std::floor(secondsRemaining / 60.0f);
-                const float secs = secondsRemaining - mins * 60.0f;
+                    std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins
+                              << "m" << secs << "s\t\t";
+                    std::cout.flags(flags);
 
-                std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins
-                          << "m" << secs << "s\t\t";
-                std::cout.flags(flags);
-
-                if (result.numValidPaths <= 0) {
-                    numValidEmitterSolutions--;
-                    continue;
-                }
-                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
-                      = result.totalWeight;
-                boost::multiprecision::cpp_dec_float_100 weight_log10
-                      = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
-                framePixels[frameIdx] += importanceSampledWeight * cosFactor;
+                    if (result.numValidPaths <= 0) {
+                        numValidEmitterSolutions--;
+                        continue;
+                    }
+                    const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
+                          = result.totalWeight;
+                    boost::multiprecision::cpp_dec_float_100 weight_log10
+                          = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
+                    framePixels[frameIdx] += importanceSampledWeight * cosFactor;
             }
             if (numValidEmitterSolutions > 0) {
                 framePixels[frameIdx] /= numValidEmitterSolutions;

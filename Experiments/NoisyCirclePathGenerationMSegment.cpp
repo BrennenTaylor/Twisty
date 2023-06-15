@@ -233,8 +233,8 @@ int main(int argc, char *argv[])
 
                 twisty::PerturbUtils::BoundaryConditions experimentGeometry;
                 const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
-                experimentGeometry.m_startPos = Farlor::Vector3(5.0f, 0.0f, -10.0f);
-                experimentGeometry.m_startDir = Farlor::Vector3(0.0f, 0.0f, 1.0f);
+                experimentGeometry.m_startPos = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+                experimentGeometry.m_startDir = Farlor::Vector3(1.0f, 0.0f, 0.0f);
                 experimentGeometry.m_endPos = recieverPos;
                 experimentGeometry.m_endDir = recieverDir;
                 experimentGeometry.arclength = 0.0f;
