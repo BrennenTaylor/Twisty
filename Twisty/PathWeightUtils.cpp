@@ -102,21 +102,6 @@ namespace PathWeighting {
 
         ifstream.read(reinterpret_cast<char *>(&m_minSegmentWeight), sizeof(float));
         ifstream.read(reinterpret_cast<char *>(&m_maxSegmentWeight), sizeof(float));
-
-        // std::cout << "Finished path weight integral lookup table" << '\n';
-        // std::cout << "\tMin Possible Weight Value: " << m_minSegmentWeight << '\n';
-        // std::cout << "\tMax Possible Weight Value: " << m_maxSegmentWeight << '\n';
-        // // Parameters
-        // std::cout << "\tTable construction params: " << '\n';
-        // std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
-        // std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
-        // std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
-        // std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
-        // std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
-        // std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
-        // std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        // std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
-        //           << std::endl;
     }
 
     void BaseWeightLookupTable::StreamOut(std::ostream &outputStream) const
@@ -351,21 +336,6 @@ namespace PathWeighting {
 
         m_minSegmentWeight = min;
         m_maxSegmentWeight = max;
-
-        // std::cout << "Finished path weight integral lookup table" << '\n';
-        // std::cout << "\tMin Possible Weight Value: " << min << '\n';
-        // std::cout << "\tMax Possible Weight Value: " << max << '\n';
-        // // Parameters
-        // std::cout << "\tTable construction params: " << '\n';
-        // std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
-        // std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
-        // std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
-        // std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
-        // std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
-        // std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
-        // std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        // std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
-        //           << std::endl;
     }
 
     float WeightLookupTableIntegral::Integrate(
@@ -384,16 +354,13 @@ namespace PathWeighting {
                               * (weightingParams.eps * weightingParams.eps * p * p
                                     * 0.5)  // regularizer
                   );
-            // float scatteringTerm = p
-            //       * (std::exp(bds * phaseFunction) - 1);
 
             float sinTerm = p;
             // TODO: Should we implement this as if (kds < smallAngleThreshold?)
             if (kds > 0.0) {
                 sinTerm = sinf(kds * p) / kds;
             }
-            // With small angle apprimation, we have that kds is very small
-            // As we approch, we have that sin(kds * p) => p
+            // As we approch kds -> 0, we have that the limit of sin(kds * p) => p
             // as well as                  1/kds -> 1/inf
             // else {
             //     sinTerm = 0,.;
@@ -407,16 +374,17 @@ namespace PathWeighting {
         // However, as we already are using a big float library, do we even need to
         // deal with this?
 
-        const double stepSize = (weightingParams.maxBound - weightingParams.minBound)
-              / (weightingParams.numStepsInt - 1);
+        // Interval size
+        const double h = (weightingParams.maxBound - weightingParams.minBound)
+              / (weightingParams.numStepsInt);
 
+        const double startMidpoint = weightingParams.minBound + (h * 0.5);
         double firstVal = 0.0f;
-        double normalizerWithZeroCurvature = 0.0f;
         {
-            for (uint32_t i = 0; i < weightingParams.numStepsInt; ++i) {
-                const double p = weightingParams.minBound + (i * stepSize);
-                firstVal += Integrand(p, kds, bds) * stepSize;
-                // normalizerWithZeroCurvature += Integrand(p, 0.0, bds) * stepSize;
+            for (uint32_t intervalIdx = 0; intervalIdx < weightingParams.numStepsInt;
+                  ++intervalIdx) {
+                const double evalP = startMidpoint + (intervalIdx * h);
+                firstVal += Integrand(evalP, kds, bds) * h;
             }
         }
         return (firstVal / (2.0 * TwistyPi * TwistyPi)) * weightingParams.bias;
@@ -472,21 +440,6 @@ namespace PathWeighting {
 
         m_minSegmentWeight = min;
         m_maxSegmentWeight = max;
-
-        // std::cout << "Finished path weight integral lookup table" << '\n';
-        // std::cout << "\tMin Possible Weight Value: " << min << '\n';
-        // std::cout << "\tMax Possible Weight Value: " << max << '\n';
-        // // Parameters
-        // std::cout << "\tTable construction params: " << '\n';
-        // std::cout << "\t\tmu: " << m_weightingParams.mu << '\n';
-        // std::cout << "\t\tnumStepsInt: " << m_weightingParams.numStepsInt << '\n';
-        // std::cout << "\t\tm_minBound: " << m_weightingParams.minBound << '\n';
-        // std::cout << "\t\tm_maxBound: " << m_weightingParams.maxBound << '\n';
-        // std::cout << "\t\tm_eps: " << m_weightingParams.eps << '\n';
-        // std::cout << "\t\tm_minCurvature: " << m_minCurvature << '\n';
-        // std::cout << "\t\tm_maxCurvature: " << m_maxCurvature << '\n';
-        // std::cout << "\t\tm_numCurvatureSteps: " << m_weightingParams.numCurvatureSteps
-        //           << std::endl;
     }
 
     MinMaxCurvature CalcMinMaxCurvature(const twisty::WeightingParameters &wp, float ds)
