@@ -160,7 +160,9 @@ int main(int argc, char *argv[])
           outputDirectoryPath.string(), std::string("objectLookupTable_maxDs.csv"));
 
     twisty::WeightingParameters environmentWeightingParams = experimentParams.weightingParameters;
-    environmentWeightingParams.scatter = 0.001f;
+    environmentWeightingParams.absorption = 0.0001f;
+    environmentWeightingParams.scatter = 0.0001f;
+    environmentWeightingParams.mu = 0.01f;
 
     {
         const auto uuid = environmentWeightingParams.GenerateStringUUID();
@@ -235,7 +237,7 @@ int main(int argc, char *argv[])
                 const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
                 experimentGeometry.m_startPos = Farlor::Vector3(0.0f, 0.0f, 0.0f);
                 experimentGeometry.m_startDir = Farlor::Vector3(1.0f, 0.0f, 0.0f);
-                experimentGeometry.m_endPos = recieverPos;
+                experimentGeometry.m_endPos = centerOfFrame;
                 experimentGeometry.m_endDir = recieverDir;
                 experimentGeometry.arclength = 0.0f;
 

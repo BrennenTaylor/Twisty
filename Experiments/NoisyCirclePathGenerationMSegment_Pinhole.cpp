@@ -222,10 +222,10 @@ int main(int argc, char *argv[])
           0.0f, 0.0f);
 
     std::vector<Farlor::Vector3> emitterLocations;
-    emitterLocations.push_back(Farlor::Vector3(8.0f, -10.0f, 0.0f));
+    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
 
     std::vector<Farlor::Vector3> emitterDirections;
-    emitterDirections.push_back(Farlor::Vector3(0.0f, 1.0f, 0.0f));
+    emitterDirections.push_back(Farlor::Vector3(1.0f, 0.0f, 0.0f));
 
     int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
 
@@ -355,22 +355,22 @@ int main(int argc, char *argv[])
                       0, std::numeric_limits<uint64_t>::max() - 250);
                 const uint64_t rngSeed = uniformInt(rng);
 
-#ifdef __linux__
-      // std::cout << "Linux vdb bunny version" << std::endl;
-                    const twisty::ExperimentBase::Result result
-                          = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
-                                experimentParams.numPathsInExperiment,
-                                experimentParams.numSegmentsPerCurve, experimentGeometry,
-                                experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
-                                objectCachedLookupTable, maxDs, bunny.AccessGrid());
-#else
+// #ifdef __linux__
+//       // std::cout << "Linux vdb bunny version" << std::endl;
+//                     const twisty::ExperimentBase::Result result
+//                           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
+//                                 experimentParams.numPathsInExperiment,
+//                                 experimentParams.numSegmentsPerCurve, experimentGeometry,
+//                                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+//                                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
+// #else
                 const twisty::ExperimentBase::Result result
                       = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
                             objectCachedLookupTable, maxDs);
-#endif
+// #endif
                     currentOpCount++;
 
                     // Single run end time
