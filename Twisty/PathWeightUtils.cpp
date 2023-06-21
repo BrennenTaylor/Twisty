@@ -341,24 +341,24 @@ namespace PathWeighting {
     float WeightLookupTableIntegral::Integrate(
           float curvature, const WeightingParameters &weightingParams, float ds) const
     {
-        const float kds = curvature * ds;
-        const float bds = weightingParams.scatter * ds;
+        const double kds = curvature * ds;
+        const double bds = weightingParams.scatter * ds;
 
         auto Integrand = [this, weightingParams](
                                const double p, const double kds, const double bds) -> double {
             double phaseFunction = GaussianPhase(p, weightingParams.mu);
 
-            float scatteringTerm = p
+            double scatteringTerm = p
                   * std::exp(bds * phaseFunction  // scatter piece
                         - 1.0
-                              * (weightingParams.eps * weightingParams.eps * p * p
+                              * ((double)weightingParams.eps * (double)weightingParams.eps * p * p
                                     * 0.5)  // regularizer
                   );
 
-            float sinTerm = p;
+            double sinTerm = p;
             // TODO: Should we implement this as if (kds < smallAngleThreshold?)
             if (kds > 0.0) {
-                sinTerm = sinf(kds * p) / kds;
+                sinTerm = sin(kds * p) / kds;
             }
             // As we approch kds -> 0, we have that the limit of sin(kds * p) => p
             // as well as                  1/kds -> 1/inf
