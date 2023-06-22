@@ -44,3 +44,11 @@ target_link_libraries(FFE_ImageGen
     PUBLIC Twisty
     PUBLIC tinyexr_include
 )
+
+add_executable(WeightIntegralFunctionExplorer
+    WeightIntegralFunctionExplorer.cpp
+)
+
+target_link_libraries(WeightIntegralFunctionExplorer
+    PUBLIC Twisty
+)

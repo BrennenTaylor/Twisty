@@ -67,6 +67,8 @@ namespace PathWeighting {
     // Used for the Path Integral Radiative Transfer Weighting
     float GaussianPhase(float evalLocation, float mu);
 
+    double IntegrandRT(const double p, const double kds, const double bds, double eps, double mu);
+
     // Simple Weight Function, for small segment work!
     float SimpleWeightFunction(float curvature);
 

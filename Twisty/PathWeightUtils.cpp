@@ -32,14 +32,7 @@ namespace PathWeighting {
         return Np * SimpleGaussianPhase(evalLocation, mu);
     }
 
-    // Parameterized gaussian function
-    // Switched to version found in "A leading order approximation of the path integral for radiative transfer"
-    // float GaussianPhase(float evalLocation, float mu)
-    // {
-    //     const float Np
-    //           = sqrtf(8.0f * TwistyPi * TwistyPi * TwistyPi * mu) / (1.0f - expf(-2.0f / mu));
-    //     return Np * SimpleGaussianPhase(evalLocation, mu);
-    // }
+
 
 
     // Lookup table integrand
@@ -338,36 +331,34 @@ namespace PathWeighting {
         m_maxSegmentWeight = max;
     }
 
+    double IntegrandRT(const double p, const double kds, const double bds, double eps, double mu)
+    {
+        double phaseFunction = GaussianPhase(p, mu);
+
+        double scatteringTerm = p
+              * std::exp(bds * phaseFunction           // scatter piece
+                    - 1.0 * (eps * eps * p * p * 0.5)  // regularizer
+              );
+
+        double sinTerm = p;
+        // TODO: Should we implement this as if (kds < smallAngleThreshold?)
+        if (kds > 0.0) {
+            sinTerm = sin(kds * p) / kds;
+        }
+        // As we approch kds -> 0, we have that the limit of sin(kds * p) => p
+        // as well as                  1/kds -> 1/inf
+        // else {
+        //     sinTerm = 0,.;
+        // }
+
+        return scatteringTerm * sinTerm;
+    }
+
     float WeightLookupTableIntegral::Integrate(
-          float curvature, const WeightingParameters &weightingParams, float ds) const
+                float curvature, const WeightingParameters &weightingParams, float ds) const
     {
         const double kds = curvature * ds;
         const double bds = weightingParams.scatter * ds;
-
-        auto Integrand = [this, weightingParams](
-                               const double p, const double kds, const double bds) -> double {
-            double phaseFunction = GaussianPhase(p, weightingParams.mu);
-
-            double scatteringTerm = p
-                  * std::exp(bds * phaseFunction  // scatter piece
-                        - 1.0
-                              * ((double)weightingParams.eps * (double)weightingParams.eps * p * p
-                                    * 0.5)  // regularizer
-                  );
-
-            double sinTerm = p;
-            // TODO: Should we implement this as if (kds < smallAngleThreshold?)
-            if (kds > 0.0) {
-                sinTerm = sin(kds * p) / kds;
-            }
-            // As we approch kds -> 0, we have that the limit of sin(kds * p) => p
-            // as well as                  1/kds -> 1/inf
-            // else {
-            //     sinTerm = 0,.;
-            // }
-
-            return scatteringTerm * sinTerm;
-        };
 
         // Perform integration. Per disertation page 34, when bn is constant, wn peaks
         // at kds. As a result, normalizeation is used. This is due to an overflow.
@@ -381,10 +372,12 @@ namespace PathWeighting {
         const double startMidpoint = weightingParams.minBound + (h * 0.5);
         double firstVal = 0.0f;
         {
-            for (uint32_t intervalIdx = 0; intervalIdx < weightingParams.numStepsInt;
-                  ++intervalIdx) {
+            // We want our summation to add from smallest to largest. While not perfect, usually a larger p means a smaller value.
+            // This we integrate from high p to low p
+            for (uint32_t intervalIdx = (weightingParams.numStepsInt - 1); intervalIdx >= 0;
+                  --intervalIdx) {
                 const double evalP = startMidpoint + (intervalIdx * h);
-                firstVal += Integrand(evalP, kds, bds) * h;
+                firstVal += IntegrandRT(evalP, kds, bds, weightingParams.mu, weightingParams.eps) * h;
             }
         }
         return (firstVal / (2.0 * TwistyPi * TwistyPi)) * weightingParams.bias;
