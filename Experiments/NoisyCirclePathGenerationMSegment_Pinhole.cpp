@@ -119,30 +119,22 @@ class VDBVolume {
 };
 #endif
 
-std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
+std::vector<boost::multiprecision::cpp_dec_float_100> CalculateLogData(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
 
-std::vector<boost::multiprecision::cpp_dec_float_100> CalculateOffsetFrames(
+std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedData(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
-
-std::vector<boost::multiprecision::cpp_dec_float_100> CalculateQuadAvgFrames(
-      const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights,
-      const uint32_t totalWidth);
 
 void OutputRawData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawCombined,
       const int32_t framePixelCount);
 
-void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
-      const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
-      const int32_t framePixelCount);
-
-void OutputOffsetData(const std::filesystem::path &outputDirectoryPath,
+void OutputLogData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &offsetCombined,
       const int32_t framePixelCount);
 
-void OutputQuadAverageData(const std::filesystem::path &outputDirectoryPath,
-      const std::vector<boost::multiprecision::cpp_dec_float_100> &combined,
+void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
+      const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
       const int32_t framePixelCount);
 
 struct NoisyCircleParams {
@@ -355,62 +347,62 @@ int main(int argc, char *argv[])
                       0, std::numeric_limits<uint64_t>::max() - 250);
                 const uint64_t rngSeed = uniformInt(rng);
 
-// #ifdef __linux__
-//       // std::cout << "Linux vdb bunny version" << std::endl;
-//                     const twisty::ExperimentBase::Result result
-//                           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
-//                                 experimentParams.numPathsInExperiment,
-//                                 experimentParams.numSegmentsPerCurve, experimentGeometry,
-//                                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
-//                                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
-// #else
+                // #ifdef __linux__
+                //       // std::cout << "Linux vdb bunny version" << std::endl;
+                //                     const twisty::ExperimentBase::Result result
+                //                           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
+                //                                 experimentParams.numPathsInExperiment,
+                //                                 experimentParams.numSegmentsPerCurve, experimentGeometry,
+                //                                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+                //                                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
+                // #else
                 const twisty::ExperimentBase::Result result
                       = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
                             objectCachedLookupTable, maxDs);
-// #endif
-                    currentOpCount++;
+                // #endif
+                currentOpCount++;
 
-                    // Single run end time
-                    const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
-                    // Add time difference to runTimes vector
-                    const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
-                          singleRunEndTime - singleRunStartTime);
-                    runTimes.push_back(timeDiff.count());
+                // Single run end time
+                const auto singleRunEndTime = std::chrono::high_resolution_clock::now();
+                // Add time difference to runTimes vector
+                const auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
+                      singleRunEndTime - singleRunStartTime);
+                runTimes.push_back(timeDiff.count());
 
-                    std::ios_base::fmtflags flags = std::cout.flags();
-                    std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
-                              << (100.0f * currentOpCount) / totalOpCount << "%";
+                std::ios_base::fmtflags flags = std::cout.flags();
+                std::cout << "\rPercent Complete: " << std::fixed << std::setprecision(2)
+                          << (100.0f * currentOpCount) / totalOpCount << "%";
 
-                    // Estimated time to completion
-                    std::chrono::high_resolution_clock::time_point currentTime
-                          = std::chrono::high_resolution_clock::now();
-                    // Elapsed time in seconds
-                    const float elapsedSeconds
-                          = std::chrono::duration_cast<std::chrono::duration<float>>(
-                                currentTime - startTime)
-                                  .count();
-                    const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
-                    const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
+                // Estimated time to completion
+                std::chrono::high_resolution_clock::time_point currentTime
+                      = std::chrono::high_resolution_clock::now();
+                // Elapsed time in seconds
+                const float elapsedSeconds
+                      = std::chrono::duration_cast<std::chrono::duration<float>>(
+                            currentTime - startTime)
+                              .count();
+                const float secondsPerStep = elapsedSeconds / (currentOpCount + 1);
+                const float secondsRemaining = secondsPerStep * (totalOpCount - currentOpCount);
 
-                    const float mins = std::floor(secondsRemaining / 60.0f);
-                    const float secs = secondsRemaining - mins * 60.0f;
+                const float mins = std::floor(secondsRemaining / 60.0f);
+                const float secs = secondsRemaining - mins * 60.0f;
 
-                    std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins
-                              << "m" << secs << "s\t\t";
-                    std::cout.flags(flags);
+                std::cout << " Time Remaining: " << std::fixed << std::setprecision(0) << mins
+                          << "m" << secs << "s\t\t";
+                std::cout.flags(flags);
 
-                    if (result.numValidPaths <= 0) {
-                        numValidEmitterSolutions--;
-                        continue;
-                    }
-                    const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
-                          = result.totalWeight;
-                    boost::multiprecision::cpp_dec_float_100 weight_log10
-                          = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
-                    framePixels[frameIdx] += importanceSampledWeight * cosFactor;
+                if (result.numValidPaths <= 0) {
+                    numValidEmitterSolutions--;
+                    continue;
+                }
+                const boost::multiprecision::cpp_dec_float_100 importanceSampledWeight
+                      = result.totalWeight;
+                boost::multiprecision::cpp_dec_float_100 weight_log10
+                      = boost::multiprecision::log10(importanceSampledWeight * cosFactor);
+                framePixels[frameIdx] += importanceSampledWeight * cosFactor;
             }
             if (numValidEmitterSolutions > 0) {
                 framePixels[frameIdx] /= numValidEmitterSolutions;
@@ -452,30 +444,43 @@ int main(int argc, char *argv[])
     const double averageRunTimeMinutes = averageRunTimeSeconds / 60.0;
     std::cout << "Average run time: " << averageRunTimeMinutes << "m" << std::endl;
 
-
     OutputRawData(outputDirectoryPath, framePixels, experimentSpecificParams.framePixelCount);
 
-    const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedCombined
-          = CalculateNormalizedFrames(framePixels);
+    const std::vector<boost::multiprecision::cpp_dec_float_100> logData
+          = CalculateLogData(framePixels);
+    OutputLogData(outputDirectoryPath, logData, experimentSpecificParams.framePixelCount);
 
+    const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedLogData
+          = CalculateNormalizedData(logData);
     OutputNormalizedData(
-          outputDirectoryPath, normalizedCombined, experimentSpecificParams.framePixelCount);
-
-    const std::vector<boost::multiprecision::cpp_dec_float_100> offsetCombined
-          = CalculateOffsetFrames(framePixels);
-    OutputOffsetData(outputDirectoryPath, offsetCombined, experimentSpecificParams.framePixelCount);
-
-    const std::vector<boost::multiprecision::cpp_dec_float_100> quadAverageCombined
-          = CalculateQuadAvgFrames(framePixels, experimentSpecificParams.framePixelCount);
-    OutputQuadAverageData(
-          outputDirectoryPath, quadAverageCombined, experimentSpecificParams.framePixelCount);
+          outputDirectoryPath, normalizedLogData, experimentSpecificParams.framePixelCount);
 
     std::cout << "Experiment done" << std::endl;
 
     return 0;
 }
 
-std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
+std::vector<boost::multiprecision::cpp_dec_float_100> CalculateLogData(
+      const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights)
+{
+    if (rawFrameWeights.empty()) {
+        return rawFrameWeights;
+    }
+    std::vector<boost::multiprecision::cpp_dec_float_100> result = rawFrameWeights;
+
+    boost::multiprecision::cpp_dec_float_100 maximum
+          = *std::max_element(rawFrameWeights.begin(), rawFrameWeights.end());
+    boost::multiprecision::cpp_dec_float_100 invMax
+          = boost::multiprecision::cpp_dec_float_100(100.0) / maximum;
+
+    std::for_each(
+          result.begin(), result.end(), [&invMax](boost::multiprecision::cpp_dec_float_100 &n) {
+              n = boost::multiprecision::log10(n);
+          });
+    return result;
+}
+
+std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedData(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights)
 {
     if (rawFrameWeights.empty()) {
@@ -494,52 +499,6 @@ std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedFrames(
           result.end(),
           [&minimum, &range](
                 boost::multiprecision::cpp_dec_float_100 &n) { n = ((n - minimum) / range); });
-    return result;
-}
-
-std::vector<boost::multiprecision::cpp_dec_float_100> CalculateOffsetFrames(
-      const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights)
-{
-    if (rawFrameWeights.empty()) {
-        return rawFrameWeights;
-    }
-    std::vector<boost::multiprecision::cpp_dec_float_100> result = rawFrameWeights;
-
-    boost::multiprecision::cpp_dec_float_100 maximum
-          = *std::max_element(rawFrameWeights.begin(), rawFrameWeights.end());
-    boost::multiprecision::cpp_dec_float_100 invMax
-          = boost::multiprecision::cpp_dec_float_100(100.0) / maximum;
-
-    std::for_each(result.begin(), result.end(),
-          [&invMax](boost::multiprecision::cpp_dec_float_100 &n) { n = n * invMax; });
-    return result;
-}
-
-std::vector<boost::multiprecision::cpp_dec_float_100> CalculateQuadAvgFrames(
-      const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights,
-      const uint32_t totalWidth)
-{
-    if (rawFrameWeights.empty()) {
-        return rawFrameWeights;
-    }
-    std::vector<boost::multiprecision::cpp_dec_float_100> result = rawFrameWeights;
-    const uint32_t halfFrameWidth = totalWidth / 2;
-
-    for (int xOffset = 0; xOffset <= halfFrameWidth; xOffset++) {
-        for (int yOffset = 0; yOffset <= halfFrameWidth; yOffset++) {
-            const uint32_t q0Idx = xOffset * totalWidth + yOffset;
-            const uint32_t q1Idx = xOffset * totalWidth + (totalWidth - 1 - yOffset);
-            const uint32_t q2Idx = (totalWidth - 1 - xOffset) * totalWidth + yOffset;
-            const uint32_t q3Idx
-                  = (totalWidth - 1 - xOffset) * totalWidth + (totalWidth - 1 - yOffset);
-            boost::multiprecision::cpp_dec_float_100 avg
-                  = (result[q0Idx] + result[q1Idx] + result[q2Idx] + result[q3Idx]) * 0.25;
-            result[q0Idx] = avg;
-            result[q1Idx] = avg;
-            result[q2Idx] = avg;
-            result[q3Idx] = avg;
-        }
-    }
     return result;
 }
 
@@ -577,39 +536,7 @@ void OutputRawData(const std::filesystem::path &outputDirectoryPath,
     }
 }
 
-void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
-      const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
-      const int32_t framePixelCount)
-{
-    std::filesystem::path rawDataFilepath = outputDirectoryPath;
-    rawDataFilepath /= "Combined/";
-
-    if (!std::filesystem::exists(rawDataFilepath)) {
-        std::filesystem::create_directories(rawDataFilepath);
-    }
-
-    rawDataFilepath /= "normalizedData.dat";
-    std::ofstream rawDataOutfile(rawDataFilepath.string());
-    if (!rawDataOutfile.is_open()) {
-        std::cout << "Failed to create normalizedData: " << rawDataFilepath.string() << std::endl;
-        exit(1);
-    }
-
-    // X
-    rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
-
-    // Write out the pixel data
-    for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-        for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
-            // Output pixel
-            const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
-            rawDataOutfile << normalizedCombined[frameIdx] << " ";
-        }
-        rawDataOutfile << std::endl;
-    }
-}
-
-void OutputOffsetData(const std::filesystem::path &outputDirectoryPath,
+void OutputLogData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &offsetCombined,
       const int32_t framePixelCount)
 {
@@ -620,10 +547,10 @@ void OutputOffsetData(const std::filesystem::path &outputDirectoryPath,
         std::filesystem::create_directories(rawDataFilepath);
     }
 
-    rawDataFilepath /= "offsetData.dat";
+    rawDataFilepath /= "logData.dat";
     std::ofstream rawDataOutfile(rawDataFilepath.string());
     if (!rawDataOutfile.is_open()) {
-        std::cout << "Failed to create offsetData: " << rawDataFilepath.string() << std::endl;
+        std::cout << "Failed to create logData: " << rawDataFilepath.string() << std::endl;
         exit(1);
     }
 
@@ -641,8 +568,8 @@ void OutputOffsetData(const std::filesystem::path &outputDirectoryPath,
     }
 }
 
-void OutputQuadAverageData(const std::filesystem::path &outputDirectoryPath,
-      const std::vector<boost::multiprecision::cpp_dec_float_100> &quadAverageCombined,
+void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
+      const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
       const int32_t framePixelCount)
 {
     std::filesystem::path rawDataFilepath = outputDirectoryPath;
@@ -652,10 +579,10 @@ void OutputQuadAverageData(const std::filesystem::path &outputDirectoryPath,
         std::filesystem::create_directories(rawDataFilepath);
     }
 
-    rawDataFilepath /= "quadAverageData.dat";
+    rawDataFilepath /= "normalizedLogData.dat";
     std::ofstream rawDataOutfile(rawDataFilepath.string());
     if (!rawDataOutfile.is_open()) {
-        std::cout << "Failed to create offsetData: " << rawDataFilepath.string() << std::endl;
+        std::cout << "Failed to create normalizedData: " << rawDataFilepath.string() << std::endl;
         exit(1);
     }
 
@@ -667,7 +594,7 @@ void OutputQuadAverageData(const std::filesystem::path &outputDirectoryPath,
         for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
             // Output pixel
             const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
-            rawDataOutfile << quadAverageCombined[frameIdx] << " ";
+            rawDataOutfile << normalizedCombined[frameIdx] << " ";
         }
         rawDataOutfile << std::endl;
     }

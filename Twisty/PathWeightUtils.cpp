@@ -33,8 +33,6 @@ namespace PathWeighting {
     }
 
 
-
-
     // Lookup table integrand
     BaseWeightLookupTable::BaseWeightLookupTable(const WeightingParameters &weightingParams,
           const float ds, const float minCurvature, const float maxCurvature)
@@ -355,7 +353,7 @@ namespace PathWeighting {
     }
 
     float WeightLookupTableIntegral::Integrate(
-                float curvature, const WeightingParameters &weightingParams, float ds) const
+          float curvature, const WeightingParameters &weightingParams, float ds) const
     {
         const double kds = curvature * ds;
         const double bds = weightingParams.scatter * ds;
@@ -365,19 +363,54 @@ namespace PathWeighting {
         // However, as we already are using a big float library, do we even need to
         // deal with this?
 
+        assert(weightingParams.numStepsInt % 2 == 0);
+
         // Interval size
         const double h = (weightingParams.maxBound - weightingParams.minBound)
               / (weightingParams.numStepsInt);
 
-        const double startMidpoint = weightingParams.minBound + (h * 0.5);
+        // We need one additional slot
+        std::vector<double> evaluatedWeights(weightingParams.numStepsInt + 1);
+
+        const double weight = (1.0f / 3.0f) * h;
+
+        const double startPoint = weightingParams.minBound;
         double firstVal = 0.0f;
         {
             // We want our summation to add from smallest to largest. While not perfect, usually a larger p means a smaller value.
             // This we integrate from high p to low p
-            for (uint32_t intervalIdx = (weightingParams.numStepsInt - 1); intervalIdx >= 0;
-                  --intervalIdx) {
-                const double evalP = startMidpoint + (intervalIdx * h);
-                firstVal += IntegrandRT(evalP, kds, bds, weightingParams.mu, weightingParams.eps) * h;
+
+            // Do the zero spot
+            evaluatedWeights[0]
+                  = IntegrandRT(startPoint, kds, bds, weightingParams.mu, weightingParams.eps)
+                  * weight;
+            evaluatedWeights[weightingParams.numStepsInt]
+                  = IntegrandRT(weightingParams.maxBound, kds, bds, weightingParams.mu,
+                          weightingParams.eps)
+                  * weight;
+
+            // Odds
+            for (uint32_t i = 1; i < (weightingParams.numStepsInt / 2); ++i) {
+                const double evalP = startPoint + (((2 * i) - 1) * h);
+                evaluatedWeights[(2 * i) - 1]
+                      = IntegrandRT(evalP, kds, bds, weightingParams.mu, weightingParams.eps)
+                      * weight * 4.0f;
+            }
+
+            // Evens
+            for (uint32_t i = 1; i < (weightingParams.numStepsInt / 2) - 1; ++i) {
+                const double evalP = startPoint + ((2 * i) * h);
+                evaluatedWeights[(2 * i)]
+                      = IntegrandRT(evalP, kds, bds, weightingParams.mu, weightingParams.eps)
+                      * weight * 2.0f;
+            }
+
+            // Sort
+            std::sort(evaluatedWeights.begin(), evaluatedWeights.end());
+
+            // Sum
+            for (const auto &val : evaluatedWeights) {
+                firstVal += val;
             }
         }
         return (firstVal / (2.0 * TwistyPi * TwistyPi)) * weightingParams.bias;
