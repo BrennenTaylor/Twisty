@@ -128,7 +128,7 @@ namespace PathWeighting {
             // TODO: Generalize
             // For now, hardcode the sphere
             const Farlor::Vector3 sphereCenter(5.0f, 0.0f, 0.0f);
-            const float radius = 0.0f;
+            const float radius = 3.0f;
 
             // Lookup absorbtion factor based on position
             float absorption = environmentAbsorption;

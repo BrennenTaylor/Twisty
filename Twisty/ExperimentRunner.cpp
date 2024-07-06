@@ -50,111 +50,128 @@ ExperimentRunner::ExperimentParameters ExperimentRunner::ParseExperimentParamsFr
 {
     twisty::ExperimentRunner::ExperimentParameters experimentParams;
 
-    // Values loaded from the config file
-    experimentParams.numPathsInExperiment
-          = experimentConfig["experiment"]["experimentParams"]["pathsToGenerate"];
+    try {
+        // Values loaded from the config file
+        experimentParams.numPathsInExperiment
+              = experimentConfig.at("experiment").at("experimentParams").at("pathsToGenerate")
+                      .get<uint64_t>();
 
 
-    experimentParams.numPathsToSkip
-          = experimentConfig["experiment"]["experimentParams"]["pathsToSkip"];
-    experimentParams.experimentName = experimentConfig["experiment"]["experimentParams"]["name"];
-    experimentParams.experimentDirPath
-          = experimentConfig["experiment"]["experimentParams"]["experimentDir"];
-    experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
-    experimentParams.experimentDirPath += "/" + twisty::GetCurrentTimeForFileName() + "/";
+        experimentParams.numPathsToSkip
+              = experimentConfig.at("experiment").at("experimentParams").at("pathsToSkip").get<uint64_t>();
+        experimentParams.experimentName
+              = experimentConfig.at("experiment").at("experimentParams").at("name").get<std::string>();
+        experimentParams.experimentDirPath
+              = experimentConfig.at("experiment").at("experimentParams").at("experimentDir")
+                      .get<std::string>();
+        experimentParams.experimentDirPath += "/" + experimentParams.experimentName;
+        experimentParams.experimentDirPath += "/" + twisty::GetCurrentTimeForFileName() + "/";
 
-    experimentParams.maxPerturbThreads
-          = experimentConfig["experiment"]["experimentParams"]["maxPerturbThreads"];
-    experimentParams.maxWeightThreads
-          = experimentConfig["experiment"]["experimentParams"]["maxWeightThreads"];
+        experimentParams.maxPerturbThreads
+              = experimentConfig.at("experiment").at("experimentParams").at("maxPerturbThreads").get<int>();
+        experimentParams.maxWeightThreads
+              = experimentConfig.at("experiment").at("experimentParams").at("maxWeightThreads").get<int>();
 
-    experimentParams.outputBigFloatWeights
-          = experimentConfig["experiment"]["experimentParams"]["outputBigFloatWeights"];
-    experimentParams.outputPathBatches
-          = experimentConfig["experiment"]["experimentParams"]["outputPathBatches"];
-    experimentParams.useGpu = experimentConfig["experiment"]["experimentParams"]["useGpu"];
+        experimentParams.outputBigFloatWeights
+              = experimentConfig.at("experiment").at("experimentParams").at("outputBigFloatWeights")
+                      .get<bool>();
+        experimentParams.outputPathBatches
+              = experimentConfig.at("experiment").at("experimentParams").at("outputPathBatches").get<bool>();
+        experimentParams.useGpu
+              = experimentConfig.at("experiment").at("experimentParams").at("useGpu").get<bool>();
 
-    experimentParams.numSegmentsPerCurve
-          = experimentConfig["experiment"]["experimentParams"]["numSegments"];
+        experimentParams.numSegmentsPerCurve
+              = experimentConfig.at("experiment").at("experimentParams").at("numSegments").get<int>();
 
-    // Seeds
-    experimentParams.bootstrapSeed
-          = experimentConfig["experiment"]["experimentParams"]["random"]["bootstrapSeed"];
-    experimentParams.curvePurturbSeed
-          = experimentConfig["experiment"]["experimentParams"]["random"]["perturbSeed"];
+        // Seeds
+        experimentParams.bootstrapSeed
+              = experimentConfig.at("experiment").at("experimentParams").at("random").at("bootstrapSeed")
+                      .get<int>();
+        experimentParams.curvePurturbSeed
+              = experimentConfig.at("experiment").at("experimentParams").at("random").at("perturbSeed")
+                      .get<int>();
 
-    // Weighting parameter stuff
-    switch (int weightFunction
-            = experimentConfig["experiment"]["experimentParams"]["weighting"]["weightFunction"];
-            weightFunction) {
-        // Radiative Transfer weight function
-        case 0: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::RadiativeTransfer;
-        } break;
+        // Weighting parameter stuff
+        switch (int weightFunction
+                = experimentConfig.at("experiment").at("experimentParams").at("weighting").at("weightFunction")
+                        .get<int>();
+                weightFunction) {
+            // Radiative Transfer weight function
+            case 0: {
+                experimentParams.weightingParameters.weightingMethod
+                      = twisty::WeightingMethod::RadiativeTransfer;
+            } break;
 
-        // Simplified Model
-        case 1: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::SimplifiedModel;
-        } break;
+            // Simplified Model
+            case 1: {
+                experimentParams.weightingParameters.weightingMethod
+                      = twisty::WeightingMethod::SimplifiedModel;
+            } break;
 
-        // Default to the simplified model
-        default: {
-            experimentParams.weightingParameters.weightingMethod
-                  = twisty::WeightingMethod::RadiativeTransfer;
-        } break;
+            // Default to the simplified model
+            default: {
+                experimentParams.weightingParameters.weightingMethod
+                      = twisty::WeightingMethod::RadiativeTransfer;
+            } break;
+        }
+
+        // Perturb method stuff
+        switch (int perturbMethod
+                = experimentConfig.at("experiment").at("experimentParams").at("perturbMethod").get<int>();
+                perturbMethod) {
+            // Simplified Model
+            case 1: {
+                experimentParams.perturbMethod
+                      = twisty::ExperimentRunner::PerturbMethod::GeometricMinCurvature;
+            } break;
+
+            // Simplified Model
+            case 2: {
+                experimentParams.perturbMethod
+                      = twisty::ExperimentRunner::PerturbMethod::GeometricCombined;
+            } break;
+
+            // Default to the simplified model
+            case 0:
+            default: {
+                experimentParams.perturbMethod
+                      = twisty::ExperimentRunner::PerturbMethod::GeometricRandom;
+            } break;
+        }
+
+        // Weighting parameter stuff
+        experimentParams.weightingParameters.mu
+              = experimentConfig.at("experiment").at("experimentParams").at("weighting").at("mu").get<float>();
+        experimentParams.weightingParameters.eps
+              = experimentConfig.at("experiment").at("experimentParams").at("weighting").at("eps").get<float>();
+        experimentParams.weightingParameters.numStepsInt
+              = (int)experimentConfig.at("experiment").at("experimentParams").at("weighting").at("numStepsInt")
+                      .get<int>();
+        experimentParams.weightingParameters.numCurvatureSteps
+              = (int)experimentConfig.at("experiment").at("experimentParams").at("weighting").at("numCurvatureSteps")
+                                           .get<int>();
+        experimentParams.weightingParameters.absorption
+              = experimentConfig.at("experiment").at("experimentParams").at("weighting").at("absorption")
+                      .get<float>();
+
+        // In the case we have the simplified model, we need to disable absorption
+        if (experimentParams.weightingParameters.weightingMethod
+              == twisty::WeightingMethod::SimplifiedModel) {
+            std::cout << "Disabling absorption for simplified model." << std::endl;
+            experimentParams.weightingParameters.absorption = 0.0f;
+        }
+
+        experimentParams.weightingParameters.scatter
+              = experimentConfig.at("experiment").at("experimentParams").at("weighting").at("scatter")
+                      .get<float>();
+
+        // TODO: Should these be configurable in the file?
+        experimentParams.weightingParameters.minBound = 0.0f;
+        experimentParams.weightingParameters.maxBound
+              = 10.0f / experimentParams.weightingParameters.eps;
+    } catch (std::exception &ex) {
+        std::cout << "What: " << ex.what() << std::endl;
     }
-
-    // Perturb method stuff
-    switch (int perturbMethod = experimentConfig["experiment"]["experimentParams"]["perturbMethod"];
-            perturbMethod) {
-        // Simplified Model
-        case 1: {
-            experimentParams.perturbMethod
-                  = twisty::ExperimentRunner::PerturbMethod::GeometricMinCurvature;
-        } break;
-
-        // Simplified Model
-        case 2: {
-            experimentParams.perturbMethod
-                  = twisty::ExperimentRunner::PerturbMethod::GeometricCombined;
-        } break;
-
-        // Default to the simplified model
-        case 0:
-        default: {
-            experimentParams.perturbMethod
-                  = twisty::ExperimentRunner::PerturbMethod::GeometricRandom;
-        } break;
-    }
-
-    // Weighting parameter stuff
-    experimentParams.weightingParameters.mu
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["mu"];
-    experimentParams.weightingParameters.eps
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["eps"];
-    experimentParams.weightingParameters.numStepsInt
-          = (int)experimentConfig["experiment"]["experimentParams"]["weighting"]["numStepsInt"];
-    experimentParams.weightingParameters.numCurvatureSteps = (int)
-          experimentConfig["experiment"]["experimentParams"]["weighting"]["numCurvatureSteps"];
-    experimentParams.weightingParameters.absorption
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["absorption"];
-
-    // In the case we have the simplified model, we need to disable absorption
-    if (experimentParams.weightingParameters.weightingMethod
-          == twisty::WeightingMethod::SimplifiedModel) {
-        std::cout << "Disabling absorption for simplified model." << std::endl;
-        experimentParams.weightingParameters.absorption = 0.0f;
-    }
-
-    experimentParams.weightingParameters.scatter
-          = experimentConfig["experiment"]["experimentParams"]["weighting"]["scatter"];
-
-    // TODO: Should these be configurable in the file?
-    experimentParams.weightingParameters.minBound = 0.0f;
-    experimentParams.weightingParameters.maxBound
-          = 10.0f / experimentParams.weightingParameters.eps;
 
     return experimentParams;
 }

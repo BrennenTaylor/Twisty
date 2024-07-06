@@ -51,12 +51,55 @@ struct WeightingParameters {
     {
         std::stringstream uuid;
         std::ios_base::fmtflags flags = uuid.flags();
-        uuid << std::fixed << std::setprecision(10) << "mu_" << mu << "_numStepsInt_" << numStepsInt
-             << "_minBound_" << minBound << "_maxBound_" << maxBound << "_eps_" << eps
-             << "_scatter_" << scatter << "_absorption_" << absorption << "_bias_"
-             << bias << "_numCurvatureSteps_" << numCurvatureSteps << "_weightingMethod_"
-             << (int32_t)weightingMethod;
+
+        {
+            uint32_t value = 0;
+            memcpy(&value, &mu, 4);
+            uuid << "mu_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+                 << value;
+        }
         uuid.flags(flags);
+        uuid << "_numStepsInt_" << numStepsInt;
+
+        {
+            uint32_t value = 0;
+            memcpy(&value, &minBound, 4);
+            uuid << "_minBound_0x" << std::uppercase << std::setfill('0') << std::setw(8)
+                 << std::hex << value;
+        }
+        {
+            uint32_t value = 0;
+            memcpy(&value, &maxBound, 4);
+            uuid << "_maxBound_0x" << std::uppercase << std::setfill('0') << std::setw(8)
+                 << std::hex << value;
+        }
+        {
+            uint32_t value = 0;
+            memcpy(&value, &eps, 4);
+            uuid << "_eps_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+                 << value;
+        }
+        {
+            uint32_t value = 0;
+            memcpy(&value, &scatter, 4);
+            uuid << "_scatter_0x" << std::uppercase << std::setfill('0') << std::setw(8)
+                 << std::hex << value;
+        }
+        {
+            uint32_t value = 0;
+            memcpy(&value, &absorption, 4);
+            uuid << "_absorption_0x" << std::uppercase << std::setfill('0') << std::setw(8)
+                 << std::hex << value;
+        }
+        {
+            uint32_t value = 0;
+            memcpy(&value, &bias, 4);
+            uuid << "_bias_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+                 << value;
+        }
+        uuid.flags(flags);
+        uuid << "_numCurvatureSteps_" << numCurvatureSteps << "_weightingMethod_"
+             << (int32_t)weightingMethod;
 
         return std::make_pair<std::string, uint64_t>(
               uuid.str(), std::hash<std::string> {}(uuid.str()));

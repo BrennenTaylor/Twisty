@@ -69,8 +69,7 @@ namespace PathWeighting {
         std::ios_base::fmtflags flags = dsSS.flags();
         uint32_t value = 0;
         memcpy(&value, &m_ds, 4);
-        dsSS << "ds_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
-             << value;
+        dsSS << "ds_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << value;
         dsSS.flags(flags);
 
         std::filesystem::path exportFile = exportDirectory.string();
@@ -240,7 +239,21 @@ namespace PathWeighting {
     {
         std::stringstream uuid;
         std::ios_base::fmtflags flags = uuid.flags();
-        uuid << std::fixed << std::setprecision(10) << "minDs_" << m_minDs << "maxDs_" << m_maxDs;
+
+        {
+            uint32_t value = 0;
+            memcpy(&value, &m_minDs, 4);
+            uuid << "minDs_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+                 << value;
+        }
+
+        {
+            uint32_t value = 0;
+            memcpy(&value, &m_maxDs, 4);
+            uuid << "maxDs_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+                 << value;
+        }
+
         uuid.flags(flags);
         uuid << "numDsSteps_" << m_numDsSteps << "wp_"
              << m_weightingParams.GenerateStringUUID().first;
@@ -342,17 +355,15 @@ namespace PathWeighting {
               * std::exp(bds * phaseFunction           // scatter piece
                     - 1.0 * (eps * eps * p * p * 0.5)  // regularizer
               );
-
-        double sinTerm = p;
-        // TODO: Should we implement this as if (kds < smallAngleThreshold?)
-        if (kds > 0.0) {
-            sinTerm = sin(kds * p) / kds;
-        }
         // As we approch kds -> 0, we have that the limit of sin(kds * p) => p
         // as well as                  1/kds -> 1/inf
         // else {
         //     sinTerm = 0,.;
         // }
+        double sinTerm = p;
+        if (kds > 0.0) {
+            sinTerm = sin(kds * p) / kds;
+        }
 
         return scatteringTerm * sinTerm;
     }
@@ -732,7 +743,8 @@ namespace PathWeighting {
                     return K6(z, ds);
                 } break;
                 default: {
-                    std::cout << "Invalid number of segments, currently cannot calculate normalizer"
+                    std::cout << "Invalid number of segments, currently cannot "
+                                 "calculate normalizer"
                               << std::endl;
                     return 1.0;
                 } break;

@@ -56,32 +56,45 @@ struct NoisyCircleAngleIntegrationParams {
 NoisyCircleAngleIntegrationParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
 {
     NoisyCircleAngleIntegrationParams params;
-    params.startX = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"];
-    params.startY = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"];
+    try {
+        params.startX
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"].get<int>();
+        params.startY
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"].get<int>();
 
-    params.frameLength
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"];
-    params.framePixelCount
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"];
+        params.frameLength
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"].get<float>();
+        params.framePixelCount
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"]
+                      .get<int>();
 
-    // Ok, we want to kick off an experiment per pixel.
-    params.numDirections
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
-    params.arclengthStepSize
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["arclengthStepSize"];
-    params.distanceFromPlane
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
+        // Ok, we want to kick off an experiment per pixel.
+        params.numDirections
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"]
+                      .get<int>();
+        params.arclengthStepSize
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["arclengthStepSize"]
+                      .get<float>();
+        params.distanceFromPlane
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"]
+                      .get<float>();
 
-    assert(params.startX < params.framePixelCount);
-    assert(params.startY < params.framePixelCount);
+        assert(params.startX < params.framePixelCount);
+        assert(params.startY < params.framePixelCount);
 
-    params.numPhi1Vals
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numPhi1Vals"];
-    params.numTheta1Vals
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta1Vals"];
-    params.numTheta2Vals
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta2Vals"];
-    return params;
+        params.numPhi1Vals
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numPhi1Vals"]
+                      .get<float>();
+        params.numTheta1Vals
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta1Vals"]
+                      .get<float>();
+        params.numTheta2Vals
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numTheta2Vals"]
+                      .get<float>();
+        return params;
+    } catch (std::exception &ex) {
+        std::cout << "Parsing error: " << ex.what() << std::endl;
+    }
 }
 
 int main(int argc, char *argv[])

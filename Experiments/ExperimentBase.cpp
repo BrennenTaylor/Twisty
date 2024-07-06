@@ -210,7 +210,6 @@ namespace ExperimentBase {
             overallMaxPathWeightLog10 };
     }
 
-
     Result FiveSegmentAngleSpaceMC(const int64_t numExperimentPaths,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
           const twisty::ExperimentRunner::ExperimentParameters &experimentParams,
@@ -1154,10 +1153,11 @@ namespace ExperimentBase {
 
         std::cout << "Starting path generation" << std::endl;
 
-#pragma omp parallel for num_threads(maxThreads) default(none) shared(                             \
-            combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread, point1, \
-            point5, experimentGeometry, ds, pathNormalizerLog10, numExperimentPaths, point0,       \
-            point6, rngPerThread, weightLookupTable, experimentParams, combinedWeightValues, std::cout)
+#pragma omp parallel for num_threads(maxThreads) default(none)                                     \
+      shared(combinedWeightValuesPerThread, minPathWeightPerThread, maxPathWeightPerThread,        \
+                  point1, point5, experimentGeometry, ds, pathNormalizerLog10, numExperimentPaths, \
+                  point0, point6, rngPerThread, weightLookupTable, experimentParams,               \
+                  combinedWeightValues, std::cout)
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
@@ -1471,7 +1471,6 @@ namespace ExperimentBase {
         const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
 
         const float actualMaxDs = maxDs;
-        //maxArclength / experimentParams.numSegmentsPerCurve;
 
         if (actualMaxDs < minDs) {
             std::cout << "No solution for current environment" << std::endl;
@@ -1615,7 +1614,7 @@ namespace ExperimentBase {
               (numTotalPaths + MaxNumPathsPerCombinedWeight - 1) / MaxNumPathsPerCombinedWeight);
 
         const int maxThreads = omp_get_max_threads();
-        //std::cout << "Max threads: " << maxThreads << '\n';
+        // std::cout << "Max threads: " << maxThreads << '\n';
         std::vector<twisty::CombinedWeightValues_C> combinedWeightValuesPerThread(maxThreads);
         for (int i = 0; i < maxThreads; i++) {
             twisty::CombinedWeightValues_C_Reset(combinedWeightValuesPerThread[i]);
@@ -1636,9 +1635,7 @@ namespace ExperimentBase {
         float minArclength = twisty::PathGeneration::CalculateMinimumArclength(
               experimentGeometry, experimentParams.numSegmentsPerCurve);
         const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
-
         const float actualMaxDs = maxDs;
-        //maxArclength / experimentParams.numSegmentsPerCurve;
 
         if (actualMaxDs < minDs) {
             std::cout << "No solution for current environment" << std::endl;
@@ -1663,8 +1660,18 @@ namespace ExperimentBase {
         for (int64_t pathIdx = 0; pathIdx < numExperimentPaths; pathIdx++) {
             const int threadId = omp_get_thread_num();
 
+            const float t = experimentParams.weightingParameters.absorption
+                  + experimentParams.weightingParameters.scatter;
             std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
-            const float ds = uniformRand(rngPerThread[threadId]) * (actualMaxDs - minDs) + minDs;
+            std::exponential_distribution<float> expDistrubtion(t);
+            //std::uniform_real_distribution<float> uniformRand(0.0f, 1.0f);
+            float ds = expDistrubtion(rngPerThread[threadId]) + minDs;
+            while (ds > (actualMaxDs + minDs)) {
+                ds = expDistrubtion(rngPerThread[threadId]) + minDs;
+            }
+
+            const float samplingWeight
+                  = 1.0f / (t * std::exp(-t * (ds - minDs) * numSegmentsPerCurve));
 
             twisty::PathWeighting::BaseWeightLookupTable &environmentWeightLookupTable
                   = *environmentCachedWeightLookupTable.GetWeightLookupTable(ds);
@@ -1708,6 +1715,8 @@ namespace ExperimentBase {
                   = twisty::PathWeighting::WeightCurveViaPositionLog10_PositionDependent(points,
                         curvatures, environmentWeightLookupTable, objectWeightLookupTable,
                         experimentParams.weightingParameters.absorption);
+
+            scatteringWeightLog10.weight += std::log10(samplingWeight);
 
             if (!scatteringWeightLog10.isValid) {
                 std::cout << "We have an invalid weight path, as it counts nothing, discard it"
