@@ -67,7 +67,10 @@ namespace PathWeighting {
 
         std::stringstream dsSS;
         std::ios_base::fmtflags flags = dsSS.flags();
-        dsSS << std::fixed << std::setprecision(10) << m_ds;
+        uint32_t value = 0;
+        memcpy(&value, &m_ds, 4);
+        dsSS << "ds_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex
+             << value;
         dsSS.flags(flags);
 
         std::filesystem::path exportFile = exportDirectory.string();
@@ -109,9 +112,9 @@ namespace PathWeighting {
         m_wpUUID = m_weightingParams.GenerateStringUUID();
         std::stringstream uuid;
         std::ios_base::fmtflags flags = uuid.flags();
-        uint32_t localDs = 0;
-        memcpy(&localDs, &m_ds, 4);
-        uuid << "ds_0x " << std::uppercase << std::setfill('0') << std::setw(4) << std::hex << m_ds;
+        uint32_t value = 0;
+        memcpy(&value, &m_ds, 4);
+        uuid << "ds_0x" << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << value;
         uuid.flags(flags);
         uuid << "wp_" << m_wpUUID.first;
         m_wtUUID = std::make_pair<std::string, uint64_t>(
