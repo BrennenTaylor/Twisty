@@ -10,7 +10,6 @@ build_cpu/
 build_ninja/
 build_ninja_cpu/
 build*/
-configs/
 doxygen_output/
 Geom_*/
 Geometry_*/
