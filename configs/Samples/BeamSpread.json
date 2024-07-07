@@ -1,0 +1,66 @@
+{
+    "experiment": {
+        "noisyCircleExperiment": {
+            "normalGenSeed": 1,
+            "startX": 0,
+            "startY": 0,
+            "startArclength": 0,
+            "frameLength": 10.0,
+            "framePixelCount": 10,
+            "numInitialCurves": 2,
+            "numPerInitialCurve": 2,
+            "numDirections": 1,
+            "numArclengths": 10,
+            "distanceFromPlane": 10.0
+        },
+        "smallSegmentExperiment": {
+            "numEmitterDirections": 10,
+            "distanceFromPlane": 10.0
+        },
+        "beamSpreadExperiment": {
+            "targetSeed": 1,
+            "sphereRadius": 30,
+            "maxArclength": 100,
+            "startPos": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "startDir": [
+                1.0,
+                0.0,
+                0.0
+            ],
+            "numInitialCurves": 1,
+            "numPerInitialCurve": 1
+        },
+        "experimentParams": {
+            "pathsToGenerate": 20000000,
+            "pathsToSkip": 100,
+            "numSegments": 200,
+            "name": "BeamSpread",
+            "experimentDir": "C:/Experiments/Default/BeamSpread",
+            "maxPerturbThreads": 0,
+            "maxWeightThreads": 0,
+            "outputBigFloatWeights": true,
+            "outputPathBatches": false,
+            "perturbMethod": 0,
+            "random": {
+                "bootstrapSeed": 0,
+                "perturbSeed": 0
+            },
+            "useGpu": false,
+            "weighting": {
+                "weightFunction": 0,
+                "mu": 0.5,
+                "eps": 0.075,
+                "numStepsInt": 2000,
+                "numCurvatureSteps": 10000,
+                "absorption": 0.004,
+                "scatterValues": [
+                    0.1
+                ]
+            }
+        }
+    }
+}

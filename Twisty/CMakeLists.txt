@@ -60,11 +60,11 @@ if(WIN32)
     )
 endif()
 
-if(LINUX)
+# if(LINUX)
     target_link_libraries(Twisty
-        PUBLIC OpenVDB::openvdb
+        PUBLIC openvdb
     )
-endif()
+# endif()
 
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}

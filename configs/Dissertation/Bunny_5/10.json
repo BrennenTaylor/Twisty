@@ -1,0 +1,40 @@
+{
+    "experiment": {
+        "noisyCircleAngleIntegration": {
+            "startX": 0,
+            "startY": 0,
+            "frameLength": 10.0,
+            "framePixelCount": 25,
+            "numDirections": 1,
+            "maxArclengthOffset": 5.0,
+            "distanceFromPlane": 10.0,
+            "eyeDistanceFromFocal": 10.0
+        },
+        "experimentParams": {
+            "pathsToGenerate": 20000,
+            "pathsToSkip": 0,
+            "numSegments": 66,
+            "name": "10",
+            "experimentDir": "D:/Experiments/ExploreImagePlaneBunny/",
+            "maxPerturbThreads": 0,
+            "maxWeightThreads": 0,
+            "outputBigFloatWeights": false,
+            "outputPathBatches": false,
+            "perturbMethod": 0,
+            "random": {
+                "bootstrapSeed": 0,
+                "perturbSeed": 0
+            },
+            "useGpu": false,
+            "weighting": {
+                "weightFunction": 0,
+                "mu": 0.1,
+                "eps": 0.075,
+                "numStepsInt": 20000,
+                "numCurvatureSteps": 1000,
+                "absorption": 0.1,
+                "scatter": 5.0
+            }
+        }
+    }
+}

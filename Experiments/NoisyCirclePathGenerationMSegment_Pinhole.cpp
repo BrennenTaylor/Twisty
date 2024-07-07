@@ -16,6 +16,8 @@
 
 #include <FMath/Vector3.h>
 
+// Enable this for better exception messages, worth the tradeoff for us
+#define JSON_DIAGNOSTICS 1
 #include <nlohmann/json.hpp>
 
 #include <chrono>
@@ -23,7 +25,7 @@
 #include <memory>
 #include <filesystem>
 
-#ifdef __linux__
+// #ifdef __linux__
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/LevelSetUtil.h>
 #include <openvdb/tools/LevelSetSphere.h>
@@ -83,7 +85,7 @@ class VDBVolume {
         linearTransform->preRotate(-openvdb::math::pi<double>() / 2.0, openvdb::math::Y_AXIS);
         m_grid->setTransform(linearTransform);
 
-        openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        openvdb::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
         openvdb::Vec3d offset = m_grid->indexToWorld(bbox.max()) + m_grid->indexToWorld(bbox.min());
         offset *= 0.5;
 
@@ -107,7 +109,7 @@ class VDBVolume {
 
     void PrintWorldBB()
     {
-        openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        openvdb::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
         std::cout << m_grid->indexToWorld(bbox.min()) << ", " << m_grid->indexToWorld(bbox.max())
                   << std::endl;
     }
@@ -117,7 +119,7 @@ class VDBVolume {
    private:
     openvdb::FloatGrid::Ptr m_grid = nullptr;
 };
-#endif
+// #endif
 
 std::vector<boost::multiprecision::cpp_dec_float_100> CalculateLogData(
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawFrameWeights);
@@ -154,24 +156,27 @@ struct NoisyCircleParams {
 NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
 {
     NoisyCircleParams params;
-    params.startX = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"];
-    params.startY = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"];
+    try {
+        params.startX = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"];
+        params.startY = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"];
 
-    params.frameLength
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"];
-    params.framePixelCount
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"];
+        params.frameLength
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"];
+        params.framePixelCount
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"];
 
-    // Ok, we want to kick off an experiment per pixel.
-    params.numDirections
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
-    params.maxArclengthOffset
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["maxArclengthOffset"];
-    params.distanceFromPlane
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
-    params.eyeDistanceFromFocal
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["eyeDistanceFromFocal"];
-
+        // Ok, we want to kick off an experiment per pixel.
+        params.numDirections
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
+        params.maxArclengthOffset
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["maxArclengthOffset"];
+        params.distanceFromPlane
+              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
+        params.eyeDistanceFromFocal = experimentConfig["experiment"]["noisyCircleAngleIntegration"]
+                                                      ["eyeDistanceFromFocal"];
+    } catch (const std::exception &ex) {
+        std::cout << "Exception: " << ex.what() << std::endl;
+    }
     assert(params.startX < params.framePixelCount);
     assert(params.startY < params.framePixelCount);
     return params;
@@ -284,7 +289,7 @@ int main(int argc, char *argv[])
     const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
     const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
 
-#ifdef __linux__
+    // #ifdef __linux__
     // Must call once
     openvdb::initialize();
 
@@ -292,7 +297,7 @@ int main(int argc, char *argv[])
     // VDBVolume bunny(OuterSphereRadius, InnerSphereRadius);
     bunny.PrintMetadata();
     bunny.PrintWorldBB();
-#endif
+    // #endif
 
     // Experiment start time
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -348,20 +353,20 @@ int main(int argc, char *argv[])
                 const uint64_t rngSeed = uniformInt(rng);
 
                 // #ifdef __linux__
-                //       // std::cout << "Linux vdb bunny version" << std::endl;
-                //                     const twisty::ExperimentBase::Result result
-                //                           = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
-                //                                 experimentParams.numPathsInExperiment,
-                //                                 experimentParams.numSegmentsPerCurve, experimentGeometry,
-                //                                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
-                //                                 objectCachedLookupTable, maxDs, bunny.AccessGrid());
-                // #else
+                std::cout << "Linux vdb bunny version" << std::endl;
                 const twisty::ExperimentBase::Result result
-                      = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
+                      = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
                             experimentParams.numPathsInExperiment,
                             experimentParams.numSegmentsPerCurve, experimentGeometry,
                             experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
-                            objectCachedLookupTable, maxDs);
+                            objectCachedLookupTable, maxDs, bunny.AccessGrid());
+                // #else
+                //     const twisty::ExperimentBase::Result result
+                //           = twisty::ExperimentBase::MSegmentPathGenerationMC(rngSeed,
+                //                 experimentParams.numPathsInExperiment,
+                //                 experimentParams.numSegmentsPerCurve, experimentGeometry,
+                //                 experimentParams, pathNormalizerLog10, environmentCachedLookupTable,
+                //                 objectCachedLookupTable, maxDs);
                 // #endif
                 currentOpCount++;
 

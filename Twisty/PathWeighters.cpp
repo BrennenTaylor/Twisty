@@ -4,9 +4,9 @@
 #include "CurvePerturbUtils.h"
 #include "PathWeighters.h"
 
-#ifdef __linux__
+// #ifdef __linux__
 #include <openvdb/tools/Interpolation.h>
-#endif
+// #endif
 
 #include <stdint.h>
 
@@ -208,7 +208,7 @@ namespace PathWeighting {
         return { true, runningPathWeightLog10 };
     }
 
-#ifdef __linux__
+    // #ifdef __linux__
     PathWeightValue WeightCurveViaPositionLog10_PositionDependent(
           const std::vector<Farlor::Vector3> &positions, const std::vector<float> &curvatures,
           const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable,
@@ -322,6 +322,6 @@ namespace PathWeighting {
         }
         return { true, runningPathWeightLog10 };
     }
-#endif
+    // #endif
 }
 }

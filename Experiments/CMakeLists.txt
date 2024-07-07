@@ -1,9 +1,9 @@
-if(LINUX)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
+# if(LINUX)
+#     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
 
-    # set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
-    find_package(OpenVDB REQUIRED)
-endif()
+#     # set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
+# endif()
+    # find_package(OpenVDB REQUIRED)
 
 FetchContent_Declare(tinyexr
     GIT_REPOSITORY "https://github.com/syoyo/tinyexr"
@@ -35,11 +35,11 @@ target_link_libraries(ExperimentBase
     PRIVATE nlohmann_json::nlohmann_json
 )
 
-if(LINUX)
+# if(LINUX)
     target_link_libraries(ExperimentBase
-        PUBLIC OpenVDB::openvdb
+        PUBLIC openvdb
     )
-endif()
+# endif()
 
 add_executable(FullExperiment
     FullExperiment.cpp
@@ -372,7 +372,7 @@ target_link_libraries(NoisyCirclePathGenerationMSegment_Pinhole
     PRIVATE nlohmann_json::nlohmann_json
 )
 
-if(LINUX)
+# if(LINUX)
     add_executable(NoisyCirclePathGenerationMSegment_RaycastVolume
         NoisyCirclePathGenerationMSegment_RaycastVolume.cpp
     )
@@ -395,7 +395,7 @@ if(LINUX)
         PRIVATE nlohmann_json::nlohmann_json
         PUBLIC tinyexr_include
     )
-endif()
+# endif()
 
 add_executable(Simple_FiveSegment_Analytical
     Simple_FiveSegment_Analytical.cpp

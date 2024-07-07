@@ -1,0 +1,56 @@
+{
+    "experiment": {
+        "basicExperiment": {
+            "startPos": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "startDir": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "endPos": [
+                0.0,
+                0.0,
+                10.0
+            ],
+            "endDir": [
+                0.0,
+                0.0,
+                -1.0
+            ],
+            "arclength": 13.0,
+            "numPhi1Vals": 512,
+            "numTheta1Vals": 512,
+            "numTheta2Vals": 512
+        },
+        "experimentParams": {
+            "pathsToGenerate": 200000000,
+            "pathsToSkip": 0,
+            "numSegments": 66,
+            "name": "Angle_180",
+            "experimentDir": "D:/Experiments/PathGeneration_MC/SegmentCount_66/SegmentCount_66_10_8/Arclength_13/Angle_180/",
+            "maxPerturbThreads": 0,
+            "maxWeightThreads": 0,
+            "outputBigFloatWeights": false,
+            "outputPathBatches": false,
+            "perturbMethod": 0,
+            "random": {
+                "bootstrapSeed": 0,
+                "perturbSeed": 0
+            },
+            "useGpu": false,
+            "weighting": {
+                "weightFunction": 0,
+                "mu": 1.0,
+                "eps": 0.075,
+                "numStepsInt": 20000,
+                "numCurvatureSteps": 20000,
+                "absorption": 0.004,
+                "scatter": 0.1
+            }
+        }
+    }
+}

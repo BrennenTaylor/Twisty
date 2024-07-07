@@ -29,6 +29,9 @@ endif()
 # Needed for GPU build
 option(USE_CUDA "Enable Cuda and GPU runner?" FALSE)
 
+set(OPENVDB_CORE_STATIC OFF)
+add_subdirectory(openvdb)
+
 add_subdirectory(dependencies)
 add_subdirectory(Twisty)
 

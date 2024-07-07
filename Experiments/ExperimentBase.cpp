@@ -1816,7 +1816,7 @@ namespace ExperimentBase {
             overallMaxPathWeightLog10 };
     }
 
-#ifdef __linux__
+    // #ifdef __linux__
     Result MSegmentPathGenerationMC_VDB(const uint64_t seed, const int64_t numExperimentPaths,
           const int numSegmentsPerCurve,
           const twisty::PerturbUtils::BoundaryConditions &experimentGeometry,
@@ -2025,6 +2025,6 @@ namespace ExperimentBase {
         return { numValidPaths, numTotalPaths, finalResult, overallMinPathWeightLog10,
             overallMaxPathWeightLog10 };
     }
-#endif
+    // #endif
 }
 }

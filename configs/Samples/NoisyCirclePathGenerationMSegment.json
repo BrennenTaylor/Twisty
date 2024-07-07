@@ -1,0 +1,39 @@
+{
+    "experiment": {
+        "noisyCircleAngleIntegration": {
+            "startX": 0,
+            "startY": 0,
+            "frameLength": 10.0,
+            "framePixelCount": 11,
+            "numDirections": 128,
+            "maxArclengthOffset": 3.0,
+            "distanceFromPlane": 10.0
+        },
+        "experimentParams": {
+            "pathsToGenerate": 20000,
+            "pathsToSkip": 0,
+            "numSegments": 66,
+            "name": "NoisyCirclePathGenerationMSegment",
+            "experimentDir": "D:/Experiments/NoisyCirclePathGenerationMSegment",
+            "maxPerturbThreads": 0,
+            "maxWeightThreads": 0,
+            "outputBigFloatWeights": false,
+            "outputPathBatches": false,
+            "perturbMethod": 0,
+            "random": {
+                "bootstrapSeed": 0,
+                "perturbSeed": 0
+            },
+            "useGpu": false,
+            "weighting": {
+                "weightFunction": 0,
+                "mu": 0.1,
+                "eps": 0.075,
+                "numStepsInt": 20000,
+                "numCurvatureSteps": 10000,
+                "absorption": 0.001,
+                "scatter": 0.9
+            }
+        }
+    }
+}

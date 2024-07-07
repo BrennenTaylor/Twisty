@@ -1,0 +1,35 @@
+{
+    "experiment": {
+        "stressTestCombinedWeights": {
+            "arclength": 11.0,
+            "seed": 1,
+            "numPaths": 10000
+        },
+        "experimentParams": {
+            "pathsToGenerate": 200000000,
+            "pathsToSkip": 0,
+            "numSegments": 200,
+            "name": "StressTest_100_Segments",
+            "experimentDir": "D:/Experiments/StressTest_100_Segments",
+            "maxPerturbThreads": 0,
+            "maxWeightThreads": 0,
+            "outputBigFloatWeights": true,
+            "outputPathBatches": true,
+            "perturbMethod": 0,
+            "random": {
+                "bootstrapSeed": 0,
+                "perturbSeed": 0
+            },
+            "useGpu": false,
+            "weighting": {
+                "weightFunction": 0,
+                "mu": 1.0,
+                "eps": 0.075,
+                "numStepsInt": 20000,
+                "numCurvatureSteps": 20000,
+                "absorption": 0.004,
+                "scatter": 0.1
+            }
+        }
+    }
+}

@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#define DEBUG_PRINT 0
+
 bool SaveEXR(const float *rgb, int width, int height, const char *outfilename)
 {
     EXRHeader header;
@@ -110,7 +112,9 @@ int main(int argc, char *argv[])
         for (uint32_t y = 0; y < imgHeight; ++y) {
             float dataValue = 0.0f;
             inputDataStream >> dataValue;
-
+#if DEBUG_PRINT
+            printf("(%d, %d): %f\n", x, y, dataValue);
+#endif
             dataValue *= imgScaleFactor;
 
             pixelData[y * imgWidth * 3 + x * 3 + 0] = dataValue;

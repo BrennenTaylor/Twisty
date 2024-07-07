@@ -86,7 +86,7 @@ class VDBVolume {
         linearTransform->preRotate(-openvdb::math::pi<double>() / 2.0, openvdb::math::Y_AXIS);
         m_grid->setTransform(linearTransform);
 
-        openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        openvdb::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
         openvdb::Vec3d offset = m_grid->indexToWorld(bbox.max()) + m_grid->indexToWorld(bbox.min());
         offset *= 0.5;
 
@@ -110,7 +110,7 @@ class VDBVolume {
 
     void PrintWorldBB()
     {
-        openvdb::v10_0::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
+        openvdb::math::CoordBBox bbox = m_grid->evalActiveVoxelBoundingBox();
         std::cout << m_grid->indexToWorld(bbox.min()) << ", " << m_grid->indexToWorld(bbox.max())
                   << std::endl;
     }
@@ -141,21 +141,32 @@ struct NoisyCircleParams {
 NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
 {
     NoisyCircleParams params;
-    params.startX = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"];
-    params.startY = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"];
+    try {
+        params.startX
+              = experimentConfig.at("experiment").at("noisyCircleAngleIntegration").at("startX");
+        params.startY
+              = experimentConfig.at("experiment").at("noisyCircleAngleIntegration").at("startY");
 
-    params.frameLength
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"];
-    params.framePixelCount
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"];
+        params.frameLength = experimentConfig.at("experiment")
+                                   .at("noisyCircleAngleIntegration")
+                                   .at("frameLength");
+        params.framePixelCount = experimentConfig.at("experiment")
+                                       .at("noisyCircleAngleIntegration")
+                                       .at("framePixelCount");
 
-    // Ok, we want to kick off an experiment per pixel.
-    params.numDirections
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
-    params.maxArclengthOffset
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["maxArclengthOffset"];
-    params.distanceFromPlane
-          = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
+        // Ok, we want to kick off an experiment per pixel.
+        params.numDirections = experimentConfig.at("experiment")
+                                     .at("noisyCircleAngleIntegration")
+                                     .at("numDirections");
+        params.maxArclengthOffset = experimentConfig.at("experiment")
+                                          .at("noisyCircleAngleIntegration")
+                                          .at("maxArclengthOffset");
+        params.distanceFromPlane = experimentConfig.at("experiment")
+                                         .at("noisyCircleAngleIntegration")
+                                         .at("distanceFromPlane");
+    } catch (const std::exception &ex) {
+        std::cout << "Exception: " << ex.what() << std::endl;
+    }
 
     assert(params.startX < params.framePixelCount);
     assert(params.startY < params.framePixelCount);
