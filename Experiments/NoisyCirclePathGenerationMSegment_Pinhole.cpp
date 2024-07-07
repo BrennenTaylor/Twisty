@@ -31,6 +31,9 @@
 #include <openvdb/tools/LevelSetSphere.h>
 #include <openvdb/tools/Composite.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 class VDBVolume {
    public:
     VDBVolume(const float outerRadius, float innerRadius)
@@ -129,56 +132,125 @@ std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedData(
 
 void OutputRawData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawCombined,
-      const int32_t framePixelCount);
+      const int32_t framePixelWidth, const int32_t framePixelHeight);
 
 void OutputLogData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &offsetCombined,
-      const int32_t framePixelCount);
+      const int32_t framePixelWidth, const int32_t framePixelHeight);
 
 void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
-      const int32_t framePixelCount);
+      const int32_t framePixelWidth, const int32_t framePixelHeight);
+
+class Camera {
+   public:
+    Camera(const glm::vec3 &position, const glm::vec3 &lookAt, const glm::vec3 &up, float fov,
+          float aspectRatio, int imageWidth, int imageHeight)
+        : position(position)
+        , fov(fov)
+        , aspectRatio(aspectRatio)
+        , imageWidth(imageWidth)
+        , imageHeight(imageHeight)
+    {
+        forward = glm::normalize(lookAt - position);
+        right = glm::normalize(glm::cross(forward, up));
+        this->up = glm::cross(right, forward);
+        updateCameraVectors();
+    }
+
+    void setPosition(const glm::vec3 &newPosition)
+    {
+        position = newPosition;
+        updateCameraVectors();
+    }
+
+    void setLookAt(const glm::vec3 &lookAt)
+    {
+        forward = glm::normalize(lookAt - position);
+        right = glm::normalize(glm::cross(forward, up));
+        up = glm::cross(right, forward);
+        updateCameraVectors();
+    }
+
+    Farlor::Vector3 getPosition() const
+    {
+        return Farlor::Vector3(position.x, position.y, position.z);
+    }
+
+    Farlor::Vector3 getRayDirectionFromUV(float u, float v) const
+    {
+        const glm::vec3 norm
+              = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical - position);
+        return Farlor::Vector3(norm.x, norm.y, norm.z);
+    }
+
+    Farlor::Vector3 getRayDirectionForPixel(int x, int y) const
+    {
+        const float u = (x + 0.5f) / static_cast<float>(imageWidth);
+        const float v = (y + 0.5f) / static_cast<float>(imageHeight);
+        return getRayDirectionFromUV(u, v);
+    }
+
+    Farlor::Vector3 getForward() const { return Farlor::Vector3(forward.x, forward.y, forward.z); }
+
+   private:
+    glm::vec3 position;
+    glm::vec3 forward;
+    glm::vec3 right;
+    glm::vec3 up;
+    float fov;
+    float aspectRatio;
+    int imageWidth;
+    int imageHeight;
+
+    glm::vec3 lowerLeftCorner;
+    glm::vec3 horizontal;
+    glm::vec3 vertical;
+
+    void updateCameraVectors()
+    {
+        float theta = glm::radians(fov);
+        float halfHeight = tan(theta / 2);
+        float halfWidth = aspectRatio * halfHeight;
+
+        lowerLeftCorner = position - halfWidth * right - halfHeight * up - forward;
+        horizontal = 2 * halfWidth * right;
+        vertical = 2 * halfHeight * up;
+    }
+};
 
 struct NoisyCircleParams {
-    int startX = 0;
-    int startY = 0;
-
-    float frameLength = 1.0;
-    uint32_t framePixelCount = 1;
+    uint32_t framePixelWidth = 1;
+    uint32_t framePixelHeight = 1;
 
     // Ok, we want to kick off an experiment per pixel.
-    uint32_t numDirections = 1;
     float maxArclengthOffset = 1.0f;
     float distanceFromPlane = 1.0f;
-    float eyeDistanceFromFocal = 1.0f;
 };
 
 NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
 {
     NoisyCircleParams params;
     try {
-        params.startX = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startX"];
-        params.startY = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["startY"];
-
-        params.frameLength
-              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["frameLength"];
-        params.framePixelCount
-              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["framePixelCount"];
-
-        // Ok, we want to kick off an experiment per pixel.
-        params.numDirections
-              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["numDirections"];
-        params.maxArclengthOffset
-              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["maxArclengthOffset"];
-        params.distanceFromPlane
-              = experimentConfig["experiment"]["noisyCircleAngleIntegration"]["distanceFromPlane"];
-        params.eyeDistanceFromFocal = experimentConfig["experiment"]["noisyCircleAngleIntegration"]
-                                                      ["eyeDistanceFromFocal"];
+        params.framePixelWidth = experimentConfig.at("experiment")
+                                       .at("noisyCircleAngleIntegration")
+                                       .at("framePixelWidth")
+                                       .get<int>();
+        params.framePixelHeight = experimentConfig.at("experiment")
+                                        .at("noisyCircleAngleIntegration")
+                                        .at("framePixelHeight")
+                                        .get<int>();
+        params.maxArclengthOffset = experimentConfig.at("experiment")
+                                          .at("noisyCircleAngleIntegration")
+                                          .at("maxArclengthOffset")
+                                          .get<float>();
+        params.distanceFromPlane = experimentConfig.at("experiment")
+                                         .at("noisyCircleAngleIntegration")
+                                         .at("distanceFromPlane")
+                                         .get<float>();
     } catch (const std::exception &ex) {
         std::cout << "Exception: " << ex.what() << std::endl;
     }
-    assert(params.startX < params.framePixelCount);
-    assert(params.startY < params.framePixelCount);
     return params;
 }
 
@@ -205,40 +277,30 @@ int main(int argc, char *argv[])
 
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
     std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(
-          experimentSpecificParams.framePixelCount * experimentSpecificParams.framePixelCount);
+          experimentSpecificParams.framePixelWidth * experimentSpecificParams.framePixelHeight);
 
     std::vector<boost::multiprecision::cpp_dec_float_100> combinedPixels(
-          experimentSpecificParams.framePixelCount * experimentSpecificParams.framePixelCount);
-
-    const float pixelLength = experimentSpecificParams.frameLength
-          / static_cast<float>(experimentSpecificParams.framePixelCount);
-
-    Farlor::Vector3 cameraCenter(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
-    Farlor::Vector3 centerOfFocalFrame(experimentSpecificParams.distanceFromPlane
-                - experimentSpecificParams.eyeDistanceFromFocal,
-          0.0f, 0.0f);
+          experimentSpecificParams.framePixelWidth * experimentSpecificParams.framePixelHeight);
 
     std::vector<Farlor::Vector3> emitterLocations;
-    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, 0.0f));
+    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -10.0f));
 
     std::vector<Farlor::Vector3> emitterDirections;
-    emitterDirections.push_back(Farlor::Vector3(1.0f, 0.0f, 0.0f));
-
-    int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
+    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
 
     // Vector storing each runs time
     std::vector<uint64_t> runTimes;
 
-    for (uint32_t r = 0; r < experimentSpecificParams.framePixelCount; r++) {
-        for (uint32_t c = 0; c < experimentSpecificParams.framePixelCount; c++) {
-            const uint32_t frameIdx = r * experimentSpecificParams.framePixelCount + c;
+    for (uint32_t r = 0; r < experimentSpecificParams.framePixelHeight; r++) {
+        for (uint32_t c = 0; c < experimentSpecificParams.framePixelWidth; c++) {
+            const uint32_t frameIdx = r * experimentSpecificParams.framePixelWidth + c;
             framePixels[frameIdx] = 0.0;
         }
     }
 
     // We are going to bake a big ol table, then use this whenever we need.
-    const float minArclength = 1.0f;
-    const float maxArclength = 40.0f;
+    const float minArclength = 10.0f;
+    const float maxArclength = 25.0f;
     const float minDs = minArclength / experimentParams.numSegmentsPerCurve;
     const float maxDs = maxArclength / experimentParams.numSegmentsPerCurve;
     const uint32_t numArclengths = 2000;
@@ -285,16 +347,23 @@ int main(int argc, char *argv[])
     environmentCachedLookupTable.GetWeightLookupTable(maxDs)->ExportValues(
           outputDirectoryPath.string(), std::string("environmentLookupTable_maxDs.csv"));
 
-    const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
-    const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
-    const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
+    // Example usage:
+    glm::vec3 position(0.0f, 0.0f, 10.0f);
+    glm::vec3 lookAt(0.0f, 0.0f, 0.0f);
+    glm::vec3 up(0.0f, 1.0f, 0.0f);
+    float fov = 70.0f;
+    float aspectRatio = static_cast<float>(experimentSpecificParams.framePixelWidth)
+          / static_cast<float>(experimentSpecificParams.framePixelHeight);
+
+    Camera camera(position, lookAt, up, fov, aspectRatio, experimentSpecificParams.framePixelWidth,
+          experimentSpecificParams.framePixelHeight);
 
     // #ifdef __linux__
     // Must call once
     openvdb::initialize();
 
-    VDBVolume bunny("bunny.vdb", 1.0f / 75.0f);
-    // VDBVolume bunny(OuterSphereRadius, InnerSphereRadius);
+    //     VDBVolume bunny("bunny.vdb", 1.0f / 75.0f);
+    VDBVolume bunny(5.0f, 4.0f);
     bunny.PrintMetadata();
     bunny.PrintWorldBB();
     // #endif
@@ -307,41 +376,39 @@ int main(int argc, char *argv[])
     std::cout << "Overall RNG Seed: " << overallRngSeed << std::endl;
     std::mt19937_64 rng(overallRngSeed);
 
-    int64_t totalOpCount = experimentSpecificParams.framePixelCount
-          * experimentSpecificParams.framePixelCount * emitterLocations.size();
+    int64_t totalOpCount = experimentSpecificParams.framePixelWidth
+          * experimentSpecificParams.framePixelHeight * emitterLocations.size();
     int64_t currentOpCount = 0;
 
 
-    for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
-        //std::cout << "Pixel Idx X: " << pixelIdxZ << std::endl;
-        for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
-            //std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
-
+    for (int32_t pixelIdxY = 0; pixelIdxY < experimentSpecificParams.framePixelHeight;
+          ++pixelIdxY) {
+        for (int32_t pixelIdxX = 0; pixelIdxX < experimentSpecificParams.framePixelWidth;
+              ++pixelIdxX) {
             const uint32_t frameIdx
-                  = (pixelIdxY + halfFrameWidth) * experimentSpecificParams.framePixelCount
-                  + (pixelIdxZ + halfFrameWidth);
+                  = (pixelIdxY * experimentSpecificParams.framePixelWidth) + pixelIdxX;
+
+            const Farlor::Vector3 recieverPos = camera.getPosition();
+            const Farlor::Vector3 recieverDir
+                  = camera.getRayDirectionForPixel(pixelIdxX, pixelIdxY) * 1.0f;
+            // std::cout << "Receiver Dir: " << recieverDir << std::endl;
 
             int64_t numValidEmitterSolutions = emitterLocations.size();
 
             for (int emitterIdx = 0; emitterIdx < emitterLocations.size(); emitterIdx++) {
                 // Flip the plane normal so we are facing the correct way
-
-                const Farlor::Vector3 pixelCenter = centerOfFocalFrame
-                      + planeNormalO1 * (pixelIdxY * pixelLength)
-                      + planeNormalO2 * (pixelIdxZ * pixelLength);
-
-                const Farlor::Vector3 recieverDir = (cameraCenter - pixelCenter).Normalized();
-
                 // Emitter direction
                 twisty::PerturbUtils::BoundaryConditions experimentGeometry;
                 experimentGeometry.m_startPos = emitterLocations[emitterIdx];
                 experimentGeometry.m_startDir = emitterDirections[emitterIdx];
-                experimentGeometry.m_endPos = pixelCenter;
+                experimentGeometry.m_endPos = recieverPos;
                 experimentGeometry.m_endDir = recieverDir;
                 experimentGeometry.arclength = 0.0f;
 
                 const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
-                const float cosFactor = revserseDir.Dot(planeNormal);
+                //     std::cout << "Reverse Dir: " << revserseDir << std::endl;
+                const float cosFactor = revserseDir.Dot(camera.getForward());
+                //     std::cout << "Cos Factor: " << cosFactor << std::endl;
 
                 const double pathNormalizerLog10 = 0.0f;
 
@@ -353,7 +420,7 @@ int main(int argc, char *argv[])
                 const uint64_t rngSeed = uniformInt(rng);
 
                 // #ifdef __linux__
-                std::cout << "Linux vdb bunny version" << std::endl;
+                //     std::cout << "Linux vdb bunny version" << std::endl;
                 const twisty::ExperimentBase::Result result
                       = twisty::ExperimentBase::MSegmentPathGenerationMC_VDB(rngSeed,
                             experimentParams.numPathsInExperiment,
@@ -449,16 +516,18 @@ int main(int argc, char *argv[])
     const double averageRunTimeMinutes = averageRunTimeSeconds / 60.0;
     std::cout << "Average run time: " << averageRunTimeMinutes << "m" << std::endl;
 
-    OutputRawData(outputDirectoryPath, framePixels, experimentSpecificParams.framePixelCount);
+    OutputRawData(outputDirectoryPath, framePixels, experimentSpecificParams.framePixelWidth,
+          experimentSpecificParams.framePixelHeight);
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> logData
           = CalculateLogData(framePixels);
-    OutputLogData(outputDirectoryPath, logData, experimentSpecificParams.framePixelCount);
+    OutputLogData(outputDirectoryPath, logData, experimentSpecificParams.framePixelWidth,
+          experimentSpecificParams.framePixelHeight);
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedLogData
           = CalculateNormalizedData(logData);
-    OutputNormalizedData(
-          outputDirectoryPath, normalizedLogData, experimentSpecificParams.framePixelCount);
+    OutputNormalizedData(outputDirectoryPath, normalizedLogData,
+          experimentSpecificParams.framePixelWidth, experimentSpecificParams.framePixelHeight);
 
     std::cout << "Experiment done" << std::endl;
 
@@ -509,7 +578,7 @@ std::vector<boost::multiprecision::cpp_dec_float_100> CalculateNormalizedData(
 
 void OutputRawData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &rawCombined,
-      const int32_t framePixelCount)
+      const int32_t framePixelWidth, const int32_t framePixelHeight)
 {
     std::filesystem::path rawDataFilepath = outputDirectoryPath;
     rawDataFilepath /= "Combined/";
@@ -528,13 +597,13 @@ void OutputRawData(const std::filesystem::path &outputDirectoryPath,
     }
 
     // X
-    rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+    rawDataOutfile << framePixelWidth << " " << framePixelHeight << std::endl;
 
     // Write out the pixel data
-    for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-        for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+    for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelHeight; ++pixelIdxY) {
+        for (uint32_t pixelIdxX = 0; pixelIdxX < framePixelWidth; ++pixelIdxX) {
             // Output pixel
-            const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+            const uint32_t frameIdx = pixelIdxY * framePixelWidth + pixelIdxX;
             rawDataOutfile << rawCombined[frameIdx] << " ";
         }
         rawDataOutfile << std::endl;
@@ -543,7 +612,7 @@ void OutputRawData(const std::filesystem::path &outputDirectoryPath,
 
 void OutputLogData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &offsetCombined,
-      const int32_t framePixelCount)
+      const int32_t framePixelWidth, const int32_t framePixelHeight)
 {
     std::filesystem::path rawDataFilepath = outputDirectoryPath;
     rawDataFilepath /= "Combined/";
@@ -560,13 +629,13 @@ void OutputLogData(const std::filesystem::path &outputDirectoryPath,
     }
 
     // X
-    rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+    rawDataOutfile << framePixelWidth << " " << framePixelHeight << std::endl;
 
     // Write out the pixel data
-    for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-        for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+    for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelHeight; ++pixelIdxY) {
+        for (uint32_t pixelIdxX = 0; pixelIdxX < framePixelWidth; ++pixelIdxX) {
             // Output pixel
-            const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+            const uint32_t frameIdx = pixelIdxY * framePixelWidth + pixelIdxX;
             rawDataOutfile << offsetCombined[frameIdx] << " ";
         }
         rawDataOutfile << std::endl;
@@ -575,7 +644,7 @@ void OutputLogData(const std::filesystem::path &outputDirectoryPath,
 
 void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
       const std::vector<boost::multiprecision::cpp_dec_float_100> &normalizedCombined,
-      const int32_t framePixelCount)
+      const int32_t framePixelWidth, const int32_t framePixelHeight)
 {
     std::filesystem::path rawDataFilepath = outputDirectoryPath;
     rawDataFilepath /= "Combined/";
@@ -592,13 +661,13 @@ void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
     }
 
     // X
-    rawDataOutfile << framePixelCount << " " << framePixelCount << std::endl;
+    rawDataOutfile << framePixelWidth << " " << framePixelHeight << std::endl;
 
     // Write out the pixel data
-    for (uint32_t pixelIdxZ = 0; pixelIdxZ < framePixelCount; ++pixelIdxZ) {
-        for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelCount; ++pixelIdxY) {
+    for (uint32_t pixelIdxY = 0; pixelIdxY < framePixelHeight; ++pixelIdxY) {
+        for (uint32_t pixelIdxX = 0; pixelIdxX < framePixelWidth; ++pixelIdxX) {
             // Output pixel
-            const uint32_t frameIdx = pixelIdxY * framePixelCount + pixelIdxZ;
+            const uint32_t frameIdx = pixelIdxY * framePixelWidth + pixelIdxX;
             rawDataOutfile << normalizedCombined[frameIdx] << " ";
         }
         rawDataOutfile << std::endl;

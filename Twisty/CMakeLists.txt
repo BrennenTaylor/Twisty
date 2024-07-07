@@ -66,6 +66,8 @@ endif()
     )
 # endif()
 
+target_compile_definitions(Twisty PUBLIC "JSON_DIAGNOSTICS=1")
+
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${Boost_INCLUDE_DIR}

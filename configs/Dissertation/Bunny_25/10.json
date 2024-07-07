@@ -1,15 +1,59 @@
 {
     "experiment": {
         "noisyCircleAngleIntegration": {
-            "startX": 0,
-            "startY": 0,
-            "frameLength": 10.0,
-            "framePixelCount": 25,
+            "framePixelWidth": 32,
+            "framePixelHeight": 24,
             "numDirections": 1,
             "maxArclengthOffset": 5.0,
-            "distanceFromPlane": 10.0,
-            "eyeDistanceFromFocal": 10.0
+            "distanceFromPlane": 5.0
         },
+        "cameraPos": {
+            "eyePos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 20.0
+            },
+            "lookAt": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "up": {
+                "x": 0.0,
+                "y": 1.0,
+                "z": 0.0
+            },
+            "fovDegrees": 70,
+            "aspectRatio": 1.33,
+            "width": 640,
+            "height": 480
+        },
+        "emitters": [
+            {
+                "position": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                },
+                "direction": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 1.0
+                }
+            },
+            {
+                "position": {
+                    "x": 0.0,
+                    "y": 15.0,
+                    "z": 0.0
+                },
+                "direction": {
+                    "x": 0.0,
+                    "y": -1.0,
+                    "z": 0.0
+                }
+            }
+        ],
         "experimentParams": {
             "pathsToGenerate": 20000,
             "pathsToSkip": 0,
