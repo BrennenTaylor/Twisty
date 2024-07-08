@@ -1,6 +1,6 @@
 #include "ExperimentUtils.h"
 
-#pragma once
+#include <boost/multiprecision/cpp_dec_float.hpp>
 
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
@@ -95,7 +95,23 @@ bool SaveEXR(std::vector<float> values, int imgWidth, int imgHeight, float scale
 
     if (!SaveEXR(pixelData.data(), imgWidth, imgHeight, outfilename)) {
         std::cout << "Failed to export" << std::endl;
-        return 1;
+        return false;
     }
-    return 0;
+    return true;
+}
+
+bool SaveEXR(std::vector<boost::multiprecision::cpp_dec_float_100> values, int imgWidth, int imgHeight, float scaleFactor,
+      const char *outfilename)
+{
+    std::vector<float> floatPixels;
+    floatPixels.reserve(values.size());
+    for (auto& val : values) {
+        floatPixels.push_back(val.convert_to<float>());
+    }
+
+    if (!SaveEXR(floatPixels, imgWidth, imgHeight, scaleFactor, outfilename)) {
+        std::cout << "Failed to export" << std::endl;
+        return false;
+    }
+    return true;
 }

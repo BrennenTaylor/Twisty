@@ -1,4 +1,5 @@
 #include "ExperimentBase.h"
+#include "ExperimentUtils.h"
 
 #include "CombinedWeightUtils.h"
 #include "Curve.h"
@@ -530,15 +531,33 @@ int main(int argc, char *argv[])
     std::cout << "Average run time: " << averageRunTimeMinutes << "m" << std::endl;
 
     OutputRawData(outputDirectoryPath, framePixels, imageWidth, imageHeight);
+    {
+        std::string filePath = outputDirectoryPath.string();
+        filePath += "Combined/";
+        filePath += "raw.exr";
+        SaveEXR(framePixels, imageWidth, imageHeight, 1.0f, filePath.c_str());
+    }
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> logData
           = CalculateLogData(framePixels);
-    OutputLogData(outputDirectoryPath, CalculateLogData(framePixels), imageWidth, imageHeight);
+    OutputLogData(outputDirectoryPath, logData, imageWidth, imageHeight);
+    {
+        std::string filePath = outputDirectoryPath.string();
+        filePath += "Combined/";
+        filePath += "logData.exr";
+        SaveEXR(logData, imageWidth, imageHeight, 1.0f, filePath.c_str());
+    }
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedLogData
           = CalculateNormalizedData(logData);
     OutputNormalizedData(outputDirectoryPath, normalizedLogData, imageWidth, imageHeight);
 
+    {
+        std::string filePath = outputDirectoryPath.string();
+        filePath += "Combined/";
+        filePath += "normalizedLogData.exr";
+        SaveEXR(normalizedLogData, imageWidth, imageHeight, 1.0f, filePath.c_str());
+    }
     std::cout << "Experiment done" << std::endl;
 
     return 0;

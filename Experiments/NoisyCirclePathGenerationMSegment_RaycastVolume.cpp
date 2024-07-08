@@ -1,4 +1,5 @@
 #include "ExperimentBase.h"
+#include <ExperimentUtils.h>
 
 #include "CombinedWeightUtils.h"
 #include "Curve.h"
@@ -31,9 +32,6 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
-#define TINYEXR_IMPLEMENTATION
-#include <tinyexr.h>
 
 class VDBVolume {
    public:
@@ -217,12 +215,6 @@ class Camera {
     }
 };
 
-struct NoisyCircleParams {
-    // Ok, we want to kick off an experiment per pixel.
-    float maxArclengthOffset = 1.0f;
-    float distanceFromPlane = 1.0f;
-};
-
 Camera LoadCameraFromConfig(nlohmann::json &experimentConfig)
 {
     glm::vec3 position;
@@ -253,96 +245,6 @@ Camera LoadCameraFromConfig(nlohmann::json &experimentConfig)
     return camera;
 }
 
-NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
-{
-    NoisyCircleParams params;
-    try {
-        params.maxArclengthOffset = experimentConfig.at("experiment")
-                                          .at("noisyCircleAngleIntegration")
-                                          .at("maxArclengthOffset")
-                                          .get<float>();
-        params.distanceFromPlane = experimentConfig.at("experiment")
-                                         .at("noisyCircleAngleIntegration")
-                                         .at("distanceFromPlane")
-                                         .get<float>();
-    } catch (const std::exception &ex) {
-        std::cout << "Exception: " << ex.what() << std::endl;
-    }
-    return params;
-}
-
-bool SaveEXR(const float *rgb, int width, int height, const char *outfilename)
-{
-    EXRHeader header;
-    InitEXRHeader(&header);
-
-    EXRImage image;
-    InitEXRImage(&image);
-
-    image.num_channels = 3;
-
-    std::vector<float> images[3];
-    images[0].resize(width * height);
-    images[1].resize(width * height);
-    images[2].resize(width * height);
-
-    // Split RGBRGBRGB... into R, G and B layer
-    for (int w = 0; w < width; w++) {
-        for (int h = 0; h < height; h++) {
-            int invh = height - h - 1;
-            images[0][w + h * width] = rgb[3 * (w + invh * width) + 0];
-            images[1][w + h * width] = rgb[3 * (w + invh * width) + 1];
-            images[2][w + h * width] = rgb[3 * (w + invh * width) + 2];
-        }
-    }
-
-    float *image_ptr[3];
-    image_ptr[0] = &(images[2].at(0));  // B
-    image_ptr[1] = &(images[1].at(0));  // G
-    image_ptr[2] = &(images[0].at(0));  // R
-
-    image.images = (unsigned char **)image_ptr;
-    image.width = width;
-    image.height = height;
-
-    header.num_channels = 3;
-    header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-    // Must be (A)BGR order, since most of EXR viewers expect this channel order.
-    strncpy(header.channels[0].name, "B", 255);
-    header.channels[0].name[strlen("B")] = '\0';
-    strncpy(header.channels[1].name, "G", 255);
-    header.channels[1].name[strlen("G")] = '\0';
-    strncpy(header.channels[2].name, "R", 255);
-    header.channels[2].name[strlen("R")] = '\0';
-
-    header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-    header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-    for (int i = 0; i < header.num_channels; i++) {
-        header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT;  // pixel type of input image
-        header.requested_pixel_types[i]
-              = TINYEXR_PIXELTYPE_FLOAT;  // pixel type of output image to be stored in
-                                          // .EXR
-    }
-
-    const char *err = NULL;  // or nullptr in C++11 or later.
-    int ret = SaveEXRImageToFile(&image, &header, outfilename, &err);
-    if (ret != TINYEXR_SUCCESS) {
-        fprintf(stderr, "Save EXR err: %s\n", err);
-        FreeEXRErrorMessage(err);  // free's buffer for an error message
-        std::cout << "could not save" << std::endl;
-        return ret;
-    }
-    printf("Saved exr file. [ %s ] \n", outfilename);
-
-    // free((void*)rgb);
-
-    free(header.channels);
-    free(header.pixel_types);
-    free(header.requested_pixel_types);
-    return true;
-}
-
-
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -361,8 +263,6 @@ int main(int argc, char *argv[])
 
     twisty::ExperimentRunner::ExperimentParameters experimentParams
           = twisty::ExperimentRunner::ParseExperimentParamsFromConfig(experimentConfig);
-
-    NoisyCircleParams experimentSpecificParams = ParseExperimentSpecificParams(experimentConfig);
 
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
 
@@ -477,22 +377,13 @@ int main(int argc, char *argv[])
 
     OutputRawData(outputDirectoryPath, framePixels, imageWidth, imageHeight);
 
-    std::vector<float> maskValues(framePixels.size() * 3);
-    for (int i = 0; i < framePixels.size(); i++) {
-        maskValues[i * 3 + 0] = framePixels[i].convert_to<float>();
-        maskValues[i * 3 + 1] = framePixels[i].convert_to<float>();
-        maskValues[i * 3 + 2] = framePixels[i].convert_to<float>();
-    }
-
     std::string outFilename = outputDirectoryPath.string();
     outFilename += "/" + experimentParams.experimentName + ".exr";
-
-    if (!SaveEXR(maskValues.data(), imageWidth, imageHeight, outFilename.c_str())) {
+    if (!SaveEXR(framePixels, imageWidth, imageHeight, 1.0f, outFilename.c_str())) {
         std::cout << "Failed to export" << std::endl;
         return 1;
     }
     std::cout << "Wrote: " << outFilename << std::endl;
-
     std::cout << "Experiment done" << std::endl;
 
     return 0;
