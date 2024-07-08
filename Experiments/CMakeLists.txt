@@ -13,10 +13,20 @@ FetchContent_Declare(tinyexr
 )
 FetchContent_MakeAvailable(tinyexr)
 
+# add_library(tinyexr_include INTERFACE)
+# target_include_directories(tinyexr_include INTERFACE ${tinyexr_SOURCE_DIR}/)
+# target_link_libraries(tinyexr_include INTERFACE miniz)
+
 add_library(ExperimentBase
     ExperimentBase.h
     ExperimentBase.cpp
+    ExperimentUtils.h
+    ExperimentUtils.cpp
 )
+
+target_include_directories(ExperimentBase INTERFACE .
+)
+
 
 target_compile_features(ExperimentBase
     PUBLIC cxx_static_assert
@@ -32,6 +42,7 @@ endif()
 target_link_libraries(ExperimentBase
     PUBLIC Twisty
     PUBLIC glm
+    PUBLIC tinyexr_include
     PRIVATE nlohmann_json::nlohmann_json
 )
 

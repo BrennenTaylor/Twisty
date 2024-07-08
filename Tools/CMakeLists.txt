@@ -42,6 +42,7 @@ add_executable(FFE_ImageGen
 
 target_link_libraries(FFE_ImageGen
     PUBLIC Twisty
+    ExperimentBase
     PUBLIC tinyexr_include
 )
 
