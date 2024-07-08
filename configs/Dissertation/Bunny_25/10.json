@@ -59,7 +59,7 @@
             "pathsToSkip": 0,
             "numSegments": 66,
             "name": "10",
-            "experimentDir": "D:/Experiments/ExploreImagePlaneBunny/",
+            "experimentDir": "C:/Experiments/ExploreImagePlaneBunny/",
             "maxPerturbThreads": 0,
             "maxWeightThreads": 0,
             "outputBigFloatWeights": false,

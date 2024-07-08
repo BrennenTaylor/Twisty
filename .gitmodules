@@ -3,4 +3,4 @@
 	url = https://github.com/nothings/stb
 [submodule "openvdb"]
 	path = openvdb
-	url = ./openvdb
+	url = https://github.com/AcademySoftwareFoundation/openvdb.git
