@@ -144,6 +144,15 @@ void OutputNormalizedData(const std::filesystem::path &outputDirectoryPath,
 
 class Camera {
    public:
+    Camera()
+        : position(0.0f, 0.0f, 0.0f)
+        , fov(0.0f)
+        , aspectRatio(0.0f)
+        , imageWidth(0)
+        , imageHeight(0)
+    {
+    }
+
     Camera(const glm::vec3 &position, const glm::vec3 &lookAt, const glm::vec3 &up, float fov,
           float aspectRatio, int imageWidth, int imageHeight)
         : position(position)
@@ -193,6 +202,9 @@ class Camera {
 
     Farlor::Vector3 getForward() const { return Farlor::Vector3(forward.x, forward.y, forward.z); }
 
+    int getWidth() { return imageWidth; }
+    int getHeight() { return imageHeight; }
+
    private:
     glm::vec3 position;
     glm::vec3 forward;
@@ -220,26 +232,45 @@ class Camera {
 };
 
 struct NoisyCircleParams {
-    uint32_t framePixelWidth = 1;
-    uint32_t framePixelHeight = 1;
-
     // Ok, we want to kick off an experiment per pixel.
     float maxArclengthOffset = 1.0f;
     float distanceFromPlane = 1.0f;
 };
 
+Camera LoadCameraFromConfig(nlohmann::json &experimentConfig)
+{
+    glm::vec3 position;
+    position.x = experimentConfig.at("experiment").at("camera").at("eyePos").at("x").get<float>();
+    position.y = experimentConfig.at("experiment").at("camera").at("eyePos").at("y").get<float>();
+    position.z = experimentConfig.at("experiment").at("camera").at("eyePos").at("z").get<float>();
+
+    glm::vec3 lookAt;
+    lookAt.x = experimentConfig.at("experiment").at("camera").at("lookAt").at("x").get<float>();
+    lookAt.y = experimentConfig.at("experiment").at("camera").at("lookAt").at("y").get<float>();
+    lookAt.z = experimentConfig.at("experiment").at("camera").at("lookAt").at("z").get<float>();
+
+    glm::vec3 up;
+    up.x = experimentConfig.at("experiment").at("camera").at("up").at("x").get<float>();
+    up.y = experimentConfig.at("experiment").at("camera").at("up").at("y").get<float>();
+    up.z = experimentConfig.at("experiment").at("camera").at("up").at("z").get<float>();
+
+    float fovDegrees = experimentConfig.at("experiment").at("camera").at("fovDegrees").get<float>();
+
+    int framePixelWidth
+          = experimentConfig.at("experiment").at("camera").at("framePixelWidth").get<int>();
+    int framePixelHeight
+          = experimentConfig.at("experiment").at("camera").at("framePixelHeight").get<int>();
+
+    Camera camera(position, lookAt, up, fovDegrees,
+          static_cast<float>(framePixelWidth) / static_cast<float>(framePixelHeight),
+          framePixelWidth, framePixelHeight);
+    return camera;
+}
+
 NoisyCircleParams ParseExperimentSpecificParams(nlohmann::json &experimentConfig)
 {
     NoisyCircleParams params;
     try {
-        params.framePixelWidth = experimentConfig.at("experiment")
-                                       .at("noisyCircleAngleIntegration")
-                                       .at("framePixelWidth")
-                                       .get<int>();
-        params.framePixelHeight = experimentConfig.at("experiment")
-                                        .at("noisyCircleAngleIntegration")
-                                        .at("framePixelHeight")
-                                        .get<int>();
         params.maxArclengthOffset = experimentConfig.at("experiment")
                                           .at("noisyCircleAngleIntegration")
                                           .at("maxArclengthOffset")
@@ -276,27 +307,6 @@ int main(int argc, char *argv[])
     NoisyCircleParams experimentSpecificParams = ParseExperimentSpecificParams(experimentConfig);
 
     std::uniform_real_distribution<float> uniformFloat(0.0f, 1.0f);
-    std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(
-          experimentSpecificParams.framePixelWidth * experimentSpecificParams.framePixelHeight);
-
-    std::vector<boost::multiprecision::cpp_dec_float_100> combinedPixels(
-          experimentSpecificParams.framePixelWidth * experimentSpecificParams.framePixelHeight);
-
-    std::vector<Farlor::Vector3> emitterLocations;
-    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -10.0f));
-
-    std::vector<Farlor::Vector3> emitterDirections;
-    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
-
-    // Vector storing each runs time
-    std::vector<uint64_t> runTimes;
-
-    for (uint32_t r = 0; r < experimentSpecificParams.framePixelHeight; r++) {
-        for (uint32_t c = 0; c < experimentSpecificParams.framePixelWidth; c++) {
-            const uint32_t frameIdx = r * experimentSpecificParams.framePixelWidth + c;
-            framePixels[frameIdx] = 0.0;
-        }
-    }
 
     // We are going to bake a big ol table, then use this whenever we need.
     const float minArclength = 10.0f;
@@ -347,16 +357,27 @@ int main(int argc, char *argv[])
     environmentCachedLookupTable.GetWeightLookupTable(maxDs)->ExportValues(
           outputDirectoryPath.string(), std::string("environmentLookupTable_maxDs.csv"));
 
-    // Example usage:
-    glm::vec3 position(0.0f, 0.0f, 10.0f);
-    glm::vec3 lookAt(0.0f, 0.0f, 0.0f);
-    glm::vec3 up(0.0f, 1.0f, 0.0f);
-    float fov = 70.0f;
-    float aspectRatio = static_cast<float>(experimentSpecificParams.framePixelWidth)
-          / static_cast<float>(experimentSpecificParams.framePixelHeight);
+    std::vector<Farlor::Vector3> emitterLocations;
+    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -10.0f));
+    std::vector<Farlor::Vector3> emitterDirections;
+    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
 
-    Camera camera(position, lookAt, up, fov, aspectRatio, experimentSpecificParams.framePixelWidth,
-          experimentSpecificParams.framePixelHeight);
+    Camera camera;
+    try {
+        camera = LoadCameraFromConfig(experimentConfig);
+    } catch (std::exception &ex) {
+        std::cout << "ex: " << ex.what() << std::endl;
+    }
+    const int imageWidth = camera.getWidth();
+    const int imageHeight = camera.getHeight();
+
+    std::vector<boost::multiprecision::cpp_dec_float_100> framePixels(imageWidth * imageHeight);
+
+    std::vector<boost::multiprecision::cpp_dec_float_100> combinedPixels(imageWidth * imageHeight);
+
+    // Vector storing each runs time
+    std::vector<uint64_t> runTimes(imageWidth * imageHeight);
+    std::fill(runTimes.begin(), runTimes.end(), 0.0f);
 
     // #ifdef __linux__
     // Must call once
@@ -376,21 +397,16 @@ int main(int argc, char *argv[])
     std::cout << "Overall RNG Seed: " << overallRngSeed << std::endl;
     std::mt19937_64 rng(overallRngSeed);
 
-    int64_t totalOpCount = experimentSpecificParams.framePixelWidth
-          * experimentSpecificParams.framePixelHeight * emitterLocations.size();
+    int64_t totalOpCount = imageWidth * imageHeight * emitterLocations.size();
     int64_t currentOpCount = 0;
 
-
-    for (int32_t pixelIdxY = 0; pixelIdxY < experimentSpecificParams.framePixelHeight;
-          ++pixelIdxY) {
-        for (int32_t pixelIdxX = 0; pixelIdxX < experimentSpecificParams.framePixelWidth;
-              ++pixelIdxX) {
-            const uint32_t frameIdx
-                  = (pixelIdxY * experimentSpecificParams.framePixelWidth) + pixelIdxX;
+    for (int32_t pixelIdxY = 0; pixelIdxY < imageHeight; ++pixelIdxY) {
+        for (int32_t pixelIdxX = 0; pixelIdxX < imageWidth; ++pixelIdxX) {
+            const uint32_t frameIdx = (pixelIdxY * imageWidth) + pixelIdxX;
 
             const Farlor::Vector3 recieverPos = camera.getPosition();
             const Farlor::Vector3 recieverDir
-                  = camera.getRayDirectionForPixel(pixelIdxX, pixelIdxY) * 1.0f;
+                  = camera.getRayDirectionForPixel(pixelIdxX, pixelIdxY);
             // std::cout << "Receiver Dir: " << recieverDir << std::endl;
 
             int64_t numValidEmitterSolutions = emitterLocations.size();
@@ -482,7 +498,6 @@ int main(int argc, char *argv[])
         }
     }
 
-
     // Experiment end time
     const auto endTime = std::chrono::high_resolution_clock::now();
 
@@ -501,13 +516,11 @@ int main(int argc, char *argv[])
     std::cout << "Experiment duration: " << durationMinutes.count() << "m" << std::endl;
 
     // Average runTimes
-    uint64_t totalRunTime = 0;
-    for (const auto &runTime : runTimes) {
-        totalRunTime += runTime;
-    }
-    const uint64_t averageRunTime = totalRunTime / runTimes.size();
+    const uint64_t totalRunTime = std::accumulate(runTimes.begin(), runTimes.end(), 0.0);
 
+    const uint64_t averageRunTime = totalRunTime / runTimes.size();
     std::cout << "Average run time: " << averageRunTime << "ms" << std::endl;
+
     // Avg run time in seconds
     const double averageRunTimeSeconds = averageRunTime / 1000.0;
     std::cout << "Average run time: " << averageRunTimeSeconds << "s" << std::endl;
@@ -516,18 +529,15 @@ int main(int argc, char *argv[])
     const double averageRunTimeMinutes = averageRunTimeSeconds / 60.0;
     std::cout << "Average run time: " << averageRunTimeMinutes << "m" << std::endl;
 
-    OutputRawData(outputDirectoryPath, framePixels, experimentSpecificParams.framePixelWidth,
-          experimentSpecificParams.framePixelHeight);
+    OutputRawData(outputDirectoryPath, framePixels, imageWidth, imageHeight);
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> logData
           = CalculateLogData(framePixels);
-    OutputLogData(outputDirectoryPath, logData, experimentSpecificParams.framePixelWidth,
-          experimentSpecificParams.framePixelHeight);
+    OutputLogData(outputDirectoryPath, CalculateLogData(framePixels), imageWidth, imageHeight);
 
     const std::vector<boost::multiprecision::cpp_dec_float_100> normalizedLogData
           = CalculateNormalizedData(logData);
-    OutputNormalizedData(outputDirectoryPath, normalizedLogData,
-          experimentSpecificParams.framePixelWidth, experimentSpecificParams.framePixelHeight);
+    OutputNormalizedData(outputDirectoryPath, normalizedLogData, imageWidth, imageHeight);
 
     std::cout << "Experiment done" << std::endl;
 
