@@ -1,11 +1,14 @@
 find_package(OpenMP)
 
 if(LINUX)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
+    list(APPEND CMAKE_MODULE_PATH
+        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/OpenVDB"
+    )
 
-    # set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
     find_package(OpenVDB REQUIRED)
 endif()
+
+find_package(nlohmann_json REQUIRED)
 
 add_library(Twisty
     BezierCurve.h
@@ -62,7 +65,7 @@ endif()
 
 # if(LINUX)
     target_link_libraries(Twisty
-        PUBLIC openvdb
+        PUBLIC OpenVDB::openvdb
     )
 # endif()
 

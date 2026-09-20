@@ -2,7 +2,6 @@
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
-#define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
 
 bool SaveEXR(const float *rgb, int width, int height, const char *outfilename)

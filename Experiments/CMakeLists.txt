@@ -1,27 +1,43 @@
-# if(LINUX)
-#     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/lib/cmake/OpenVDB/")
+find_package(OpenMP)
 
-#     # set(OPENVDB_DIR "/usr/local/lib/cmake/OpenVDB/")
-# endif()
-    # find_package(OpenVDB REQUIRED)
+if(LINUX)
+    list(APPEND CMAKE_MODULE_PATH
+        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/OpenVDB"
+    )
 
-FetchContent_Declare(tinyexr
+    find_package(OpenVDB REQUIRED)
+endif()
+
+find_package(nlohmann_json REQUIRED)
+
+FetchContent_Declare(
+    tinyexr
     GIT_REPOSITORY "https://github.com/syoyo/tinyexr"
     GIT_TAG "release"
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
 )
-FetchContent_MakeAvailable(tinyexr)
 
-# add_library(tinyexr_include INTERFACE)
-# target_include_directories(tinyexr_include INTERFACE ${tinyexr_SOURCE_DIR}/)
-# target_link_libraries(tinyexr_include INTERFACE miniz)
+FetchContent_GetProperties(tinyexr)
+if(NOT tinyexr_POPULATED)
+    FetchContent_Populate(tinyexr)
+endif()
+
+add_library(tinyexr_interface INTERFACE)
+target_include_directories(tinyexr_interface INTERFACE ${tinyexr_SOURCE_DIR}
+${tinyexr_SOURCE_DIR}/deps/miniz
+)
+
+enable_language(C)
+add_library(miniz STATIC ${tinyexr_SOURCE_DIR}/deps/miniz/miniz.c)
+target_include_directories(miniz PUBLIC ${tinyexr_SOURCE_DIR}/deps/miniz)
+set_property(TARGET miniz PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(tinyexr_interface INTERFACE miniz)
 
 add_library(ExperimentBase
     ExperimentBase.h
     ExperimentBase.cpp
     ExperimentUtils.h
     ExperimentUtils.cpp
+    tinyexr_impl.cpp
 )
 
 target_include_directories(ExperimentBase INTERFACE .
@@ -42,13 +58,13 @@ endif()
 target_link_libraries(ExperimentBase
     PUBLIC Twisty
     PUBLIC glm
-    PUBLIC tinyexr_include
+    PUBLIC tinyexr_interface
     PRIVATE nlohmann_json::nlohmann_json
 )
 
 # if(LINUX)
     target_link_libraries(ExperimentBase
-        PUBLIC openvdb
+        PUBLIC OpenVDB::openvdb
     )
 # endif()
 
@@ -404,7 +420,7 @@ target_link_libraries(NoisyCirclePathGenerationMSegment_Pinhole
         PUBLIC Twisty
         PUBLIC glm
         PRIVATE nlohmann_json::nlohmann_json
-        PUBLIC tinyexr_include
+        PUBLIC tinyexr_interface
     )
 # endif()
 
