@@ -1,15 +1,3 @@
-find_package(OpenMP)
-
-if(LINUX)
-    list(APPEND CMAKE_MODULE_PATH
-        "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/OpenVDB"
-    )
-
-    find_package(OpenVDB REQUIRED)
-endif()
-
-find_package(nlohmann_json REQUIRED)
-
 add_library(Twisty
     BezierCurve.h
     BezierCurve.cpp
@@ -55,6 +43,7 @@ target_link_libraries(Twisty
     PUBLIC glm
     PUBLIC nlohmann_json::nlohmann_json
     PUBLIC OpenMP::OpenMP_CXX
+    PUBLIC Boost::headers
 )
 
 if(WIN32)
@@ -73,7 +62,6 @@ target_compile_definitions(Twisty PUBLIC "JSON_DIAGNOSTICS=1")
 
 target_include_directories(Twisty
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-    PUBLIC ${Boost_INCLUDE_DIR}
     PUBLIC $<$<BOOL:${USE_CUDA}>:${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}>
 )
 
