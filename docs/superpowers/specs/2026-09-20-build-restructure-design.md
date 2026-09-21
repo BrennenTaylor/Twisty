@@ -257,7 +257,7 @@ endif()
   - `FullExperiment_CombinedInitialCurves.cpp` → moved into
     `Experiments/` but **NOT added to the build** — it includes
     `FullExperimentRunnerOptimalPerturbOptimized.h`, which does not
-    exist. **Open question** (see Risks).
+    exist. **Decision:** move, don't build (retrievable from git history).
 - **Delete `.gitmodules`** (no submodules remain after stb removal).
 - `Utils/`, `Viewer/`, `unitweights/`, `RelatedWork/`, `Tools/deprecated/`
   remain unbuilt/dormant. `.gitignore` build rules stay as-is.
