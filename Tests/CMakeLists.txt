@@ -20,4 +20,5 @@ target_link_libraries(WeightTableTest
 include(CTest)
 if(BUILD_TESTING)
     add_test(NAME WeightTableTest COMMAND WeightTableTest)
+    set_tests_properties(WeightTableTest PROPERTIES TIMEOUT 60)
 endif()

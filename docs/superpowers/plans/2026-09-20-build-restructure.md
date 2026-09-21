@@ -692,3 +692,4 @@ These corrections update the text above to what was actually implemented and ver
    (old file had a commented-out `# if(LINUX)`). Requires OpenVDB headers; on Linux
    they flow through ExperimentBase's gated OpenVDB::openvdb link. Non-Linux platforms
    are out of scope (Linux-first) — known, plan-mandated.
+6. Task 7's stray experiments: Benchmark_5_1 and DifferentNormalSThetaExperiment are MOVED into Experiments/ but NOT added to any build — both include the deleted FullExperimentRunner.h (removed in 337ff27) and use a rearchitected API (twisty::RayGeometry, twisty::Bootstrapper class commented out, new RunExperiment signature). FullExperiment_CombinedInitialCurves is likewise moved-but-unbuilt. All three are retrievable from git. A port of Benchmark_5_1 to the modern API is deferred (decided by human user on 2026-09-20).

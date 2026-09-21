@@ -35,6 +35,7 @@ endif()
 # find_package creates non-GLOBAL IMPORTED targets, which are only visible in
 # this directory and its subdirectories -- not in sibling subdirectories such
 # as Twisty/. Promote them to GLOBAL so the single dependency owner works.
+# Any future find_package added here MUST be added to this promotion too, or its imported targets stay invisible to sibling subdirectories.
 set_target_properties(OpenMP::OpenMP_CXX
     nlohmann_json::nlohmann_json
     Boost::headers
