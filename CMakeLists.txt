@@ -35,9 +35,7 @@ add_subdirectory(Tools)
 add_subdirectory(Experiments)
 
 enable_testing()
-if(WIN32)
-    add_subdirectory(Tests)
-endif()
+add_subdirectory(Tests)
 
 if(USE_CUDA)
     enable_language(CUDA)
