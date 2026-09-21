@@ -52,7 +52,7 @@
 #   - links Twisty; additionally ExperimentBase with EXPERIMENT_BASE.
 
 function(twisty_add_experiment target)
-    cmake_parse_arguments(ARG "" "" "EXPERIMENT_BASE;STB" "${ARGN}")
+    cmake_parse_arguments(ARG "EXPERIMENT_BASE;STB" "" "" "${ARGN}")
     add_executable(${target} ${ARG_UNPARSED_ARGUMENTS})
     target_compile_features(${target} PUBLIC cxx_static_assert cxx_std_17)
     if(ARG_EXPERIMENT_BASE)
@@ -69,7 +69,7 @@ function(twisty_add_experiment target)
 endfunction()
 
 function(twisty_add_tool target)
-    cmake_parse_arguments(ARG "" "" "EXPERIMENT_BASE" "${ARGN}")
+    cmake_parse_arguments(ARG "EXPERIMENT_BASE" "" "" "${ARGN}")
     add_executable(${target} ${ARG_UNPARSED_ARGUMENTS})
     target_link_libraries(${target} PUBLIC Twisty)
     if(ARG_EXPERIMENT_BASE)
@@ -666,3 +666,29 @@ git commit -m "build: stub out Neural, adopt stray experiments, drop submodules"
 - Spec coverage: root config (Task 1), presets (Task 1), helpers (Task 1), dependency owner (Task 2), Boost declaration (Task 2), Experiments collapse (Task 3), Tools collapse (Task 4), CTest (Task 5), bootstrap/README/install.txt (Task 6), Neural (Task 7), stray files (Task 7), submodule removal incl. tinyexr gitlink (Task 7), `FullExperiment_CombinedInitialCurves` move-without-build (Task 7).
 - Risk items tracked in Global Constraints: glm (no find_package), Boost fallback, stb tag pinned, tinyexr Populate warning accepted.
 - Deviation flagged: EDGE-1 (uniform `/openmp` on WIN32) and the unconditional `RaycastVolume` target (already unconditional today; `# if(LINUX)` was commented out).
+## Addendum: Post-launch corrections (controller-attested, ratified during execution)
+
+These corrections update the text above to what was actually implemented and verified.
+
+1. Task 1 helper arg parsing (TwistyHelpers.cmake): flags MUST live in the OPTIONS
+   slot of `cmake_parse_arguments`; the multi-value form silently drops
+   EXPERIMENT_BASE/STB (resolves falsy, token consumed). Corrected lines above are
+   authoritative. Same fix applies to `twisty_add_tool`.
+2. dependencies/CMakeLists.txt (Task 2): after the find_package block, promote the
+   four imported targets with `set_target_properties(... PROPERTIES IMPORTED_GLOBAL TRUE)`
+   (OpenMP::OpenMP_CXX, nlohmann_json::nlohmann_json, Boost::headers, Linux-gated
+   OpenVDB::openvdb). find_package imports are directory-scoped; without GLOBAL,
+   sibling Twisty/ gets "target was not found" at configure. Any future find_package
+   added to dependencies/ MUST also be added to this promotion.
+3. Build-color ruling: the full build cannot be green until Task 3. Experiments/
+   CMakeLists.txt's own find_package(OpenVDB) flips BUILD_SHARED_LIBS ON
+   (FindOpenVDB.cmake), making ExperimentBase default SHARED against Twisty's non-PIC
+   libTwisty.a -> R_X86_64_TPOFF32 boost::multiprecision TLS relocation error at link
+   (pre-existing, not caused by any task). Task 3 removes that block -> ExperimentBase
+   defaults STATIC -> green. Task 2 verified on configure-green + Twisty-link-green.
+4. Task 3's authoritative 23-call list enumerates 6 plain / 14 EXPERIMENT_BASE /
+   3 STB (a stray "15 EXPERIMENT_BASE" in review notes was an arithmetical error).
+5. `NoisyCirclePathGenerationMSegment_RaycastVolume` is now built unconditionally
+   (old file had a commented-out `# if(LINUX)`). Requires OpenVDB headers; on Linux
+   they flow through ExperimentBase's gated OpenVDB::openvdb link. Non-Linux platforms
+   are out of scope (Linux-first) — known, plan-mandated.
