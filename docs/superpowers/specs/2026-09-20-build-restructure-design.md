@@ -131,7 +131,7 @@ New `cmake/TwistyHelpers.cmake`:
 
 ```cmake
 function(twisty_add_experiment target)
-    cmake_parse_arguments(ARG "" "" "EXPERIMENT_BASE;STB" "${ARGN}")
+    cmake_parse_arguments(ARG "EXPERIMENT_BASE;STB" "" "" "${ARGN}")
     add_executable(${target} ${ARG_UNPARSED_ARGUMENTS})
     target_compile_features(${target} PUBLIC cxx_static_assert cxx_std_17)
     if(ARG_EXPERIMENT_BASE)
@@ -145,7 +145,7 @@ function(twisty_add_experiment target)
 endfunction()
 
 function(twisty_add_tool target)
-    cmake_parse_arguments(ARG "" "" "EXPERIMENT_BASE" "${ARGN}")
+    cmake_parse_arguments(ARG "EXPERIMENT_BASE" "" "" "${ARGN}")
     add_executable(${target} ${ARG_UNPARSED_ARGUMENTS})
     target_link_libraries(${target} PUBLIC Twisty)
     if(ARG_EXPERIMENT_BASE)
