@@ -88,7 +88,7 @@ namespace ExperimentBase {
                       = glm::vec3(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
                 const glm::vec3 point2 = point1 + segment1Dir * ds;
 
-const float remainingDistance2 = glm::dot((point4 - point2), (point4 - point2));
+                const float remainingDistance2 = glm::dot((point4 - point2), (point4 - point2));
 
                 if ((4 * ds * ds) < remainingDistance2) {
                     continue;

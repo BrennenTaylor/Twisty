@@ -3,6 +3,8 @@
 #include <MathConsts.h>
 #include <CurvePerturbUtils.h>
 
+#include <algorithm>
+#include <cmath>
 #include <omp.h>
 #include <random>
 #include <stdexcept>

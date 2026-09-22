@@ -26,7 +26,7 @@ int main()
         return 1;
     }
 
-    // Length / length2
+    // Length / squared length (via dot)
     if (!nearlyEqual(glm::length(a), std::sqrt(14.0f)) || !nearlyEqual(glm::dot(a, a), 14.0f)) {
         std::cout << "FAILURE: glm::length/length2" << std::endl;
         return 1;
