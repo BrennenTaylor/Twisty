@@ -200,7 +200,7 @@ namespace PathGeneration {
         const double d2 = d * d;
         const double leftRadius = ds;
         const double leftRadius2 = leftRadius * leftRadius;
-        const double rightRadius = 2.0f * static_cast<float>(ds);
+        const double rightRadius = 2.0f * ds;
         const double rightRadius2 = rightRadius * rightRadius;
 
         double phiExtent = 0.0f;
@@ -364,7 +364,7 @@ namespace PathGeneration {
 
         const double hypot = distToMidpoint / std::cos(phi);
 
-        const double maxRadius = numSegmentsPerSide * static_cast<float>(ds);
+        const double maxRadius = numSegmentsPerSide * ds;
         const double minRadiusPercent = hypot / maxRadius;
 
         const double sampledRadius = maxRadius
