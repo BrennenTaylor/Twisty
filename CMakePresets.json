@@ -61,6 +61,17 @@
                 "CMAKE_CXX_FLAGS": "-std=c++1z -fPIC",
                 "BUILD_SHARED_LIBS": "OFF"
             }
+        },
+        {
+            "name": "linux",
+            "displayName": "Ninja w/ Linux - amd64",
+            "description": "Ninja using compilers for Linux (x64 architecture)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
         }
     ]
 }

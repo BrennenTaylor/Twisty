@@ -15,6 +15,10 @@ endif()
 
 target_link_libraries(WeightTableTest
     PUBLIC Twisty
-    PUBLIC glm
-    PRIVATE nlohmann_json::nlohmann_json
 )
+
+include(CTest)
+if(BUILD_TESTING)
+    add_test(NAME WeightTableTest COMMAND WeightTableTest)
+    set_tests_properties(WeightTableTest PROPERTIES TIMEOUT 60)
+endif()
