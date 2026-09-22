@@ -15,8 +15,6 @@
 #include "PathWeighters.h"
 #include "boost/multiprecision/detail/default_ops.hpp"
 
-#include <FMath/Vector3.h>
-
 #include <nlohmann/json.hpp>
 
 #include <chrono>
@@ -165,26 +163,26 @@ class Camera {
         updateCameraVectors();
     }
 
-    Farlor::Vector3 getPosition() const
+    glm::vec3 getPosition() const
     {
-        return Farlor::Vector3(position.x, position.y, position.z);
+        return glm::vec3(position.x, position.y, position.z);
     }
 
-    Farlor::Vector3 getRayDirectionFromUV(float u, float v) const
+    glm::vec3 getRayDirectionFromUV(float u, float v) const
     {
         const glm::vec3 norm
               = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical - position);
-        return Farlor::Vector3(norm.x, norm.y, norm.z);
+        return glm::vec3(norm.x, norm.y, norm.z);
     }
 
-    Farlor::Vector3 getRayDirectionForPixel(int x, int y) const
+    glm::vec3 getRayDirectionForPixel(int x, int y) const
     {
         const float u = (x + 0.5f) / static_cast<float>(imageWidth);
         const float v = (y + 0.5f) / static_cast<float>(imageHeight);
         return getRayDirectionFromUV(u, v);
     }
 
-    Farlor::Vector3 getForward() const { return Farlor::Vector3(forward.x, forward.y, forward.z); }
+    glm::vec3 getForward() const { return glm::vec3(forward.x, forward.y, forward.z); }
 
     int getWidth() { return imageWidth; }
     int getHeight() { return imageHeight; }
@@ -290,9 +288,9 @@ int main(int argc, char *argv[])
         std::filesystem::create_directories(outputDirectoryPath);
     }
 
-    const Farlor::Vector3 planeNormal = Farlor::Vector3(-1.0f, 0.0f, 0.0f);
-    const Farlor::Vector3 planeNormalO1 = Farlor::Vector3(0.0f, 1.0f, 0.0f);
-    const Farlor::Vector3 planeNormalO2 = Farlor::Vector3(0.0f, 0.0f, 1.0f);
+    const glm::vec3 planeNormal = glm::vec3(-1.0f, 0.0f, 0.0f);
+    const glm::vec3 planeNormalO1 = glm::vec3(0.0f, 1.0f, 0.0f);
+    const glm::vec3 planeNormalO2 = glm::vec3(0.0f, 0.0f, 1.0f);
 
     // Must call once
     openvdb::initialize();
@@ -311,8 +309,8 @@ int main(int argc, char *argv[])
         for (int32_t pixelIdxX = 0; pixelIdxX < imageWidth; ++pixelIdxX) {
             const uint32_t frameIdx = (pixelIdxY * imageWidth) + pixelIdxX;
 
-            const Farlor::Vector3 recieverPos = camera.getPosition();
-            const Farlor::Vector3 recieverDir
+            const glm::vec3 recieverPos = camera.getPosition();
+            const glm::vec3 recieverDir
                   = camera.getRayDirectionForPixel(pixelIdxX, pixelIdxY) * -1.0f;
 
             openvdb::math::Ray<double> ray(
@@ -329,7 +327,7 @@ int main(int argc, char *argv[])
             }
 
             const float traceStepSize = 0.1f;
-            const Farlor::Vector3 stepVec = recieverDir.Normalized() * traceStepSize;
+            const glm::vec3 stepVec = glm::normalize(recieverDir) * traceStepSize;
 
             openvdb::tools::VolumeRayIntersector<openvdb::FloatGrid> intersector(meshIntersector);
             double t0 = 0.0;
