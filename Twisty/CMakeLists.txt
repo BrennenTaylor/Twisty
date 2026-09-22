@@ -39,7 +39,6 @@ add_library(Twisty
 )
 
 target_link_libraries(Twisty
-    PUBLIC FMath::FMath
     PUBLIC glm
     PUBLIC nlohmann_json::nlohmann_json
     PUBLIC OpenMP::OpenMP_CXX
