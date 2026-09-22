@@ -36,9 +36,9 @@
 //    *
 //    * @param t value between 0 and 1. t = 0 points to the first control point, t
 //    * = 1 points to last control point
-//    * @return Farlor::Vector3 The position t distance along the bezier curve.
+//    * @return glm::vec3 The position t distance along the bezier curve.
 //    */
-//   Farlor::Vector3 GetPosition(float t);
+//   glm::vec3 GetPosition(float t);
 
 //   /**
 //    * @brief Output the control point information to the console
@@ -51,7 +51,7 @@
 //    * @brief Stores the n control points, public to allow for easy access
 //    *
 //    */
-//   std::vector<Farlor::Vector3> m_controlPts;
+//   std::vector<glm::vec3> m_controlPts;
 //   /**
 //    * @brief Reflects the number of control points, 3 in this case
 //    *
@@ -77,9 +77,9 @@
 //    *
 //    * @param t value between 0 and 1. t = 0 points to the first control point, t
 //    * = 1 points to last control point
-//    * @return Farlor::Vector3 The position t distance along the bezier curve.
+//    * @return glm::vec3 The position t distance along the bezier curve.
 //    */
-//   Farlor::Vector3 GetPosition(float t);
+//   glm::vec3 GetPosition(float t);
 
 //   /**
 //    * @brief Get the first derivative value, calculated through a derivitive
@@ -87,10 +87,10 @@
 //    *
 //    * @param t value between 0 and 1. t = 0 points to the first control point, t
 //    * = 1 points to last control point
-//    * @return Farlor::Vector3 The first derivative t distance along the bezier
+//    * @return glm::vec3 The first derivative t distance along the bezier
 //    * curve.
 //    */
-//   Farlor::Vector3 FirstDerivative(float t);
+//   glm::vec3 FirstDerivative(float t);
 
 //   /**
 //    * @brief Output the control point information to the console
@@ -110,7 +110,7 @@
 //    * @brief Stores the n control points, public to allow for easy access
 //    *
 //    */
-//   std::vector<Farlor::Vector3> m_controlPts;
+//   std::vector<glm::vec3> m_controlPts;
 //   /**
 //    * @brief Reflects the number of control points, 4 in this case
 //    *
@@ -136,61 +136,61 @@
 //    *
 //    * @param t value between 0 and 1. t = 0 points to the first control point, t
 //    * = 1 points to last control point
-//    * @return Farlor::Vector3 The position t distance along the bezier curve.
+//    * @return glm::vec3 The position t distance along the bezier curve.
 //    */
-//   Farlor::Vector3 GetPosition(float t);
+//   glm::vec3 GetPosition(float t);
 //   /**
 //    * @brief Get the first derivative value, calculated through a derivitive
 //    * curve.
 //    *
 //    * @param t value between 0 and 1. t = 0 points to the first control point, t
 //    * = 1 points to last control point
-//    * @return Farlor::Vector3 The first derivative t distance along the bezier
+//    * @return glm::vec3 The first derivative t distance along the bezier
 //    * curve.
 //    */
-//   Farlor::Vector3 FirstDerivative(float t);
+//   glm::vec3 FirstDerivative(float t);
 //   /**
 //    * @brief Get the second derivative value, calculated through a derivitive
 //    * curve.
 //    *
 //    * @param t value between 0 and 1. t = 0 points to the first control point, t
 //    * = 1 points to last control point
-//    * @return Farlor::Vector3 The second derivative t distance along the bezier
+//    * @return glm::vec3 The second derivative t distance along the bezier
 //    * curve.
 //    */
-//   Farlor::Vector3 SecondDerivative(float t);
+//   glm::vec3 SecondDerivative(float t);
 //   /**
 //    * @brief Get the third derivative value, calculated through a derivitive
 //    * curve.
 //    *
 //    * @param t value between 0 and 1. t = 0 points to the first control point, t
 //    * = 1 points to last control point
-//    * @return Farlor::Vector3 The third derivative t distance along the bezier
+//    * @return glm::vec3 The third derivative t distance along the bezier
 //    * curve.
 //    */
-//   Farlor::Vector3 ThirdDerivative(float t);
+//   glm::vec3 ThirdDerivative(float t);
 
 //   /**
 //    * @brief Calculates normalized tangent at t value along curve
 //    *
 //    * @param t Parameter between 0 and 1
-//    * @return Farlor::Vector3 Normalized tangent at t
+//    * @return glm::vec3 Normalized tangent at t
 //    */
-//   Farlor::Vector3 Tangent(float t);
+//   glm::vec3 Tangent(float t);
 //   /**
 //    * @brief Calculates normalized normal at t value along curve
 //    *
 //    * @param t Parameter between 0 and 1
-//    * @return Farlor::Vector3 Normalized normal t distance along curve
+//    * @return glm::vec3 Normalized normal t distance along curve
 //    */
-//   Farlor::Vector3 Normal(float t);
+//   glm::vec3 Normal(float t);
 //   /**
 //    * @brief Calcualtes binormal at t value along curve
 //    *
 //    * @param t Parameter between 0 and 1
-//    * @return Farlor::Vector3 Normalized binormal t distance along curve
+//    * @return glm::vec3 Normalized binormal t distance along curve
 //    */
-//   Farlor::Vector3 Binormal(float t);
+//   glm::vec3 Binormal(float t);
 
 //   /**
 //    * @brief Integrate along the bezier from a min to max t value, calculating
@@ -237,7 +237,7 @@
 //    * @brief Stores the n control points, public to allow for easy access
 //    *
 //    */
-//   std::vector<Farlor::Vector3> m_controlPts;
+//   std::vector<glm::vec3> m_controlPts;
 //   /**
 //    * @brief CachedValues of t values set ds apart
 //    *

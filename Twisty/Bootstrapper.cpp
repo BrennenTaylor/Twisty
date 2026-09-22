@@ -11,7 +11,7 @@
 // #define DetailedCurveGen
 
 // namespace twisty {
-// Bootstrapper::RayGeometry::RayGeometry(Farlor::Vector3 start, Farlor::Vector3 dir)
+// Bootstrapper::RayGeometry::RayGeometry(glm::vec3 start, glm::vec3 dir)
 //     : m_pos(start)
 //     , m_dir(dir)
 // {
@@ -22,21 +22,21 @@
 //     return SampleRay { m_pos, m_dir };
 // }
 
-// Bootstrapper::SphereGeometry::SphereGeometry(Farlor::Vector3 pos, float radius, float fov)
+// Bootstrapper::SphereGeometry::SphereGeometry(glm::vec3 pos, float radius, float fov)
 //     : m_pos { pos }
 //     , m_radius { radius }
 //     , m_fov { fov }
 // {
 // }
 
-// static Farlor::Vector3 SampleUnitSphere(const float rand0, const float rand1)
+// static glm::vec3 SampleUnitSphere(const float rand0, const float rand1)
 // {
 //     float theta = 2.0f * M_PI * rand0;
 //     float phi = std::acos(1.0f - 2.0f * rand1);
 //     float x = std::sin(phi) * std::cos(theta);
 //     float y = std::sin(phi) * std::sin(theta);
 //     float z = std::cos(phi);
-//     Farlor::Vector3 normal(x, y, z);
+//     glm::vec3 normal(x, y, z);
 //     return normal.Normalized();
 // }
 
@@ -47,7 +47,7 @@
 //     std::uniform_real_distribution<> dist(0.0f, 1.0f);
 //     float rand0 = static_cast<float>(dist(gen));
 //     float rand1 = static_cast<float>(dist(gen));
-//     Farlor::Vector3 sphereSample = SampleUnitSphere(rand0, rand1);
+//     glm::vec3 sphereSample = SampleUnitSphere(rand0, rand1);
 //     return SampleRay { m_pos, sphereSample.Normalized() };
 // }
 
@@ -62,13 +62,13 @@
 
 // Bootstrapper::~Bootstrapper() { }
 
-// Farlor::Vector3 Bootstrapper::GetStartPosition() const { return m_experimentGeometry.m_startPos; }
-// Farlor::Vector3 Bootstrapper::GetStartNormal() const { return m_experimentGeometry.m_startDir; }
-// Farlor::Vector3 Bootstrapper::GetTargetPosition() const { return m_experimentGeometry.m_endPos; }
-// Farlor::Vector3 Bootstrapper::GetTargetNormal() const { return m_experimentGeometry.m_endDir; }
+// glm::vec3 Bootstrapper::GetStartPosition() const { return m_experimentGeometry.m_startPos; }
+// glm::vec3 Bootstrapper::GetStartNormal() const { return m_experimentGeometry.m_startDir; }
+// glm::vec3 Bootstrapper::GetTargetPosition() const { return m_experimentGeometry.m_endPos; }
+// glm::vec3 Bootstrapper::GetTargetNormal() const { return m_experimentGeometry.m_endDir; }
 
 // float Bootstrapper::CalculateMinimumArclength(
-//       const uint32_t numSegments, const Farlor::Vector3 &startPos, const Farlor::Vector3 &endPos)
+//       const uint32_t numSegments, const glm::vec3 &startPos, const glm::vec3 &endPos)
 // {
 //     const float d = (endPos - startPos).Magnitude();
 //     assert(d > 0.0f);
@@ -102,22 +102,22 @@
 //     bool evenNumberOfSegments = (numSegments % 2) == 0;
 
 //     // In the all cases, we place two segments initially
-//     const Farlor::Vector3 x_sp1
+//     const glm::vec3 x_sp1
 //           = m_experimentGeometry.m_startPos + ds * m_experimentGeometry.m_startDir;
-//     const Farlor::Vector3 x_em1
+//     const glm::vec3 x_em1
 //           = m_experimentGeometry.m_endPos - ds * m_experimentGeometry.m_endDir;
-//     const Farlor::Vector3 x_s
+//     const glm::vec3 x_s
 //           = evenNumberOfSegments ? x_sp1 : x_sp1 + (x_em1 - x_sp1).Normalized() * ds;
 
-//     const Farlor::Vector3 x_p = (x_s + x_em1) * 0.5;
-//     const Farlor::Vector3 lineUnitDir = (x_em1 - x_s).Normalized();
+//     const glm::vec3 x_p = (x_s + x_em1) * 0.5;
+//     const glm::vec3 lineUnitDir = (x_em1 - x_s).Normalized();
 
-//     Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
+//     glm::vec3 otherCrossVec(1.0, 0.0, 0.0);
 //     if (abs(lineUnitDir.Dot(otherCrossVec)) >= 0.99) {
-//         otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
+//         otherCrossVec = glm::vec3(0.0, 1.0, 0.0);
 //     }
 
-//     const Farlor::Vector3 normalToLine = lineUnitDir.Cross(otherCrossVec).Normalized();
+//     const glm::vec3 normalToLine = lineUnitDir.Cross(otherCrossVec).Normalized();
 
 //     // TODO: Add assertion that remaining segments can fill gap
 
@@ -137,7 +137,7 @@
 //     }
 
 //     const float distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
-//     const Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
+//     const glm::vec3 x_t = x_p + normalToLine * distanceOffLine;
 
 //     std::unique_ptr<Curve> upGeneratedCurve = std::make_unique<Curve>(numSegments);
 //     upGeneratedCurve->m_numSegments = numSegments;
@@ -170,13 +170,13 @@
 //         upGeneratedCurve->m_positions[numSegments] = m_experimentGeometry.m_endPos;
 //     }
 
-//     const Farlor::Vector3 leftDir = (x_t - x_s).Normalized();
+//     const glm::vec3 leftDir = (x_t - x_s).Normalized();
 //     for (int leftIdx = 1; leftIdx <= remainingSegmentCountDiv2; ++leftIdx) {
 //         // We want leftIdx 0 to be 1 step away, thus the + 1
 //         upGeneratedCurve->m_positions[leftIdx + xsPos] = x_s + leftIdx * ds * leftDir;
 //     }
 
-//     const Farlor::Vector3 rightDir = (x_em1 - x_t).Normalized();
+//     const glm::vec3 rightDir = (x_em1 - x_t).Normalized();
 //     for (int rightIdx = 1; rightIdx <= remainingSegmentCountDiv2; ++rightIdx) {
 //         upGeneratedCurve->m_positions[rightIdx + xsPos + remainingSegmentCountDiv2]
 //               = x_t + rightIdx * ds * rightDir;
@@ -236,7 +236,7 @@
 // //     const float minL2 = 0.0f;
 // //     const float maxL2 = std::pow(10.0f, 5.0);
 
-// //     const Farlor::Vector3 x1x0 = m_experimentGeometry.m_endPos - m_experimentGeometry.m_startPos;
+// //     const glm::vec3 x1x0 = m_experimentGeometry.m_endPos - m_experimentGeometry.m_startPos;
 // //     const float length = x1x0.Magnitude();
 
 // // #if defined(DetailedCurveGen)
@@ -276,7 +276,7 @@
 // //     std::uniform_real_distribution<float> uniformZeroToOne(0.0f, 1.0f);
 // //     const float e0 = uniformZeroToOne(randomGen);
 // //     const float e1 = uniformZeroToOne(randomGen);
-// //     Farlor::Vector3 n2 = SampleUnitSphere(e0, e1);
+// //     glm::vec3 n2 = SampleUnitSphere(e0, e1);
 
 // // #if defined(DetailedCurveGen)
 // //     std::cout << "\tn2: " << n2 << std::endl;
@@ -284,7 +284,7 @@
 
 // //     // Captures by references, so the actual bezier curve is temporarily modified
 // //     auto TestL2Arclength = [&](float testL2) -> float {
-// //         const Farlor::Vector3 previous = newBezierCurve.m_controlPts[2];
+// //         const glm::vec3 previous = newBezierCurve.m_controlPts[2];
 // //         newBezierCurve.m_controlPts[2] = previous + n2 * testL2;
 
 // //         const float minVal = 0.0f;
@@ -385,7 +385,7 @@
 // //     upGeneratedCurve->m_targetTangent = GetTargetNormal();
 
 // //     // Initialize base position and frame
-// //     Farlor::Vector3 x_0 = upGeneratedCurve->m_basePos;
+// //     glm::vec3 x_0 = upGeneratedCurve->m_basePos;
 
 // //     const uint32_t numSteps = 10000;
 // //     // Actually cache the values for the tvalue lookup in the next steps
@@ -461,14 +461,14 @@
 
 // //         // Lets get all segment information
 // //         // Sample this from the curve
-// //         Farlor::Vector3 segmentPosition = bezierCurve.GetPosition(guessVal);
+// //         glm::vec3 segmentPosition = bezierCurve.GetPosition(guessVal);
 // //         upGeneratedCurve->m_positions[i] = segmentPosition;
 // //         bezierSegIdx++;
 // //     }
 
 // //     // Caclulate the cached tangents here
 // //     for (uint32_t i = 0; i < upGeneratedCurve->m_numSegments; ++i) {
-// //         Farlor::Vector3 diff
+// //         glm::vec3 diff
 // //               = (upGeneratedCurve->m_positions[i + 1] - upGeneratedCurve->m_positions[i]);
 // //         upGeneratedCurve->m_tangents[i] = diff.Normalized();
 // //     }

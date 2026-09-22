@@ -6,8 +6,8 @@
 namespace twisty {
 // float CurveUtils::CalculateCurveError(const Curve& curve)
 // {
-//     Farlor::Vector3 finalPos(0.0f, 0.0f, 0.0f);
-//     Farlor::Vector3 finalDir(0.0f, 0.0f, 0.0f);
+//     glm::vec3 finalPos(0.0f, 0.0f, 0.0f);
+//     glm::vec3 finalDir(0.0f, 0.0f, 0.0f);
 //     curve.CalculateFinalPosAndTangent(finalPos, finalDir);
 
 //     // Weights to tweak

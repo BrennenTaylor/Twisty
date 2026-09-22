@@ -324,13 +324,13 @@ bool ExperimentRunner::BeginPathBatchOutput(
         }
 
         boundaryConditionFile.write(
-              (char *)boundaryConditions.m_startPos.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&boundaryConditions.m_startPos[0], sizeof(glm::vec3));
         boundaryConditionFile.write(
-              (char *)boundaryConditions.m_startDir.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&boundaryConditions.m_startDir[0], sizeof(glm::vec3));
         boundaryConditionFile.write(
-              (char *)boundaryConditions.m_endPos.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&boundaryConditions.m_endPos[0], sizeof(glm::vec3));
         boundaryConditionFile.write(
-              (char *)boundaryConditions.m_endDir.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&boundaryConditions.m_endDir[0], sizeof(glm::vec3));
         boundaryConditionFile.write((char *)&boundaryConditions.arclength, sizeof(float));
         boundaryConditionFile.write((char *)&numSegments, sizeof(uint32_t));
     }
@@ -369,10 +369,10 @@ void ExperimentRunner::OutputPathBatch(PathBatch &pathBatch)
     pathBatchOutfile.write((char *)&pathBatch.m_curvatures[0],
           sizeof(float) * m_experimentParams.numSegmentsPerCurve * pathBatch.numberOfPathsInBatch);
     pathBatchOutfile.write((char *)&pathBatch.m_positions[0],
-          sizeof(Farlor::Vector3) * m_experimentParams.numSegmentsPerCurve
+          sizeof(glm::vec3) * m_experimentParams.numSegmentsPerCurve
                 * pathBatch.numberOfPathsInBatch);
     pathBatchOutfile.write((char *)&pathBatch.m_tangents[0],
-          sizeof(Farlor::Vector3) * m_experimentParams.numSegmentsPerCurve
+          sizeof(glm::vec3) * m_experimentParams.numSegmentsPerCurve
                 * pathBatch.numberOfPathsInBatch);
 
     // Also, we will write it out to an individual batch file

@@ -144,48 +144,48 @@ __host__ __device__ void RotateVectorByMatrix(float *pRotationMatrix, float *pVe
 namespace twisty {
 namespace PerturbUtils {
     // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-    __host__ void UpdateTangentsFromPos(Farlor::Vector3 *pPositions, Farlor::Vector3 *pTangents,
+    __host__ void UpdateTangentsFromPos(glm::vec3 *pPositions, glm::vec3 *pTangents,
           const uint32_t numSegments, const BoundaryConditions &boundaryConditions)
     {
         for (uint32_t i = 0; i < numSegments; ++i) {
-            Farlor::Vector3 diff = (pPositions[i + 1] - pPositions[i]).Normalized();
+            glm::vec3 diff = glm::normalize(pPositions[i + 1] - pPositions[i]);
             pTangents[i] = diff;
         }
     }
 
     // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-    __host__ void UpdateCurvaturesFromTangents_RadiativeTransfer(Farlor::Vector3 *pTangents,
+    __host__ void UpdateCurvaturesFromTangents_RadiativeTransfer(glm::vec3 *pTangents,
           float *pCurvatures, const uint32_t numSegments,
           const BoundaryConditions &boundaryConditions)
     {
         const float invDs = numSegments / boundaryConditions.arclength;
         for (uint32_t i = 0; i < numSegments; ++i) {
-            const Farlor::Vector3 scaledDiff = (pTangents[i + 1] - pTangents[i]) * invDs;
-            pCurvatures[i] = scaledDiff.Magnitude();
+            const glm::vec3 scaledDiff = (pTangents[i + 1] - pTangents[i]) * invDs;
+            pCurvatures[i] = glm::length(scaledDiff);
         }
     }
 
     // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-    __host__ void UpdateCurvaturesFromTangents_SimplifiedModel(Farlor::Vector3 *pTangents,
+    __host__ void UpdateCurvaturesFromTangents_SimplifiedModel(glm::vec3 *pTangents,
           float *pCurvatures, const uint32_t numSegments,
           const BoundaryConditions &boundaryConditions)
     {
         BoundaryConditions_CudaSafe cs;
-        cs.m_startPos[0] = boundaryConditions.m_startPos.m_data[0];
-        cs.m_startPos[1] = boundaryConditions.m_startPos.m_data[1];
-        cs.m_startPos[2] = boundaryConditions.m_startPos.m_data[2];
+        cs.m_startPos[0] = boundaryConditions.m_startPos.x;
+        cs.m_startPos[1] = boundaryConditions.m_startPos.y;
+        cs.m_startPos[2] = boundaryConditions.m_startPos.z;
 
-        cs.m_startDir[0] = boundaryConditions.m_startDir.m_data[0];
-        cs.m_startDir[1] = boundaryConditions.m_startDir.m_data[1];
-        cs.m_startDir[2] = boundaryConditions.m_startDir.m_data[2];
+        cs.m_startDir[0] = boundaryConditions.m_startDir.x;
+        cs.m_startDir[1] = boundaryConditions.m_startDir.y;
+        cs.m_startDir[2] = boundaryConditions.m_startDir.z;
 
-        cs.m_endPos[0] = boundaryConditions.m_endPos.m_data[0];
-        cs.m_endPos[1] = boundaryConditions.m_endPos.m_data[1];
-        cs.m_endPos[2] = boundaryConditions.m_endPos.m_data[2];
+        cs.m_endPos[0] = boundaryConditions.m_endPos.x;
+        cs.m_endPos[1] = boundaryConditions.m_endPos.y;
+        cs.m_endPos[2] = boundaryConditions.m_endPos.z;
 
-        cs.m_endDir[0] = boundaryConditions.m_endDir.m_data[0];
-        cs.m_endDir[1] = boundaryConditions.m_endDir.m_data[1];
-        cs.m_endDir[2] = boundaryConditions.m_endDir.m_data[2];
+        cs.m_endDir[0] = boundaryConditions.m_endDir.x;
+        cs.m_endDir[1] = boundaryConditions.m_endDir.y;
+        cs.m_endDir[2] = boundaryConditions.m_endDir.z;
 
         cs.arclength = boundaryConditions.arclength;
 

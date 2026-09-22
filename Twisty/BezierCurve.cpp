@@ -19,13 +19,13 @@
 //         // Initialize control points to base
 //         for (uint32_t i = 0; i < s_NumControlPts; ++i)
 //         {
-//             m_controlPts[i] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+//             m_controlPts[i] = glm::vec3(0.0f, 0.0f, 0.0f);
 //         }
 //     }
 
 //     // Pass in t, [0.0f, 1.0f]
 //     // Calculate using interpolation method
-//     Farlor::Vector3 BezierCurve5::GetPosition(float t)
+//     glm::vec3 BezierCurve5::GetPosition(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -33,7 +33,7 @@
 //         float mt = (1.0f - t);
 
 //         // TODO: We should use de casteljau's algorithm
-//         Farlor::Vector3 val(0.0f, 0.0f, 0.0f);
+//         glm::vec3 val(0.0f, 0.0f, 0.0f);
 //         val += 1.0f * std::pow(t, 4)              * m_controlPts[4];
 //         val += 4.0f * std::pow(t, 3) * std::pow(mt, 1) * m_controlPts[3];
 //         val += 6.0f * std::pow(t, 2) * std::pow(mt, 2) * m_controlPts[2];
@@ -53,7 +53,7 @@
 //     }
 
 //     // Perform gradient decent derivative at point t
-//     Farlor::Vector3 BezierCurve5::FirstDerivative(float t)
+//     glm::vec3 BezierCurve5::FirstDerivative(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -62,7 +62,7 @@
 //         return dCurve.GetPosition(t);
 //     }
 
-//     Farlor::Vector3 BezierCurve5::SecondDerivative(float t)
+//     glm::vec3 BezierCurve5::SecondDerivative(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -72,7 +72,7 @@
 //         return ddCurve.GetPosition(t);
 //     }
 
-//     Farlor::Vector3 BezierCurve5::Tangent(float t)
+//     glm::vec3 BezierCurve5::Tangent(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -80,7 +80,7 @@
 //         return FirstDerivative(t).Normalized();
 //     }
 
-//     Farlor::Vector3 BezierCurve5::Normal(float t)
+//     glm::vec3 BezierCurve5::Normal(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -88,7 +88,7 @@
 //         return SecondDerivative(t).Normalized();
 //     }
 
-//     Farlor::Vector3 BezierCurve5::Binormal(float t)
+//     glm::vec3 BezierCurve5::Binormal(float t)
 //     {
 //         auto tangent = Tangent(t);
 //         auto normal = Normal(t);
@@ -108,10 +108,10 @@
 //         const uint32_t numSteps = 10000;
 //         float stepSize = (maxVal - minVal) / numSteps;
 //         float arclength = 0.0f;
-//         Farlor::Vector3 prevPos = GetPosition(minVal);
+//         glm::vec3 prevPos = GetPosition(minVal);
 //         for (uint32_t i = 1; i <= numSteps; ++i)
 //         {
-//             Farlor::Vector3 currentPos = GetPosition(minVal + stepSize * i);
+//             glm::vec3 currentPos = GetPosition(minVal + stepSize * i);
 //             arclength += (currentPos - prevPos).Magnitude();
 //             prevPos = currentPos;
 //         }
@@ -125,10 +125,10 @@
 //         const float maxVal = 1.0f;
 //         float stepSize = (maxVal - minVal) / numCachedValues;
 //         float arclength = 0.0f;
-//         Farlor::Vector3 prevPos = GetPosition(minVal);
+//         glm::vec3 prevPos = GetPosition(minVal);
 //         for (uint32_t i = 0; i <= numCachedValues; ++i)
 //         {
-//             Farlor::Vector3 currentPos = GetPosition(minVal + stepSize * i);
+//             glm::vec3 currentPos = GetPosition(minVal + stepSize * i);
 //             arclength += (currentPos - prevPos).Magnitude();
 //             float tValue = stepSize * i;
 //             auto pair = std::make_pair(tValue, arclength);
@@ -248,13 +248,13 @@
 //         // Initialize control points to base
 //         for (uint32_t i = 0; i < s_NumControlPts; ++i)
 //         {
-//             m_controlPts[i] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+//             m_controlPts[i] = glm::vec3(0.0f, 0.0f, 0.0f);
 //         }
 //     }
 
 //     // Pass in t, [0.0f, 1.0f]
 //     // Calculate using interpolation method
-//     Farlor::Vector3 BezierCurve4::GetPosition(float t)
+//     glm::vec3 BezierCurve4::GetPosition(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -262,7 +262,7 @@
 //         float mt = (1.0f - t);
 
 //         // TODO: We could use de casteljau's algorithm
-//         Farlor::Vector3 val(0.0f, 0.0f, 0.0f);
+//         glm::vec3 val(0.0f, 0.0f, 0.0f);
 //         val += 1.0f * pow(t, 3)              * m_controlPts[3];
 //         val += 3.0f * pow(t, 2) * pow(mt, 1) * m_controlPts[2];
 //         val += 3.0f * pow(t, 1) * pow(mt, 2) * m_controlPts[1];
@@ -280,7 +280,7 @@
 //     }
 
 //     // Perform gradient decent derivative at point t
-//     Farlor::Vector3 BezierCurve4::FirstDerivative(float t)
+//     glm::vec3 BezierCurve4::FirstDerivative(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -307,13 +307,13 @@
 //         // Initialize control points to base
 //         for (uint32_t i = 0; i < s_NumControlPts; ++i)
 //         {
-//             m_controlPts[i] = Farlor::Vector3(0.0f, 0.0f, 0.0f);
+//             m_controlPts[i] = glm::vec3(0.0f, 0.0f, 0.0f);
 //         }
 //     }
 
 //     // Pass in t, [0.0f, 1.0f]
 //     // Calculate using interpolation method
-//     Farlor::Vector3 BezierCurve3::GetPosition(float t)
+//     glm::vec3 BezierCurve3::GetPosition(float t)
 //     {
 //         assert(t >= 0.0f);
 //         assert(t <= 1.0f);
@@ -321,7 +321,7 @@
 //         float mt = (1.0f - t);
 
 //         // TODO: We could use de casteljau's algorithm
-//         Farlor::Vector3 val(0.0f, 0.0f, 0.0f);
+//         glm::vec3 val(0.0f, 0.0f, 0.0f);
 //         val += 1.0f * pow(t, 2)              * m_controlPts[2];
 //         val += 2.0f * pow(t, 1) * pow(mt, 1) * m_controlPts[1];
 //         val += 1.0f             * pow(mt, 2) * m_controlPts[0];
