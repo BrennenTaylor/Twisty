@@ -3,7 +3,7 @@
 #include "nlohmann/json.hpp"
 
 #include <Curve.h>
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <chrono>
 #include <cstdint>
@@ -127,8 +127,8 @@ int main(int argc, char *argv[])
     std::cout << "Num paths read: " << numPathsReadMetadata << std::endl;
 
     // Num bytes per float * 3 floats per pos * (m + 1) pos per curve
-    const uint32_t bytesPerCurve = sizeof(Farlor::Vector3);
-    std::vector<Farlor::Vector3> tempStorage(1);
+    const uint32_t bytesPerCurve = sizeof(glm::vec3);
+    std::vector<glm::vec3> tempStorage(1);
     std::cout << "Bytes per curve: " << bytesPerCurve << std::endl;
 
     uint64_t numRead = 0;
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
 
         uint64_t numPosInCurve = 1;
         uint64_t numPosInEntry = entry.pathCount * numPosInCurve;
-        uint64_t numBytesInEntry = numPosInEntry * sizeof(Farlor::Vector3);
+        uint64_t numBytesInEntry = numPosInEntry * sizeof(glm::vec3);
 
         numRead += entry.pathCount;
 
