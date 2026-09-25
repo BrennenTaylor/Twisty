@@ -11,7 +11,6 @@
 
 #include "Curve.h"
 #include "ExperimentRunner.h"
-#include "FMath/Quaternion.h"
 #include "FullExperimentRunnerOptimalPerturb.h"
 #include "boost/multiprecision/cpp_dec_float.hpp"
 #include <random>
@@ -22,7 +21,7 @@
 #include "PathWeightUtils.h"
 #include "boost/multiprecision/detail/default_ops.hpp"
 
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 

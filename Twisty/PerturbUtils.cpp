@@ -7,14 +7,14 @@
 //     namespace PerturbUtils
 //     {
 //         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-//         void UpdateTangentsFromPos(Farlor::Vector3* pPositions, Farlor::Vector3* pTangents,
+//         void UpdateTangentsFromPos(glm::vec3* pPositions, glm::vec3* pTangents,
 //             const uint32_t numSegments, const BoundaryConditions& boundaryConditions)
 //         {
 //             UpdateTangentsFromPos((float*)pPositions->m_data(), (float*)pTangents->m_data(), numSegments, boundaryConditions);
 //         }
 
 //         // This function assumes that the initial and end positions and tangents are set already to the constraints defined by the problem
-//         void UpdateCurvaturesFromTangents(Farlor::Vector3* pTangents, float* pCurvatures,
+//         void UpdateCurvaturesFromTangents(glm::vec3* pTangents, float* pCurvatures,
 //             const uint32_t numSegments, const BoundaryConditions& boundaryConditions, const twisty::WeightingParameters& wp)
 //         {
 //             UpdateCurvaturesFromTangents((float*)pTangents->m_data(), pCurvatures, numSegments, boundaryConditions, wp);
@@ -34,7 +34,7 @@
 //             // Update tangents
 //             for (uint32_t i = 0; i < numSegments; ++i)
 //             {
-//                 Farlor::Vector3 diff = (pPositions[i + 1] - pPositions[i]);
+//                 glm::vec3 diff = (pPositions[i + 1] - pPositions[i]);
 //                 pTangents[i] = diff.Normalized();
 //             }
 //             pTangents[numSegments] = boundaryConditions.m_endDir;

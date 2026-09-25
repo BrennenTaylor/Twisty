@@ -41,7 +41,7 @@ void Curve::WriteCurveToStream(std::ofstream &outputStream, const twisty::Curve 
     outputStream.write((char *)&seedCurve.m_boundaryConditions.arclength, sizeof(float));
 
     outputStream.write((char *)&seedCurve.m_positions[0],
-          sizeof(Farlor::Vector3) * (seedCurve.m_numSegments + 1));
+          sizeof(glm::vec3) * (seedCurve.m_numSegments + 1));
 }
 
 std::unique_ptr<Curve> Curve::LoadCurveFromStream(std::ifstream &inputStream)
@@ -52,19 +52,19 @@ std::unique_ptr<Curve> Curve::LoadCurveFromStream(std::ifstream &inputStream)
     std::unique_ptr<Curve> upInitialCurve = std::make_unique<Curve>(numSegments);
 
     inputStream.read(
-          (char *)&upInitialCurve->m_boundaryConditions.m_startPos, sizeof(Farlor::Vector3));
+          (char *)&upInitialCurve->m_boundaryConditions.m_startPos, sizeof(glm::vec3));
     inputStream.read(
-          (char *)&upInitialCurve->m_boundaryConditions.m_startDir, sizeof(Farlor::Vector3));
+          (char *)&upInitialCurve->m_boundaryConditions.m_startDir, sizeof(glm::vec3));
     inputStream.read(
-          (char *)&upInitialCurve->m_boundaryConditions.m_endPos, sizeof(Farlor::Vector3));
+          (char *)&upInitialCurve->m_boundaryConditions.m_endPos, sizeof(glm::vec3));
     inputStream.read(
-          (char *)&upInitialCurve->m_boundaryConditions.m_endDir, sizeof(Farlor::Vector3));
+          (char *)&upInitialCurve->m_boundaryConditions.m_endDir, sizeof(glm::vec3));
     inputStream.read((char *)&upInitialCurve->m_boundaryConditions.arclength, sizeof(float));
 
     upInitialCurve->m_ds = upInitialCurve->m_boundaryConditions.arclength / numSegments;
 
     inputStream.read((char *)&upInitialCurve->m_positions[0],
-          sizeof(Farlor::Vector3) * (upInitialCurve->m_numSegments + 1));
+          sizeof(glm::vec3) * (upInitialCurve->m_numSegments + 1));
 
     PerturbUtils::UpdateTangentsFromPos(upInitialCurve->m_positions.data(),
           upInitialCurve->m_tangents.data(),
@@ -87,21 +87,21 @@ twisty::PerturbUtils::BoundaryConditions_CudaSafe Curve::GetBoundaryConditionsCu
 {
     twisty::PerturbUtils::BoundaryConditions_CudaSafe bc;
     bc.arclength = m_boundaryConditions.arclength;
-    bc.m_startPos[0] = m_boundaryConditions.m_startPos.m_data[0];
-    bc.m_startPos[1] = m_boundaryConditions.m_startPos.m_data[1];
-    bc.m_startPos[2] = m_boundaryConditions.m_startPos.m_data[2];
+    bc.m_startPos[0] = m_boundaryConditions.m_startPos.x;
+    bc.m_startPos[1] = m_boundaryConditions.m_startPos.y;
+    bc.m_startPos[2] = m_boundaryConditions.m_startPos.z;
 
-    bc.m_startDir[0] = m_boundaryConditions.m_startDir.m_data[0];
-    bc.m_startDir[1] = m_boundaryConditions.m_startDir.m_data[1];
-    bc.m_startDir[2] = m_boundaryConditions.m_startDir.m_data[2];
+    bc.m_startDir[0] = m_boundaryConditions.m_startDir.x;
+    bc.m_startDir[1] = m_boundaryConditions.m_startDir.y;
+    bc.m_startDir[2] = m_boundaryConditions.m_startDir.z;
 
-    bc.m_endPos[0] = m_boundaryConditions.m_endPos.m_data[0];
-    bc.m_endPos[1] = m_boundaryConditions.m_endPos.m_data[1];
-    bc.m_endPos[2] = m_boundaryConditions.m_endPos.m_data[2];
+    bc.m_endPos[0] = m_boundaryConditions.m_endPos.x;
+    bc.m_endPos[1] = m_boundaryConditions.m_endPos.y;
+    bc.m_endPos[2] = m_boundaryConditions.m_endPos.z;
 
-    bc.m_endDir[0] = m_boundaryConditions.m_endDir.m_data[0];
-    bc.m_endDir[1] = m_boundaryConditions.m_endDir.m_data[1];
-    bc.m_endDir[2] = m_boundaryConditions.m_endDir.m_data[2];
+    bc.m_endDir[0] = m_boundaryConditions.m_endDir.x;
+    bc.m_endDir[1] = m_boundaryConditions.m_endDir.y;
+    bc.m_endDir[2] = m_boundaryConditions.m_endDir.z;
     return bc;
 }
 }  // namespace twisty

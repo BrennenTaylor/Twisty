@@ -12,8 +12,9 @@ ctest --test-dir build          # run the test suite
 ```
 
 C++17 / CMake >= 3.20 / Ninja. OpenVDB, TBB, OpenMP, Boost and
-nlohmann-json come from apt; FMath, stb and tinyexr are fetched by
-CMake (FMath and stb via `dependencies/`, tinyexr via `Experiments/`).
+nlohmann-json come from apt; glm, stb and tinyexr are fetched by
+CMake (glm and stb via `dependencies/`, tinyexr via `Experiments/`).
+glm is pinned to 1.0.3.
 
 Experiments and tools grow one line each through the
 `twisty_add_experiment` / `twisty_add_tool` helpers in

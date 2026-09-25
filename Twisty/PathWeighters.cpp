@@ -104,7 +104,7 @@ namespace PathWeighting {
     }
 
     PathWeightValue WeightCurveViaPositionLog10_PositionDependent(
-          const std::vector<Farlor::Vector3> &positions, const std::vector<float> &curvatures,
+          const std::vector<glm::vec3> &positions, const std::vector<float> &curvatures,
           const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable,
           const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable,
           const float environmentAbsorption)
@@ -123,11 +123,11 @@ namespace PathWeighting {
         double runningPathWeightLog10 = 0.0;
         for (int segIdx = 0; segIdx < curvatures.size(); ++segIdx) {
             // We look at the end of the segment
-            const Farlor::Vector3 currentPosition = positions[segIdx + 1];
+            const glm::vec3 currentPosition = positions[segIdx + 1];
 
             // TODO: Generalize
             // For now, hardcode the sphere
-            const Farlor::Vector3 sphereCenter(5.0f, 0.0f, 0.0f);
+            const glm::vec3 sphereCenter(5.0f, 0.0f, 0.0f);
             const float radius = 3.0f;
 
             // Lookup absorbtion factor based on position
@@ -210,7 +210,7 @@ namespace PathWeighting {
 
     // #ifdef __linux__
     PathWeightValue WeightCurveViaPositionLog10_PositionDependent(
-          const std::vector<Farlor::Vector3> &positions, const std::vector<float> &curvatures,
+          const std::vector<glm::vec3> &positions, const std::vector<float> &curvatures,
           const twisty::PathWeighting::BaseWeightLookupTable &environmentLookupTable,
           const twisty::PathWeighting::BaseWeightLookupTable &objectLookupTable,
           const float environmentAbsorption, openvdb::FloatGrid::Ptr grid)
@@ -229,7 +229,7 @@ namespace PathWeighting {
         double runningPathWeightLog10 = 0.0;
         for (int segIdx = 0; segIdx < curvatures.size(); ++segIdx) {
             // We look at the end of the segment
-            const Farlor::Vector3 currentPosition = positions[segIdx + 1];
+            const glm::vec3 currentPosition = positions[segIdx + 1];
 
             openvdb::Vec3d worldSpacePoint(currentPosition.x, currentPosition.y, currentPosition.z);
             openvdb::Vec3d indexSpacePoint = grid->worldToIndex(worldSpacePoint);
@@ -242,7 +242,7 @@ namespace PathWeighting {
 
             // TODO: Generalize
             // For now, hardcode the sphere
-            // const Farlor::Vector3 sphereCenter(5.0f, 0.0f, 0.0f);
+            // const glm::vec3 sphereCenter(5.0f, 0.0f, 0.0f);
             // const float radius = 2.0f;
 
             // Lookup absorbtion factor based on position

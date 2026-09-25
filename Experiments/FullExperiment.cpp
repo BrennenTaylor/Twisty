@@ -7,7 +7,7 @@
 #include <MathConsts.h>
 #include <PathWeightUtils.h>
 
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -164,26 +164,26 @@ int main(int argc, char *argv[])
             float x = experimentConfig["experiment"]["basicExperiment"]["startPos"][0];
             float y = experimentConfig["experiment"]["basicExperiment"]["startPos"][1];
             float z = experimentConfig["experiment"]["basicExperiment"]["startPos"][2];
-            experimentGeometry.m_startPos = Farlor::Vector3(x, y, z);
+            experimentGeometry.m_startPos = glm::vec3(x, y, z);
         }
         {
             float x = experimentConfig["experiment"]["basicExperiment"]["startDir"][0];
             float y = experimentConfig["experiment"]["basicExperiment"]["startDir"][1];
             float z = experimentConfig["experiment"]["basicExperiment"]["startDir"][2];
-            experimentGeometry.m_startDir = Farlor::Vector3(x, y, z).Normalized();
+            experimentGeometry.m_startDir = glm::normalize(glm::vec3(x, y, z));
         }
 
         {
             float x = experimentConfig["experiment"]["basicExperiment"]["endPos"][0];
             float y = experimentConfig["experiment"]["basicExperiment"]["endPos"][1];
             float z = experimentConfig["experiment"]["basicExperiment"]["endPos"][2];
-            experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
+            experimentGeometry.m_endPos = glm::vec3(x, y, z);
         }
         {
             float x = experimentConfig["experiment"]["basicExperiment"]["endDir"][0];
             float y = experimentConfig["experiment"]["basicExperiment"]["endDir"][1];
             float z = experimentConfig["experiment"]["basicExperiment"]["endDir"][2];
-            experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
+            experimentGeometry.m_endDir = glm::normalize(glm::vec3(x, y, z));
         }
         // Force to a value
 

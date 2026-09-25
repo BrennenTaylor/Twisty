@@ -1,10 +1,11 @@
 include(FetchContent)
 
 # --- Version-controlled source dependencies (FetchContent) ---
-FetchContent_Declare(FMath
-    GIT_REPOSITORY "https://github.com/BrennenTaylor/FMath"
+FetchContent_Declare(glm
+    GIT_REPOSITORY "https://github.com/g-truc/glm.git"
+    GIT_TAG "1.0.3"
 )
-FetchContent_MakeAvailable(FMath)
+FetchContent_MakeAvailable(glm)
 
 # stb is a set of stable single-file libraries. Pin to the exact commit
 # the removed stb submodule was at. Its tree has no CMakeLists.txt, so

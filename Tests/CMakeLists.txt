@@ -34,6 +34,10 @@ if(BUILD_TESTING)
     add_test(NAME WeightTableTest COMMAND WeightTableTest)
     set_tests_properties(WeightTableTest PROPERTIES TIMEOUT 60)
 
+    add_executable(MathMigrationTest MathMigrationTest.cpp)
+    target_link_libraries(MathMigrationTest PRIVATE glm)
+    add_test(NAME MathMigrationTest COMMAND MathMigrationTest)
+
     add_test(NAME TwoSegmentResolveTest COMMAND TwoSegmentResolveTest)
     set_tests_properties(TwoSegmentResolveTest PROPERTIES TIMEOUT 60)
 endif()

@@ -16,7 +16,7 @@
 #include "PathWeightUtils.h"
 #include "PathWeighters.h"
 
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -128,11 +128,11 @@ int main(int argc, char *argv[])
 
     const float pixelLength = experimentSpecificParams.frameLength
           / static_cast<float>(experimentSpecificParams.framePixelCount);
-    Farlor::Vector3 centerOfFrame(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
+    glm::vec3 centerOfFrame(experimentSpecificParams.distanceFromPlane, 0.0f, 0.0f);
 
     // Bootstrap method
-    const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
-    const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
+    const glm::vec3 emitterStart { 0.0f, 0.0f, 0.0f };
+    const glm::vec3 emitterDir = glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f));
 
     // First, we calculate the minimum possible arclength
     float minMinFrameArclength = experimentSpecificParams.distanceFromPlane * 2.0f;
@@ -140,8 +140,8 @@ int main(int argc, char *argv[])
     int32_t halfFrameWidth = experimentSpecificParams.framePixelCount / 2;
     for (int32_t pixelIdxZ = -halfFrameWidth; pixelIdxZ <= halfFrameWidth; ++pixelIdxZ) {
         for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
-            const Farlor::Vector3 recieverPos = centerOfFrame
-                  + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
+            const glm::vec3 recieverPos = centerOfFrame
+                  + glm::vec3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
             float minArclength = 0.0f;
             switch (experimentParams.numSegmentsPerCurve) {
                 case 5: {
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
                 default: {
                     // Give an extra nubmer of segments
                     const uint32_t numExtraSegments = 1;
-                    minArclength = (recieverPos - emitterStart).Magnitude()
+                    minArclength = glm::length(recieverPos - emitterStart)
                           * (static_cast<float>(
                                    experimentParams.numSegmentsPerCurve + numExtraSegments)
                                 / static_cast<float>(experimentParams.numSegmentsPerCurve));
@@ -221,9 +221,9 @@ int main(int argc, char *argv[])
             for (int32_t pixelIdxY = -halfFrameWidth; pixelIdxY <= halfFrameWidth; ++pixelIdxY) {
                 std::cout << "Pixel Idx Y: " << pixelIdxY << std::endl;
 
-                const Farlor::Vector3 recieverPos = centerOfFrame
-                      + Farlor::Vector3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
-                const Farlor::Vector3 recieverDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
+                const glm::vec3 recieverPos = centerOfFrame
+                      + glm::vec3(0.0f, pixelIdxY * pixelLength, pixelIdxZ * pixelLength);
+                const glm::vec3 recieverDir = glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f));
 
                 float testMinArclength = 0.0f;
                 if (experimentParams.numSegmentsPerCurve == 5) {
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
                     testMinArclength
                           = minimumDs * (double)experimentParams.numSegmentsPerCurve * 1.001f;
                 } else {
-                    testMinArclength = (recieverPos - emitterStart).Magnitude() + 1.1;
+                    testMinArclength = glm::length(recieverPos - emitterStart) + 1.1;
                 }
 
                 if (testMinArclength > currentArclength) {

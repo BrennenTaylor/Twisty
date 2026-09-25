@@ -15,8 +15,6 @@
 #include "PathWeighters.h"
 #include "boost/multiprecision/detail/default_ops.hpp"
 
-#include <FMath/Vector3.h>
-
 // Enable this for better exception messages, worth the tradeoff for us
 #define JSON_DIAGNOSTICS 1
 #include <nlohmann/json.hpp>
@@ -182,26 +180,26 @@ class Camera {
         updateCameraVectors();
     }
 
-    Farlor::Vector3 getPosition() const
+    glm::vec3 getPosition() const
     {
-        return Farlor::Vector3(position.x, position.y, position.z);
+        return glm::vec3(position.x, position.y, position.z);
     }
 
-    Farlor::Vector3 getRayDirectionFromUV(float u, float v) const
+    glm::vec3 getRayDirectionFromUV(float u, float v) const
     {
         const glm::vec3 norm
               = glm::normalize(lowerLeftCorner + u * horizontal + v * vertical - position);
-        return Farlor::Vector3(norm.x, norm.y, norm.z);
+        return glm::vec3(norm.x, norm.y, norm.z);
     }
 
-    Farlor::Vector3 getRayDirectionForPixel(int x, int y) const
+    glm::vec3 getRayDirectionForPixel(int x, int y) const
     {
         const float u = (x + 0.5f) / static_cast<float>(imageWidth);
         const float v = (y + 0.5f) / static_cast<float>(imageHeight);
         return getRayDirectionFromUV(u, v);
     }
 
-    Farlor::Vector3 getForward() const { return Farlor::Vector3(forward.x, forward.y, forward.z); }
+    glm::vec3 getForward() const { return glm::vec3(forward.x, forward.y, forward.z); }
 
     int getWidth() { return imageWidth; }
     int getHeight() { return imageHeight; }
@@ -358,10 +356,10 @@ int main(int argc, char *argv[])
     environmentCachedLookupTable.GetWeightLookupTable(maxDs)->ExportValues(
           outputDirectoryPath.string(), std::string("environmentLookupTable_maxDs.csv"));
 
-    std::vector<Farlor::Vector3> emitterLocations;
-    emitterLocations.push_back(Farlor::Vector3(0.0f, 0.0f, -10.0f));
-    std::vector<Farlor::Vector3> emitterDirections;
-    emitterDirections.push_back(Farlor::Vector3(0.0f, 0.0f, 1.0f));
+    std::vector<glm::vec3> emitterLocations;
+    emitterLocations.push_back(glm::vec3(0.0f, 0.0f, -10.0f));
+    std::vector<glm::vec3> emitterDirections;
+    emitterDirections.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
 
     Camera camera;
     try {
@@ -405,8 +403,8 @@ int main(int argc, char *argv[])
         for (int32_t pixelIdxX = 0; pixelIdxX < imageWidth; ++pixelIdxX) {
             const uint32_t frameIdx = (pixelIdxY * imageWidth) + pixelIdxX;
 
-            const Farlor::Vector3 recieverPos = camera.getPosition();
-            const Farlor::Vector3 recieverDir
+            const glm::vec3 recieverPos = camera.getPosition();
+            const glm::vec3 recieverDir
                   = camera.getRayDirectionForPixel(pixelIdxX, pixelIdxY);
             // std::cout << "Receiver Dir: " << recieverDir << std::endl;
 
@@ -422,9 +420,9 @@ int main(int argc, char *argv[])
                 experimentGeometry.m_endDir = recieverDir;
                 experimentGeometry.arclength = 0.0f;
 
-                const Farlor::Vector3 revserseDir = experimentGeometry.m_endDir * -1.0f;
+                const glm::vec3 revserseDir = experimentGeometry.m_endDir * -1.0f;
                 //     std::cout << "Reverse Dir: " << revserseDir << std::endl;
-                const float cosFactor = revserseDir.Dot(camera.getForward());
+                const float cosFactor = glm::dot(revserseDir, camera.getForward());
                 //     std::cout << "Cos Factor: " << cosFactor << std::endl;
 
                 const double pathNormalizerLog10 = 0.0f;

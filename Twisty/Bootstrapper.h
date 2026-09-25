@@ -36,8 +36,8 @@
 //     class Geometry {
 //        public:
 //         struct SampleRay {
-//             Farlor::Vector3 m_pos;
-//             Farlor::Vector3 m_dir;
+//             glm::vec3 m_pos;
+//             glm::vec3 m_dir;
 //         };
 
 //        public:
@@ -48,21 +48,21 @@
 
 //     class RayGeometry : public Geometry {
 //        public:
-//         RayGeometry(Farlor::Vector3 start, Farlor::Vector3 dir);
+//         RayGeometry(glm::vec3 start, glm::vec3 dir);
 //         virtual Geometry::SampleRay GetSampleRay() const override;
 
 //        private:
-//         Farlor::Vector3 m_pos;
-//         Farlor::Vector3 m_dir;
+//         glm::vec3 m_pos;
+//         glm::vec3 m_dir;
 //     };
 
 //     class SphereGeometry : public Geometry {
 //        public:
-//         SphereGeometry(Farlor::Vector3 pos, float radius, float fov);
+//         SphereGeometry(glm::vec3 pos, float radius, float fov);
 //         virtual Geometry::SampleRay GetSampleRay() const override;
 
 //        private:
-//         Farlor::Vector3 m_pos;
+//         glm::vec3 m_pos;
 //         float m_radius;
 //         float m_fov;
 //     };
@@ -70,11 +70,11 @@
 //    public:
 //     // Represents a bezier curve
 //     struct BezierInfo {
-//         Farlor::Vector3 m_controlPt0 = Farlor::Vector3(0.0, 0.0, 0.0);
-//         Farlor::Vector3 m_controlPt1 = Farlor::Vector3(0.0, 0.0, 0.0);
-//         Farlor::Vector3 m_controlPt2 = Farlor::Vector3(0.0, 0.0, 0.0);
-//         Farlor::Vector3 m_controlPt3 = Farlor::Vector3(0.0, 0.0, 0.0);
-//         Farlor::Vector3 m_controlPt4 = Farlor::Vector3(0.0, 0.0, 0.0);
+//         glm::vec3 m_controlPt0 = glm::vec3(0.0, 0.0, 0.0);
+//         glm::vec3 m_controlPt1 = glm::vec3(0.0, 0.0, 0.0);
+//         glm::vec3 m_controlPt2 = glm::vec3(0.0, 0.0, 0.0);
+//         glm::vec3 m_controlPt3 = glm::vec3(0.0, 0.0, 0.0);
+//         glm::vec3 m_controlPt4 = glm::vec3(0.0, 0.0, 0.0);
 //     };
 
 //    public:
@@ -83,10 +83,10 @@
 //     Bootstrapper(const twisty::PerturbUtils::BoundaryConditions &problemGeoemtry);
 //     ~Bootstrapper();
 
-//     Farlor::Vector3 GetStartPosition() const;
-//     Farlor::Vector3 GetStartNormal() const;
-//     Farlor::Vector3 GetTargetPosition() const;
-//     Farlor::Vector3 GetTargetNormal() const;
+//     glm::vec3 GetStartPosition() const;
+//     glm::vec3 GetStartNormal() const;
+//     glm::vec3 GetTargetPosition() const;
+//     glm::vec3 GetTargetNormal() const;
 
 //     // std::unique_ptr<Curve> CreateCurve(
 //     //       uint32_t numSegments, float targetArclength, uint32_t generationSeed) const;
@@ -94,7 +94,7 @@
 //           uint32_t numSegments, float targetArclength) const;
 
 //     static float CalculateMinimumArclength(const uint32_t numSegments,
-//           const Farlor::Vector3 &startPos, const Farlor::Vector3 &endPos);
+//           const glm::vec3 &startPos, const glm::vec3 &endPos);
 
 //    private:
 //     // std::unique_ptr<Curve> ToDiscreteFSCurve(uint32_t m_numSegments, BezierCurve5 &curve) const;

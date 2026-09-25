@@ -131,8 +131,8 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment(
           1, initialCurve.m_numSegments - 1, ds, initialCurveGenerator);
 
     // Setup data structures
-    std::vector<Farlor::Vector3> initialCurvePositions = initialCurve.m_positions;
-    std::vector<Farlor::Vector3> initialCurveTangents(initialCurvePositions.size() - 1);
+    std::vector<glm::vec3> initialCurvePositions = initialCurve.m_positions;
+    std::vector<glm::vec3> initialCurveTangents(initialCurvePositions.size() - 1);
     std::vector<float> initialCurveCurvatures(initialCurvePositions.size() - 2);
 
     // Update tangents
@@ -154,8 +154,8 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment(
     const int64_t NumTanPerCurve = initialCurveTangents.size();
     const int64_t NumCurvaturePerCurve = initialCurveCurvatures.size();
 
-    std::vector<Farlor::Vector3> perThreadCurvePositions(NumPosPerCurve * numPurturbThreads);
-    std::vector<Farlor::Vector3> perThreadCurveTangents(NumTanPerCurve * numPurturbThreads);
+    std::vector<glm::vec3> perThreadCurvePositions(NumPosPerCurve * numPurturbThreads);
+    std::vector<glm::vec3> perThreadCurveTangents(NumTanPerCurve * numPurturbThreads);
     std::vector<float> perThreadCurveCurvatures(NumCurvaturePerCurve * numPurturbThreads);
 
     for (int64_t threadIdx = 0; threadIdx < numPurturbThreads; ++threadIdx) {
@@ -178,12 +178,12 @@ FullExperimentRunnerOptimalPerturb::RunnerSpecificRunExperiment(
         }
     }
 
-    std::vector<Farlor::Vector3> perThreadPositionScratchLeft;
-    std::vector<Farlor::Vector3> perThreadTangentScratchLeft;
+    std::vector<glm::vec3> perThreadPositionScratchLeft;
+    std::vector<glm::vec3> perThreadTangentScratchLeft;
     std::vector<float> perThreadCurvatureScratchLeft;
 
-    std::vector<Farlor::Vector3> perThreadPositionScratchRight;
-    std::vector<Farlor::Vector3> perThreadTangentScratchRight;
+    std::vector<glm::vec3> perThreadPositionScratchRight;
+    std::vector<glm::vec3> perThreadTangentScratchRight;
     std::vector<float> perThreadCurvatureScratchRight;
 
     // Only in this case do we allocate room
@@ -440,8 +440,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
       uint32_t numPathsToSkipPerThread,
       uint32_t numSegmentsPerCurve,
       std::vector<std::mt19937_64> &rngGenerators,
-      std::vector<Farlor::Vector3> &globalPos,
-      std::vector<Farlor::Vector3> &globalTans,
+      std::vector<glm::vec3> &globalPos,
+      std::vector<glm::vec3> &globalTans,
       std::vector<float> &globalCurvatures,
       std::vector<CombinedWeightValues_C> &combinedWeightValues,
       float segmentLength,
@@ -492,11 +492,11 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
             // We need two frames for each segment to get the new curvature and torsion.
             // we need the frame left of the segment, as well as the frame right of the segment.
             // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
-            const Farlor::Vector3 leftPoint = globalPos[CurrentThreadPosStartIdx + leftPointIndex];
-            const Farlor::Vector3 rightPoint
+            const glm::vec3 leftPoint = globalPos[CurrentThreadPosStartIdx + leftPointIndex];
+            const glm::vec3 rightPoint
                   = globalPos[CurrentThreadPosStartIdx + rightPointIndex];
 
-            const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
+            const glm::vec3 N = glm::normalize(rightPoint - leftPoint);
 
             std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
             float randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
@@ -510,10 +510,10 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom(int64_t threadIdx,
 
                 for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
                       ++pointIdx) {
-                    Farlor::Vector3 shiftedPoint
+                    glm::vec3 shiftedPoint
                           = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
                     // Rotate and stuff back in shifted point
-                    RotateVectorByQuaternion(quaternionRotation, shiftedPoint.m_data.data());
+                    RotateVectorByQuaternion(quaternionRotation, &shiftedPoint[0]);
                     // Update the point with the rotated version
                     globalPos[CurrentThreadPosStartIdx + pointIdx] = (shiftedPoint + leftPoint);
                 }
@@ -602,8 +602,8 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
       uint32_t numPathsToSkipPerThread,
       uint32_t numSegmentsPerCurve,
       std::vector<std::mt19937_64> &rngGenerators,
-      std::vector<Farlor::Vector3> &globalPos,
-      std::vector<Farlor::Vector3> &globalTans,
+      std::vector<glm::vec3> &globalPos,
+      std::vector<glm::vec3> &globalTans,
       std::vector<float> &globalCurvatures,
       std::vector<CombinedWeightValues_C> &combinedWeightValues,
       float segmentLength,
@@ -625,9 +625,9 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
     const uint32_t CurrentThreadCurvatureStartIdx = NumCurvaturesPerCurve * threadIdx;
 
     const uint32_t ExportPathBatchCacheSize = 1000000;
-    std::vector<Farlor::Vector3> pathBatchCache(ExportPathBatchCacheSize * NumPosPerCurve);
+    std::vector<glm::vec3> pathBatchCache(ExportPathBatchCacheSize * NumPosPerCurve);
     std::vector<double> log10PathWeightCache(ExportPathBatchCacheSize);
-    std::vector<Farlor::Vector3> fiveSegmentPathCache(ExportPathBatchCacheSize);
+    std::vector<glm::vec3> fiveSegmentPathCache(ExportPathBatchCacheSize);
 
     // Now, we can begin the actual algorithm
     {
@@ -660,11 +660,11 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
             // We need two frames for each segment to get the new curvature and torsion.
             // we need the frame left of the segment, as well as the frame right of the segment.
             // The left point also will act as the origin for rotating the points between leftPoint and rightPoint
-            const Farlor::Vector3 leftPoint = globalPos[CurrentThreadPosStartIdx + leftPointIndex];
-            const Farlor::Vector3 rightPoint
+            const glm::vec3 leftPoint = globalPos[CurrentThreadPosStartIdx + leftPointIndex];
+            const glm::vec3 rightPoint
                   = globalPos[CurrentThreadPosStartIdx + rightPointIndex];
 
-            const Farlor::Vector3 N = (rightPoint - leftPoint).Normalized();
+            const glm::vec3 N = glm::normalize(rightPoint - leftPoint);
 
             std::uniform_real_distribution<float> zeroToTwoPiUniformDist(-TwistyPi, TwistyPi);
             float randRotationAngle = zeroToTwoPiUniformDist(rngGenerators[threadIdx]);
@@ -678,10 +678,10 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
 
                 for (uint32_t pointIdx = (leftPointIndex + 1); pointIdx < rightPointIndex;
                       ++pointIdx) {
-                    Farlor::Vector3 shiftedPoint
+                    glm::vec3 shiftedPoint
                           = (globalPos[CurrentThreadPosStartIdx + pointIdx]) - leftPoint;
                     // Rotate and stuff back in shifted point
-                    RotateVectorByQuaternion(quaternionRotation, shiftedPoint.m_data.data());
+                    RotateVectorByQuaternion(quaternionRotation, &shiftedPoint[0]);
                     // Update the point with the rotated version
                     globalPos[CurrentThreadPosStartIdx + pointIdx] = (shiftedPoint + leftPoint);
                 }
@@ -745,7 +745,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
 
                 // Add the path to the path batch
                 for (int64_t pointIdx = 0; pointIdx <= numSegmentsPerCurve; ++pointIdx) {
-                    Farlor::Vector3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
+                    glm::vec3 currentPoint = globalPos[CurrentThreadPosStartIdx + pointIdx];
                     pathBatchCache[NumPosPerCurve * numCurvesInBatch + pointIdx] = currentPoint;
                 }
                 log10PathWeightCache[numCurvesInBatch]
@@ -754,35 +754,35 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                 if (m_experimentParams.numSegmentsPerCurve == 5) {
                     // TODO: Extract out the three angles for 5 segment paths here
                     // Get the five points
-                    const Farlor::Vector3 point0 = globalPos[CurrentThreadPosStartIdx + 0];
-                    const Farlor::Vector3 point1 = globalPos[CurrentThreadPosStartIdx + 1];
-                    const Farlor::Vector3 point2 = globalPos[CurrentThreadPosStartIdx + 2];
-                    const Farlor::Vector3 point3 = globalPos[CurrentThreadPosStartIdx + 3];
-                    const Farlor::Vector3 point4 = globalPos[CurrentThreadPosStartIdx + 4];
-                    const Farlor::Vector3 point5 = globalPos[CurrentThreadPosStartIdx + 5];
+                    const glm::vec3 point0 = globalPos[CurrentThreadPosStartIdx + 0];
+                    const glm::vec3 point1 = globalPos[CurrentThreadPosStartIdx + 1];
+                    const glm::vec3 point2 = globalPos[CurrentThreadPosStartIdx + 2];
+                    const glm::vec3 point3 = globalPos[CurrentThreadPosStartIdx + 3];
+                    const glm::vec3 point4 = globalPos[CurrentThreadPosStartIdx + 4];
+                    const glm::vec3 point5 = globalPos[CurrentThreadPosStartIdx + 5];
 
-                    const Farlor::Vector3 segment1Dir = (point2 - point1).Normalized();
+                    const glm::vec3 segment1Dir = glm::normalize(point2 - point1);
                     // Extract angles
                     const float phi1 = std::acos(segment1Dir.z);
-                    const float x = segment1Dir.Dot(Farlor::Vector3(1.0f, 0.0f, 0.0f));
-                    const float y = segment1Dir.Dot(Farlor::Vector3(0.0f, 1.0f, 0.0f));
+                    const float x = glm::dot(segment1Dir, glm::vec3(1.0f, 0.0f, 0.0f));
+                    const float y = glm::dot(segment1Dir, glm::vec3(0.0f, 1.0f, 0.0f));
                     const float theta1 = std::atan2(y, x);
 
 
                     // Extract the theta2 value
-                    const Farlor::Vector3 theta2_Z = (point4 - point2).Normalized();
-                    Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
-                    if (abs(theta2_Z.Dot(otherCrossVec)) >= 0.99) {
-                        otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
+                    const glm::vec3 theta2_Z = glm::normalize(point4 - point2);
+                    glm::vec3 otherCrossVec(1.0, 0.0, 0.0);
+                    if (abs(glm::dot(theta2_Z, otherCrossVec)) >= 0.99) {
+                        otherCrossVec = glm::vec3(0.0, 1.0, 0.0);
                     }
 
-                    const Farlor::Vector3 theta2_X = theta2_Z.Cross(otherCrossVec).Normalized();
-                    const Farlor::Vector3 theta2_Y = theta2_Z.Cross(theta2_X);
+                    const glm::vec3 theta2_X = glm::normalize(glm::cross(theta2_Z, otherCrossVec));
+                    const glm::vec3 theta2_Y = glm::cross(theta2_Z, theta2_X);
 
-                    const Farlor::Vector3 vectorInQuestion = (point3 - point2).Normalized();
+                    const glm::vec3 vectorInQuestion = glm::normalize(point3 - point2);
 
-                    const float theta2_x = vectorInQuestion.Dot(theta2_X);
-                    const float theta2_y = vectorInQuestion.Dot(theta2_Y);
+                    const float theta2_x = glm::dot(vectorInQuestion, theta2_X);
+                    const float theta2_y = glm::dot(vectorInQuestion, theta2_Y);
 
                     const float theta2 = std::atan2(theta2_y, theta2_x);
 
@@ -803,7 +803,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     m_curvesMetadataFile << numCurvesInBatch << std::endl;
 
                     m_curvesBinaryFile.write((char *)pathBatchCache.data(),
-                          sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                          sizeof(glm::vec3) * NumPosPerCurve * numCurvesInBatch);
 
                     m_log10PathWeightsBinaryFile.write(
                           (char *)log10PathWeightCache.data(), sizeof(double) * numCurvesInBatch);
@@ -816,7 +816,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
                     }
 
                     m_fiveSegmentBinaryFile.write((char *)fiveSegmentPathCache.data(),
-                          sizeof(Farlor::Vector3) * numCurvesInBatch);
+                          sizeof(glm::vec3) * numCurvesInBatch);
 
 
                     numCurvesInBatch = 0;
@@ -835,7 +835,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
             m_curvesMetadataFile << numCurvesInBatch << std::endl;
 
             m_curvesBinaryFile.write((char *)pathBatchCache.data(),
-                  sizeof(Farlor::Vector3) * NumPosPerCurve * numCurvesInBatch);
+                  sizeof(glm::vec3) * NumPosPerCurve * numCurvesInBatch);
 
             m_log10PathWeightsBinaryFile.write(
                   (char *)log10PathWeightCache.data(), sizeof(double) * numCurvesInBatch);
@@ -847,7 +847,7 @@ void FullExperimentRunnerOptimalPerturb::GeometryRandom_ExportPaths(int64_t thre
             }
 
             m_fiveSegmentBinaryFile.write(
-                  (char *)fiveSegmentPathCache.data(), sizeof(Farlor::Vector3) * numCurvesInBatch);
+                  (char *)fiveSegmentPathCache.data(), sizeof(glm::vec3) * numCurvesInBatch);
 
             numCurvesInBatch = 0;
             outputIdx++;

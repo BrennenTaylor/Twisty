@@ -10,7 +10,7 @@
 #include "PathWeightUtils.h"
 #include "PathGeneration.h"
 
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -152,12 +152,12 @@ int main(int argc, char *argv[])
     const float maxArclength
           = experimentConfig["experiment"]["beamSpreadExperiment"]["maxArclength"];
 
-    const Farlor::Vector3 startPos(
+    const glm::vec3 startPos(
           experimentConfig["experiment"]["beamSpreadExperiment"]["startPos"][0],
           experimentConfig["experiment"]["beamSpreadExperiment"]["startPos"][1],
           experimentConfig["experiment"]["beamSpreadExperiment"]["startPos"][2]);
 
-    const Farlor::Vector3 startDir(
+    const glm::vec3 startDir(
           experimentConfig["experiment"]["beamSpreadExperiment"]["startDir"][0],
           experimentConfig["experiment"]["beamSpreadExperiment"]["startDir"][1],
           experimentConfig["experiment"]["beamSpreadExperiment"]["startDir"][2]);
@@ -186,16 +186,16 @@ int main(int argc, char *argv[])
     const float n1 = (uniformFloatGen(randomGenerator) * 2.0f) - 1.0f;
     const float e1 = uniformFloatGen(randomGenerator);
 
-    Farlor::Vector3 endDir(n1,
+    glm::vec3 endDir(n1,
           std::cos(2 * twisty::TwistyPi * e1) * std::sqrt(1 - (n1 * n1)),
           std::sin(2 * twisty::TwistyPi * e1) * std::sqrt(1 - (n1 * n1)));
-    Farlor::Vector3 endPos = startPos + sphereRadius * endDir;
+    glm::vec3 endPos = startPos + sphereRadius * endDir;
 
     twisty::PerturbUtils::BoundaryConditions boundaryConditions;
     boundaryConditions.m_startPos = startPos;
-    boundaryConditions.m_startDir = startDir.Normalized();
+    boundaryConditions.m_startDir = glm::normalize(startDir);
     boundaryConditions.m_endPos = endPos;
-    boundaryConditions.m_endDir = endDir.Normalized();
+    boundaryConditions.m_endDir = glm::normalize(endDir);
 
     const float minArclength = twisty::PathGeneration::CalculateMinimumArclength(
           boundaryConditions, experimentParams.numSegmentsPerCurve);

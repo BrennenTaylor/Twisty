@@ -3,8 +3,11 @@
 #include <MathConsts.h>
 #include <CurvePerturbUtils.h>
 
+#include <algorithm>
+#include <cmath>
 #include <omp.h>
 #include <random>
+#include <stdexcept>
 
 namespace twisty {
 namespace PathGeneration {
@@ -16,14 +19,14 @@ namespace PathGeneration {
         // New Way
         {
             const uint32_t M = numSegmentsPerCurve;
-            const Farlor::Vector3 Xs = boundaryConditions.m_startPos;
-            const Farlor::Vector3 Xe = boundaryConditions.m_endPos;
-            const Farlor::Vector3 Ns = boundaryConditions.m_startDir;
-            const Farlor::Vector3 Ne = boundaryConditions.m_endDir;
+            const glm::vec3 Xs = boundaryConditions.m_startPos;
+            const glm::vec3 Xe = boundaryConditions.m_endPos;
+            const glm::vec3 Ns = boundaryConditions.m_startDir;
+            const glm::vec3 Ne = boundaryConditions.m_endDir;
 
-            const float a = Farlor::Vector3(Ns + Ne).Dot((Ns + Ne)) - ((M - 4.0f) * M + 4.0f);
-            const float b = -2.0f * M * (Ns + Ne).Dot((Xe - Xs));
-            const float c = M * M * Farlor::Vector3(Xe - Xs).Dot((Xe - Xs));
+            const float a = glm::dot(Ns + Ne, Ns + Ne) - ((M - 4.0f) * M + 4.0f);
+            const float b = -2.0f * M * glm::dot(Ns + Ne, Xe - Xs);
+            const float c = M * M * glm::dot(Xe - Xs, Xe - Xs);
 
             const float minArclengthCandidateOne
                   = (-b - std::sqrt(b * b - 4.0f * a * c)) / (2.0f * a);
@@ -44,7 +47,7 @@ namespace PathGeneration {
 
     // Path Generation Helper Functions
     // Returns the single point
-    void ResolveTwoSegments(std::vector<Farlor::Vector3> &pointList,
+    void ResolveTwoSegments(std::vector<glm::vec3> &pointList,
           const size_t leftSegmentStartIdx, const size_t rightSegmentEndIdx, const double ds,
           std::mt19937_64 &rng)
     {
@@ -56,14 +59,14 @@ namespace PathGeneration {
             throw std::runtime_error("Indices must be 2 apart");
         }
 
-        const Farlor::Vector3 &leftSegmentStart = pointList[leftSegmentStartIdx];
-        const Farlor::Vector3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
+const glm::vec3 &leftSegmentStart = pointList[leftSegmentStartIdx];
+        const glm::vec3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
 
         const size_t finalPointIdx = leftSegmentStartIdx + 1;
-        Farlor::Vector3 &finalPoint = pointList[finalPointIdx];
+        glm::vec3 &finalPoint = pointList[finalPointIdx];
 
         // Place segment exactly in the center
-        const float d = (rightSegmentEnd - leftSegmentStart).Magnitude();
+        const float d = glm::length(rightSegmentEnd - leftSegmentStart);
         // If the segments are exactly d segments apart, then we can just place the point in the center
         if (abs((2.0f * ds) - d) < 0.001f) {
             finalPoint = (leftSegmentStart + rightSegmentEnd) * 0.5f;
@@ -86,23 +89,23 @@ namespace PathGeneration {
             const float phi = std::acos(1.0 - 2.0 * phiDist(rng));
 
             // Lets place relative to the z-axis cause why not
-            Farlor::Vector3 centerOffset = Farlor::Vector3(std::sin(phi) * std::cos(theta),
+            glm::vec3 centerOffset = glm::vec3(std::sin(phi) * std::cos(theta),
                                                  std::sin(phi) * std::sin(theta), std::cos(phi))
-                  * ds;
+                  * static_cast<float>(ds);
             finalPoint = leftSegmentStart + centerOffset;
             return;
         }
 
         // Ok, last case, phi is defined by the boundary of the problem. We also randomly rotate by theta
-        const Farlor::Vector3 x_p = (leftSegmentStart + rightSegmentEnd) * 0.5;
-        const Farlor::Vector3 lineUnitDir = (rightSegmentEnd - leftSegmentStart).Normalized();
+        const glm::vec3 x_p = (leftSegmentStart + rightSegmentEnd) * 0.5f;
+        const glm::vec3 lineUnitDir = glm::normalize(rightSegmentEnd - leftSegmentStart);
 
-        Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
-        if (abs(lineUnitDir.Dot(otherCrossVec)) >= 0.99) {
-            otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
+        glm::vec3 otherCrossVec(1.0, 0.0, 0.0);
+        if (abs(glm::dot(lineUnitDir, otherCrossVec)) >= 0.99) {
+            otherCrossVec = glm::vec3(0.0, 1.0, 0.0);
         }
 
-        const Farlor::Vector3 normalToLine = lineUnitDir.Cross(otherCrossVec).Normalized();
+        const glm::vec3 normalToLine = glm::normalize(glm::cross(lineUnitDir, otherCrossVec));
 
         const float d_2 = d * 0.5f;
 
@@ -110,7 +113,7 @@ namespace PathGeneration {
         if (ds > d_2) {
             distanceOffLine = std::sqrt((ds * ds) - (d_2 * d_2));
         }
-        Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
+        glm::vec3 x_t = x_p + normalToLine * distanceOffLine;
 
         // Now rotate randomly theta amount around the axis.
 
@@ -118,9 +121,9 @@ namespace PathGeneration {
         float quaternionRotation[4] = { std::cos(theta / 2.0f), lineUnitDir.x * sinRotAngle,
             lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
 
-        Farlor::Vector3 shiftedPoint = x_t - leftSegmentStart;
+        glm::vec3 shiftedPoint = x_t - leftSegmentStart;
         // Rotate and stuff back in shifted point
-        twisty::RotateVectorByQuaternion(quaternionRotation, shiftedPoint.m_data.data());
+        twisty::RotateVectorByQuaternion(quaternionRotation, &shiftedPoint[0]);
         // Update the point with the rotated version
         x_t = shiftedPoint + leftSegmentStart;
 
@@ -129,7 +132,7 @@ namespace PathGeneration {
 
     // Path Generation Helper Functions
     // Places two points
-    void ResolveThreeSegments(std::vector<Farlor::Vector3> &pointList,
+    void ResolveThreeSegments(std::vector<glm::vec3> &pointList,
           const size_t leftSegmentStartIdx, const size_t rightSegmentEndIdx, const double ds,
           std::mt19937_64 &rng)
     {
@@ -141,14 +144,14 @@ namespace PathGeneration {
             throw std::runtime_error("Indices must be 3 apart");
         }
 
-        const Farlor::Vector3 &leftSegmentStart = pointList[leftSegmentStartIdx];
-        const Farlor::Vector3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
+        const glm::vec3 &leftSegmentStart = pointList[leftSegmentStartIdx];
+        const glm::vec3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
 
         const size_t firstPlacedPointIdx = leftSegmentStartIdx + 1;
-        Farlor::Vector3 &firstPlacedPoint = pointList[firstPlacedPointIdx];
+        glm::vec3 &firstPlacedPoint = pointList[firstPlacedPointIdx];
 
         // Place segment exactly in the center
-        const float d = (rightSegmentEnd - leftSegmentStart).Magnitude();
+        const float d = glm::length(rightSegmentEnd - leftSegmentStart);
 
         // If the segments are exactly d segments apart, then we can just place the point in the center
         if (abs((3.0f * ds) - d) < 0.001f) {
@@ -174,9 +177,9 @@ namespace PathGeneration {
             const float phi = std::acos(1.0 - 2.0 * phiDist(rng));
 
             // Lets place relative to the z-axis cause why not
-            Farlor::Vector3 centerOffset = Farlor::Vector3(std::sin(phi) * std::cos(theta),
+            glm::vec3 centerOffset = glm::vec3(std::sin(phi) * std::cos(theta),
                                                  std::sin(phi) * std::sin(theta), std::cos(phi))
-                  * ds;
+                  * static_cast<float>(ds);
             firstPlacedPoint = leftSegmentStart + centerOffset;
             ResolveTwoSegments(pointList, firstPlacedPointIdx, rightSegmentEndIdx, ds, rng);
             return;
@@ -186,14 +189,14 @@ namespace PathGeneration {
         std::uniform_real_distribution<float> uniformRandom(0.0f, 1.0f);
 
         // Z axis of new corrdinate frame
-        const Farlor::Vector3 zAxis = (rightSegmentEnd - leftSegmentStart).Normalized();
+        const glm::vec3 zAxis = glm::normalize(rightSegmentEnd - leftSegmentStart);
         // Generate orthogonal basis vectors x axis and y axis
-        Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
-        if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
-            randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+        glm::vec3 randomVector = glm::vec3(1.0f, 0.0f, 0.0f);
+        if (std::abs(glm::dot(zAxis, randomVector)) > 0.999f) {
+            randomVector = glm::vec3(0.0f, 1.0f, 0.0f);
         }
-        const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
-        const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+        const glm::vec3 xAxis = glm::normalize(glm::cross(zAxis, randomVector));
+        const glm::vec3 yAxis = glm::normalize(glm::cross(zAxis, xAxis));
 
         // Generation of curve stuff
         const double d2 = d * d;
@@ -226,14 +229,17 @@ namespace PathGeneration {
         std::uniform_real_distribution<double> phiDist(0, uniformPhiSamplingMax);
         const double phi = std::acos(1.0 - 2.0 * phiDist(rng));
 
-        const Farlor::Vector3 firstPlacedSegmentDir = xAxis * std::sin(phi) * std::cos(theta)
-              + yAxis * std::sin(phi) * std::sin(theta) + zAxis * std::cos(phi);
+        const glm::vec3 firstPlacedSegmentDir
+              = xAxis * static_cast<float>(std::sin(phi)) * static_cast<float>(std::cos(theta))
+              + yAxis * static_cast<float>(std::sin(phi))
+                    * static_cast<float>(std::sin(theta))
+              + zAxis * static_cast<float>(std::cos(phi));
 
-        firstPlacedPoint = leftSegmentStart + firstPlacedSegmentDir.Normalized() * ds;
+        firstPlacedPoint = leftSegmentStart + glm::normalize(firstPlacedSegmentDir) * static_cast<float>(ds);
         ResolveTwoSegments(pointList, firstPlacedPointIdx, rightSegmentEndIdx, ds, rng);
     };
 
-    void ResolveEvenNumberOfSegments(const int numSegments, std::vector<Farlor::Vector3> &pointList,
+    void ResolveEvenNumberOfSegments(const int numSegments, std::vector<glm::vec3> &pointList,
           const size_t leftSegmentStartIdx, const size_t rightSegmentEndIdx, const double ds,
           std::mt19937_64 &rng)
     {
@@ -246,13 +252,13 @@ namespace PathGeneration {
                                      "segments counts of 2, 3 or even.");
         }
 
-        const Farlor::Vector3 &leftPoint = pointList[leftSegmentStartIdx];
-        const Farlor::Vector3 &rightPoint = pointList[rightSegmentEndIdx];
+        const glm::vec3 &leftPoint = pointList[leftSegmentStartIdx];
+        const glm::vec3 &rightPoint = pointList[rightSegmentEndIdx];
 
         const size_t centerPointIdx = leftSegmentStartIdx + numSegmentsPerSide;
-        Farlor::Vector3 &centerPoint = pointList[centerPointIdx];
+        glm::vec3 &centerPoint = pointList[centerPointIdx];
 
-        const double d = (rightPoint - leftPoint).Magnitude();
+        const double d = glm::length(rightPoint - leftPoint);
 
         // If the segments are exactly d segments apart, then just place the point in the center
         if (abs((numSegments * ds) - d) < 0.001f) {
@@ -295,18 +301,21 @@ namespace PathGeneration {
 
             const double sampledRadius = radiusPerSide * std::pow(uniformRandom(rng), 1.0 / 3.0);
 
-            const Farlor::Vector3 zAxis = (rightPoint - leftPoint).Normalized();
+            const glm::vec3 zAxis = glm::normalize(rightPoint - leftPoint);
             // Generate orthogonal basis vectors x axis and y axis
-            Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
-            if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
-                randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+            glm::vec3 randomVector = glm::vec3(1.0f, 0.0f, 0.0f);
+            if (std::abs(glm::dot(zAxis, randomVector)) > 0.999f) {
+                randomVector = glm::vec3(0.0f, 1.0f, 0.0f);
             }
-            const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
-            const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+            const glm::vec3 xAxis = glm::normalize(glm::cross(zAxis, randomVector));
+            const glm::vec3 yAxis = glm::normalize(glm::cross(zAxis, xAxis));
 
-            Farlor::Vector3 centerOffset = xAxis * std::sin(phi) * std::cos(theta)
-                  + yAxis * std::sin(phi) * std::sin(theta) + zAxis * std::cos(phi);
-            centerOffset = centerOffset * sampledRadius;
+            glm::vec3 centerOffset = xAxis * static_cast<float>(std::sin(phi))
+                        * static_cast<float>(std::cos(theta))
+                  + yAxis * static_cast<float>(std::sin(phi))
+                        * static_cast<float>(std::sin(theta))
+                  + zAxis * static_cast<float>(std::cos(phi));
+            centerOffset = centerOffset * static_cast<float>(sampledRadius);
             centerPoint = leftPoint + centerOffset;
 
             if (numSegmentsPerSide == 2) {
@@ -330,9 +339,9 @@ namespace PathGeneration {
         const double d2 = d * d;
         const double radiusPerSide2 = radiusPerSide * radiusPerSide;
 
-        const Farlor::Vector3 midPoint = 0.5f * (rightPoint + leftPoint);
+        const glm::vec3 midPoint = 0.5f * (rightPoint + leftPoint);
 
-        const double distToMidpoint = (midPoint - leftPoint).Magnitude();
+        const double distToMidpoint = glm::length(midPoint - leftPoint);
 
         double phiExtent = 0.0f;
 
@@ -365,33 +374,39 @@ namespace PathGeneration {
                     minRadiusPercent + (1.0f - minRadiusPercent) * uniformRandom(rng), 1.0 / 3.0);
 
         if (coinFlipResult == false) {
-            const Farlor::Vector3 zAxis = (rightPoint - leftPoint).Normalized();
+            const glm::vec3 zAxis = glm::normalize(rightPoint - leftPoint);
             // Generate orthogonal basis vectors x axis and y axis
-            Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
-            if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
-                randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+            glm::vec3 randomVector = glm::vec3(1.0f, 0.0f, 0.0f);
+            if (std::abs(glm::dot(zAxis, randomVector)) > 0.999f) {
+                randomVector = glm::vec3(0.0f, 1.0f, 0.0f);
             }
-            const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
-            const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+            const glm::vec3 xAxis = glm::normalize(glm::cross(zAxis, randomVector));
+            const glm::vec3 yAxis = glm::normalize(glm::cross(zAxis, xAxis));
 
-            Farlor::Vector3 centerOffset = xAxis * std::sin(phi) * std::cos(theta)
-                  + yAxis * std::sin(phi) * std::sin(theta) + zAxis * std::cos(phi);
-            centerOffset = centerOffset * sampledRadius;
+            glm::vec3 centerOffset = xAxis * static_cast<float>(std::sin(phi))
+                        * static_cast<float>(std::cos(theta))
+                  + yAxis * static_cast<float>(std::sin(phi))
+                        * static_cast<float>(std::sin(theta))
+                  + zAxis * static_cast<float>(std::cos(phi));
+            centerOffset = centerOffset * static_cast<float>(sampledRadius);
             pointList[centerPointIdx] = leftPoint + centerOffset;
             // Right half
         } else {
-            const Farlor::Vector3 zAxis = (rightPoint - leftPoint).Normalized();
+            const glm::vec3 zAxis = glm::normalize(rightPoint - leftPoint);
             // Generate orthogonal basis vectors x axis and y axis
-            Farlor::Vector3 randomVector = Farlor::Vector3(1.0f, 0.0f, 0.0f);
-            if (std::abs(zAxis.Dot(randomVector)) > 0.999f) {
-                randomVector = Farlor::Vector3(0.0f, 1.0f, 0.0f);
+            glm::vec3 randomVector = glm::vec3(1.0f, 0.0f, 0.0f);
+            if (std::abs(glm::dot(zAxis, randomVector)) > 0.999f) {
+                randomVector = glm::vec3(0.0f, 1.0f, 0.0f);
             }
-            const Farlor::Vector3 xAxis = zAxis.Cross(randomVector).Normalized();
-            const Farlor::Vector3 yAxis = zAxis.Cross(xAxis).Normalized();
+            const glm::vec3 xAxis = glm::normalize(glm::cross(zAxis, randomVector));
+            const glm::vec3 yAxis = glm::normalize(glm::cross(zAxis, xAxis));
 
-            Farlor::Vector3 centerOffset = xAxis * std::sin(phi) * std::cos(theta)
-                  + yAxis * std::sin(phi) * std::sin(theta) + zAxis * std::cos(phi) * -1.0f;
-            centerOffset = centerOffset * sampledRadius;
+            glm::vec3 centerOffset = xAxis * static_cast<float>(std::sin(phi))
+                        * static_cast<float>(std::cos(theta))
+                  + yAxis * static_cast<float>(std::sin(phi))
+                        * static_cast<float>(std::sin(theta))
+                  + zAxis * static_cast<float>(std::cos(phi)) * -1.0f;
+            centerOffset = centerOffset * static_cast<float>(sampledRadius);
             pointList[centerPointIdx] = rightPoint + centerOffset;
         }
 

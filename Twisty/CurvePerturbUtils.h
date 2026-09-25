@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #if defined(USE_CUDA)
 #include <cuda_occupancy.h>
@@ -60,10 +60,10 @@ struct WeightingParameters;
 namespace twisty {
 namespace PerturbUtils {
     struct BoundaryConditions {
-        Farlor::Vector3 m_startPos = Farlor::Vector3(0.0, 0.0, 0.0);
-        Farlor::Vector3 m_startDir = Farlor::Vector3(1.0, 0.0, 0.0);
-        Farlor::Vector3 m_endPos = Farlor::Vector3(0.0, 0.0, 0.0);
-        Farlor::Vector3 m_endDir = Farlor::Vector3(1.0, 0.0, 0.0);
+        glm::vec3 m_startPos = glm::vec3(0.0, 0.0, 0.0);
+        glm::vec3 m_startDir = glm::vec3(1.0, 0.0, 0.0);
+        glm::vec3 m_endPos = glm::vec3(0.0, 0.0, 0.0);
+        glm::vec3 m_endDir = glm::vec3(1.0, 0.0, 0.0);
         float arclength = 0.0f;
     };
 
@@ -75,17 +75,17 @@ namespace PerturbUtils {
         float arclength = 0.0f;
     };
 
-    void UpdateTangentsFromPos(Farlor::Vector3 *pPositions,
-          Farlor::Vector3 *pTangents,
+    void UpdateTangentsFromPos(glm::vec3 *pPositions,
+          glm::vec3 *pTangents,
           const uint32_t numSegments,
           const BoundaryConditions &boundaryConditions);
 
-    void UpdateCurvaturesFromTangents_RadiativeTransfer(Farlor::Vector3 *pTangents,
+    void UpdateCurvaturesFromTangents_RadiativeTransfer(glm::vec3 *pTangents,
           float *pCurvatures,
           const uint32_t numSegments,
           const BoundaryConditions &boundaryConditions);
 
-    void UpdateCurvaturesFromTangents_SimplifiedModel(Farlor::Vector3 *pTangents,
+    void UpdateCurvaturesFromTangents_SimplifiedModel(glm::vec3 *pTangents,
           float *pCurvatures,
           const uint32_t numSegments,
           const BoundaryConditions &boundaryConditions);

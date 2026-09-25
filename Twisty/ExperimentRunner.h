@@ -30,8 +30,8 @@ class ExperimentRunner {
    public:
     struct PathBatch {
         std::vector<float> m_curvatures;
-        std::vector<Farlor::Vector3> m_positions;
-        std::vector<Farlor::Vector3> m_tangents;
+        std::vector<glm::vec3> m_positions;
+        std::vector<glm::vec3> m_tangents;
         std::vector<bool> perPathVailidity;
         uint64_t numberOfPathsInBatch;
         uint64_t index;
