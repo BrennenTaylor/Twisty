@@ -57,7 +57,7 @@ namespace PathGeneration {
         }
 
         const Farlor::Vector3 &leftSegmentStart = pointList[leftSegmentStartIdx];
-        const Farlor::Vector3 &rightSegmentEnd = pointList[-rightSegmentEndIdx];
+        const Farlor::Vector3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
 
         const size_t finalPointIdx = leftSegmentStartIdx + 1;
         Farlor::Vector3 &finalPoint = pointList[finalPointIdx];
