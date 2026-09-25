@@ -3,7 +3,7 @@
 
 #include "MathConsts.h"
 
-#include <FMath/FMath.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 #include <string>
@@ -154,26 +154,26 @@ int main(int argc, char *argv[])
         float x = experimentConfig["experiment"]["sixSegmentDoF"]["startPos"][0];
         float y = experimentConfig["experiment"]["sixSegmentDoF"]["startPos"][1];
         float z = experimentConfig["experiment"]["sixSegmentDoF"]["startPos"][2];
-        experimentGeometry.m_startPos = Farlor::Vector3(x, y, z);
+        experimentGeometry.m_startPos = glm::vec3(x, y, z);
     }
     {
         float x = experimentConfig["experiment"]["sixSegmentDoF"]["startDir"][0];
         float y = experimentConfig["experiment"]["sixSegmentDoF"]["startDir"][1];
         float z = experimentConfig["experiment"]["sixSegmentDoF"]["startDir"][2];
-        experimentGeometry.m_startDir = Farlor::Vector3(x, y, z).Normalized();
+        experimentGeometry.m_startDir = glm::normalize(glm::vec3(x, y, z));
     }
 
     {
         float x = experimentConfig["experiment"]["sixSegmentDoF"]["endPos"][0];
         float y = experimentConfig["experiment"]["sixSegmentDoF"]["endPos"][1];
         float z = experimentConfig["experiment"]["sixSegmentDoF"]["endPos"][2];
-        experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
+        experimentGeometry.m_endPos = glm::vec3(x, y, z);
     }
     {
         float x = experimentConfig["experiment"]["sixSegmentDoF"]["endDir"][0];
         float y = experimentConfig["experiment"]["sixSegmentDoF"]["endDir"][1];
         float z = experimentConfig["experiment"]["sixSegmentDoF"]["endDir"][2];
-        experimentGeometry.m_endDir = Farlor::Vector3(x, y, z).Normalized();
+        experimentGeometry.m_endDir = glm::normalize(glm::vec3(x, y, z));
     }
     // Force to a value
     experimentGeometry.arclength = experimentParams.arclength
@@ -210,11 +210,11 @@ int main(int argc, char *argv[])
 
     // Ok, generate the curve.
     // We have 7 points to work with
-    Farlor::Vector3 point0 = experimentGeometry.m_startPos;
-    Farlor::Vector3 point1 = point0 + experimentGeometry.m_startDir * ds;
+    glm::vec3 point0 = experimentGeometry.m_startPos;
+    glm::vec3 point1 = point0 + experimentGeometry.m_startDir * ds;
 
-    Farlor::Vector3 point6 = experimentGeometry.m_endPos;
-    Farlor::Vector3 point5 = point6 - experimentGeometry.m_endDir * ds;
+    glm::vec3 point6 = experimentGeometry.m_endPos;
+    glm::vec3 point5 = point6 - experimentGeometry.m_endDir * ds;
 
     // Calculate the second point using theta and cos values.
 
@@ -272,13 +272,13 @@ int main(int argc, char *argv[])
 
     struct SortStruct {
         double value = -10000000;
-        Farlor::Vector3 point0;
-        Farlor::Vector3 point1;
-        Farlor::Vector3 point2;
-        Farlor::Vector3 point3;
-        Farlor::Vector3 point4;
-        Farlor::Vector3 point5;
-        Farlor::Vector3 point6;
+        glm::vec3 point0;
+        glm::vec3 point1;
+        glm::vec3 point2;
+        glm::vec3 point3;
+        glm::vec3 point4;
+        glm::vec3 point5;
+        glm::vec3 point6;
     };
     std::vector<SortStruct> unsortedPaths;
 
@@ -303,10 +303,10 @@ int main(int argc, char *argv[])
             const float cosTheta1 = std::cos(theta1);
 
             // Calculate the first segment position
-            const Farlor::Vector3 segment1Dir(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
-            const Farlor::Vector3 point2 = point1 + segment1Dir * ds;
+            const glm::vec3 segment1Dir(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
+            const glm::vec3 point2 = point1 + segment1Dir * ds;
 
-            const float remainingDistance3_2 = (point5 - point2).SqrMagnitude();
+            const float remainingDistance3_2 = glm::dot((point5 - point2), (point5 - point2));
 
             if ((9.0 * ds * ds) < remainingDistance3_2) {
                 continue;
@@ -324,11 +324,11 @@ int main(int argc, char *argv[])
                     const float cosTheta2 = std::cos(theta2);
 
                     // Calculate the first segment position
-                    const Farlor::Vector3 segment2Dir(
+                    const glm::vec3 segment2Dir(
                           sinPhi2 * cosTheta2, sinPhi2 * sinTheta2, cosPhi2);
-                    const Farlor::Vector3 point3 = point2 + segment2Dir * ds;
+                    const glm::vec3 point3 = point2 + segment2Dir * ds;
 
-                    const float remainingDistance2_2 = (point5 - point3).SqrMagnitude();
+                    const float remainingDistance2_2 = glm::dot((point5 - point3), (point5 - point3));
 
                     if ((4.0 * ds * ds) < remainingDistance2_2) {
                         continue;
@@ -339,24 +339,24 @@ int main(int argc, char *argv[])
                     for (int theta3Idx = 0; theta3Idx < numTheta3Vals; theta3Idx++) {
                         const float theta3 = theta3Min + theta3Idx * dTheta3;
 
-                        const Farlor::Vector3 x_p = (point3 + point5) * 0.5;
-                        const Farlor::Vector3 lineUnitDir = (point5 - point3).Normalized();
+                        const glm::vec3 x_p = (point3 + point5) * 0.5f;
+                        const glm::vec3 lineUnitDir = glm::normalize((point5 - point3));
 
-                        Farlor::Vector3 otherCrossVec(1.0, 0.0, 0.0);
-                        if (abs(lineUnitDir.Dot(otherCrossVec)) >= 0.99) {
-                            otherCrossVec = Farlor::Vector3(0.0, 1.0, 0.0);
+                        glm::vec3 otherCrossVec(1.0, 0.0, 0.0);
+                        if (abs(glm::dot(lineUnitDir, otherCrossVec)) >= 0.99) {
+                            otherCrossVec = glm::vec3(0.0, 1.0, 0.0);
                         }
 
-                        const Farlor::Vector3 normalToLine
-                              = lineUnitDir.Cross(otherCrossVec).Normalized();
+                        const glm::vec3 normalToLine
+                              = glm::normalize(glm::cross(lineUnitDir, otherCrossVec));
 
                         // We should have an even number of segments remaining
                         const float hypot = ds;
-                        const float D_2 = (point5 - point3).Magnitude() * 0.5f;
+                        const float D_2 = glm::length((point5 - point3)) * 0.5f;
                         assert(D_2 > hypot && "This should never be reached due to earlier check.");
 
                         const float distanceOffLine = std::sqrt((hypot * hypot) - (D_2 * D_2));
-                        Farlor::Vector3 x_t = x_p + normalToLine * distanceOffLine;
+                        glm::vec3 x_t = x_p + normalToLine * distanceOffLine;
 
                         // Now rotate randomly theta amount around the axis.
                         {
@@ -366,18 +366,18 @@ int main(int argc, char *argv[])
                                         lineUnitDir.y * sinRotAngle, lineUnitDir.z * sinRotAngle };
 
 
-                            Farlor::Vector3 shiftedPoint = x_t - point3;
+                            glm::vec3 shiftedPoint = x_t - point3;
                             // Rotate and stuff back in shifted point
                             twisty::RotateVectorByQuaternion(
-                                  quaternionRotation, shiftedPoint.m_data.data());
+                                  quaternionRotation, &shiftedPoint[0]);
                             // Update the point with the rotated version
                             x_t = shiftedPoint + point3;
                         }
-                        const Farlor::Vector3 point4 = x_t;
+                        const glm::vec3 point4 = x_t;
 
-                        std::array<Farlor::Vector3, RequiredNumSegments + 1> points
+                        std::array<glm::vec3, RequiredNumSegments + 1> points
                               = { point0, point1, point2, point3, point4, point5, point6 };
-                        std::array<Farlor::Vector3, RequiredNumSegments> tangents;
+                        std::array<glm::vec3, RequiredNumSegments> tangents;
                         std::array<float, RequiredNumSegments - 1> curvatures;
 
                         twisty::PerturbUtils::UpdateTangentsFromPos(points.data(), tangents.data(),
@@ -452,13 +452,13 @@ int main(int argc, char *argv[])
         }
 
         boundaryConditionFile.write(
-              (char *)experimentGeometry.m_startPos.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&experimentGeometry.m_startPos[0], sizeof(glm::vec3));
         boundaryConditionFile.write(
-              (char *)experimentGeometry.m_startDir.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&experimentGeometry.m_startDir[0], sizeof(glm::vec3));
         boundaryConditionFile.write(
-              (char *)experimentGeometry.m_endPos.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&experimentGeometry.m_endPos[0], sizeof(glm::vec3));
         boundaryConditionFile.write(
-              (char *)experimentGeometry.m_endDir.m_data.data(), sizeof(Farlor::Vector3));
+              (char *)&experimentGeometry.m_endDir[0], sizeof(glm::vec3));
         boundaryConditionFile.write((char *)&experimentGeometry.arclength, sizeof(float));
         boundaryConditionFile.write(
               (char *)&experimentParams.numSegmentsPerCurve, sizeof(uint32_t));
@@ -492,7 +492,7 @@ int main(int argc, char *argv[])
           [](const SortStruct &l, const SortStruct &r) { return l.value > r.value; });
     std::cout << "Highest weight: " << unsortedPaths.front().value << std::endl;
     std::cout << "Lowest weight: " << unsortedPaths.back().value << std::endl;
-    std::vector<Farlor::Vector3> sortedPaths(numGreatestPathsToExtract * (RequiredNumSegments + 1));
+    std::vector<glm::vec3> sortedPaths(numGreatestPathsToExtract * (RequiredNumSegments + 1));
 
     int idx = 0;
     for (int i = 0; i < numGreatestPathsToExtract; i++) {
@@ -509,7 +509,7 @@ int main(int argc, char *argv[])
     std::cout << "Writing num paths: " << unsortedPaths.size() << std::endl;
     std::ofstream curvesBinaryFile(binaryFilePath, std::ios::binary);
     curvesBinaryFile.write(
-          (char *)sortedPaths.data(), sizeof(Farlor::Vector3) * sortedPaths.size());
+          (char *)sortedPaths.data(), sizeof(glm::vec3) * sortedPaths.size());
 
     std::cout << "Done" << std::endl;
 }

@@ -3,7 +3,7 @@
 
 #include "MathConsts.h"
 
-#include <FMath/FMath.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 #include <string>
@@ -42,13 +42,13 @@ int main(int argc, char *argv[])
     uint64_t numBytesInFile = fiveSegmentFS.tellg();
     fiveSegmentFS.seekg(0, fiveSegmentFS.beg);
 
-    uint64_t numBytesInCurve = sizeof(Farlor::Vector3);
+    uint64_t numBytesInCurve = sizeof(glm::vec3);
     assert((numBytesInFile % numBytesInCurve) == 0
           && "File should exactly fit three values per curve");
     uint64_t numCurves = numBytesInFile / numBytesInCurve;
 
-    std::vector<Farlor::Vector3> fiveSegmentAngleValues(numCurves);
-    fiveSegmentFS.read((char *)fiveSegmentAngleValues.data(), sizeof(Farlor::Vector3) * numCurves);
+    std::vector<glm::vec3> fiveSegmentAngleValues(numCurves);
+    fiveSegmentFS.read((char *)fiveSegmentAngleValues.data(), sizeof(glm::vec3) * numCurves);
 
     // Polar angle
     const float phi1Min = 0.0f;

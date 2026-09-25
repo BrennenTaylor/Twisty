@@ -8,7 +8,7 @@
 #include "MathConsts.h"
 #include "PathWeightUtils.h"
 
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -191,13 +191,12 @@ int main(int argc, char *argv[])
         }
     }
 
-    Farlor::Vector3 center(distanceFromPlane, 0.0f, 0.0f);
-    Farlor::Vector3 bottomLeft
-          = center - Farlor::Vector3(0.0f, frameLength / 2.0f, frameLength / 2.0f);
+    glm::vec3 center(distanceFromPlane, 0.0f, 0.0f);
+    glm::vec3 bottomLeft = center - glm::vec3(0.0f, frameLength / 2.0f, frameLength / 2.0f);
 
     // Bootstrap method
-    const Farlor::Vector3 emitterStart { 0.0f, 0.0f, 0.0f };
-    const Farlor::Vector3 emitterDir = Farlor::Vector3(1.0f, 0.0f, 0.0f).Normalized();
+    const glm::vec3 emitterStart { 0.0f, 0.0f, 0.0f };
+    const glm::vec3 emitterDir = glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f));
 
     bool IsFirst = true;
 
@@ -220,14 +219,15 @@ int main(int argc, char *argv[])
                 IsFirst = false;
             }
 
-            const Farlor::Vector3 recieverPos = bottomLeft
-                  + Farlor::Vector3(0.0f, pixelIdxY * (frameLength / framePixelCount),
+            const glm::vec3 recieverPos = bottomLeft
+                  + glm::vec3(0.0f, pixelIdxY * (frameLength / framePixelCount),
                         pixelIdxX * (frameLength / framePixelCount))
-                  + Farlor::Vector3(0.0f, (frameLength / framePixelCount) / 2.0f,
+                  + glm::vec3(
+                        0.0f, (frameLength / framePixelCount) / 2.0f,
                         (frameLength / framePixelCount) / 2.0f);
 
             {
-                const Farlor::Vector3 recieverDir = (recieverPos - emitterStart).Normalized();
+                const glm::vec3 recieverDir = glm::normalize(recieverPos - emitterStart);
 
                 twisty::PerturbUtils::BoundaryConditions arclengthGeometry;
                 arclengthGeometry.m_startPos = emitterStart;

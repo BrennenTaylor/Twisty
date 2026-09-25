@@ -4,7 +4,7 @@
 #include "FullExperimentRunnerOptimalPerturbOptimized_GPU.h"
 #endif
 
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -174,14 +174,14 @@ int main(int argc, char *argv[])
         experimentGeometry.m_startPos.z
               = experimentConfig["experiment"]["ringBenchmark"]["startPos"][2];
 
-        Farlor::Vector3 emitterDir;
+        glm::vec3 emitterDir;
         experimentGeometry.m_startDir.x
               = experimentConfig["experiment"]["ringBenchmark"]["startDir"][0];
         experimentGeometry.m_startDir.y
               = experimentConfig["experiment"]["ringBenchmark"]["startDir"][1];
         experimentGeometry.m_startDir.z
               = experimentConfig["experiment"]["ringBenchmark"]["startDir"][2];
-        experimentGeometry.m_startDir.Normalize();
+        experimentGeometry.m_startDir = glm::normalize(experimentGeometry.m_startDir);
 
         const double zMin = experimentConfig["experiment"]["ringBenchmark"]["zMin"];
         const double zMax = experimentConfig["experiment"]["ringBenchmark"]["zMax"];
@@ -196,12 +196,12 @@ int main(int argc, char *argv[])
         const double receiverZ = zMin + deltaZ * zIdx;
 
         // The reciever is located along the z-axis from the emitter, and off the axis by a length of ringRadius
-        experimentGeometry.m_endPos = Farlor::Vector3(ringRadius, 0.0f, receiverZ);
-        experimentGeometry.m_endDir
-              = (experimentGeometry.m_endPos - experimentGeometry.m_startPos).Normalized();
+        experimentGeometry.m_endPos = glm::vec3(ringRadius, 0.0f, receiverZ);
+        experimentGeometry.m_endDir = glm::normalize(
+              experimentGeometry.m_endPos - experimentGeometry.m_startPos);
 
         experimentGeometry.arclength
-              = (experimentGeometry.m_endPos - experimentGeometry.m_startPos).Magnitude() * 1.1f;
+              = glm::length(experimentGeometry.m_endPos - experimentGeometry.m_startPos) * 1.1f;
         experimentGeometry.arclength = std::max(experimentGeometry.arclength, 3.0f);
         experimentParams.arclength = experimentGeometry.arclength;
 

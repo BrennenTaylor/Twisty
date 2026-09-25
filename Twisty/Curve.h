@@ -11,8 +11,7 @@
 
 #pragma once
 
-#include <FMath/Matrix3x3.h>
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include "CurvePerturbUtils.h"
 
@@ -47,7 +46,7 @@ class Curve {
     PerturbUtils::BoundaryConditions m_boundaryConditions;
 
     std::vector<float> m_curvatures;
-    std::vector<Farlor::Vector3> m_positions;
-    std::vector<Farlor::Vector3> m_tangents;
+    std::vector<glm::vec3> m_positions;
+    std::vector<glm::vec3> m_tangents;
 };
 }  // namespace twisty

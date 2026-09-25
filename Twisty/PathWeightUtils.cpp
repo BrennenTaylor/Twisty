@@ -1,7 +1,7 @@
 #include "PathWeightUtils.h"
 
 #include "ExperimentRunner.h"
-#include "FMath/Vector3.h"
+#include <glm/glm.hpp>
 #include "MathConsts.h"
 
 #include "CurvePerturbUtils.h"
@@ -726,10 +726,10 @@ namespace PathWeighting {
             std::cout << "Number of Segments: " << numberOfSegments << std::endl;
             std::cout << "ds: " << ds << std::endl;
 
-            const Farlor::Vector3 zVec
+            const glm::vec3 zVec
                   = (boundaryConditions.m_endPos - boundaryConditions.m_startPos) * (1.0f / ds)
                   - boundaryConditions.m_endDir - boundaryConditions.m_startDir;
-            const float z = zVec.Magnitude();
+            const float z = glm::length(zVec);
 
 
             switch (numberOfSegments) {

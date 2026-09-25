@@ -3,7 +3,7 @@
 #include "nlohmann/json.hpp"
 
 #include <Curve.h>
-#include <FMath/Vector3.h>
+#include <glm/glm.hpp>
 
 #include <chrono>
 #include <cstdint>

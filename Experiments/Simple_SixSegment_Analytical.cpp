@@ -7,7 +7,7 @@
 #include "MathConsts.h"
 #include "boost/multiprecision/detail/default_ops.hpp"
 
-#include <FMath/FMath.h>
+#include <glm/glm.hpp>
 
 #include <omp.h>
 
@@ -17,10 +17,10 @@
 
 const float PI = 3.14159265358979323846f;
 
-double G_4(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const double alpha,
+double G_4(const glm::vec3 &q, const glm::vec3 &betaHat, const double alpha,
       const double ds, const twisty::PerturbUtils::BoundaryConditions &bc)
 {
-    const float qSqrMag = q.SqrMagnitude();
+    const float qSqrMag = glm::dot(q, q);
     const float qMag = sqrt(qSqrMag);
 
     if (qMag == 0) {
@@ -40,14 +40,14 @@ double G_4(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
         throw std::runtime_error("Invalid number occured g4.");
     }
 
-    double secondTermArg = (alpha / 2.0) * (qSqrMag + q.Dot(bc.m_startDir + betaHat));
+    double secondTermArg = (alpha / 2.0) * (qSqrMag + glm::dot(q, bc.m_startDir + betaHat));
     const double secondTerm = std::exp(secondTermArg);
     if (isnan(secondTerm) || isinf(secondTerm)) {
         throw std::runtime_error("Invalid number occured g4.");
     }
 
-    const double besilFuncArg
-          = alpha * sqrt(1 - (qSqrMag / 4)) * (betaHat - bc.m_startDir).Magnitude();
+    const double besilFuncArg = alpha * sqrt(1 - (qSqrMag / 4))
+          * glm::length(betaHat - bc.m_startDir);
     const double besilEval = std::cyl_bessel_i(0, besilFuncArg);
 
     if (isnan(besilEval) || isinf(besilEval)) {
@@ -58,7 +58,7 @@ double G_4(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
     return g4;
 }
 
-double G_5(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const double alpha,
+double G_5(const glm::vec3 &q, const glm::vec3 &betaHat, const double alpha,
       const double ds, const twisty::PerturbUtils::BoundaryConditions &bc)
 {
     // Integration over unit sphere
@@ -96,12 +96,12 @@ double G_5(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
             const float cosTheta1 = std::cos(theta1);
 
             // Calculate the first segment position
-            const Farlor::Vector3 betaPrime
-                  = Farlor::Vector3(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
+            const glm::vec3 betaPrime
+                  = glm::vec3(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
 
-            const Farlor::Vector3 qPrime = q - betaPrime;
+            const glm::vec3 qPrime = q - betaPrime;
             const double g4Eval = G_4(qPrime, betaPrime, alpha, ds, bc);
-            const double segmentWeight = std::exp(alpha * betaHat.Dot(betaPrime));
+            const double segmentWeight = std::exp(alpha * glm::dot(betaHat, betaPrime));
 
             if (isnan(g4Eval) || isinf(g4Eval)) {
                 throw std::runtime_error("Invalid number occured g5.");
@@ -120,7 +120,7 @@ double G_5(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
     return g5;
 }
 
-double G_6(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const double alpha,
+double G_6(const glm::vec3 &q, const glm::vec3 &betaHat, const double alpha,
       const double ds, const twisty::PerturbUtils::BoundaryConditions &bc)
 {
     // Integration over unit sphere
@@ -158,12 +158,12 @@ double G_6(const Farlor::Vector3 &q, const Farlor::Vector3 &betaHat, const doubl
             const float cosTheta1 = std::cos(theta1);
 
             // Calculate the first segment position
-            const Farlor::Vector3 betaPrime
-                  = Farlor::Vector3(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
+            const glm::vec3 betaPrime
+                  = glm::vec3(sinPhi1 * cosTheta1, sinPhi1 * sinTheta1, cosPhi1);
 
-            const Farlor::Vector3 qPrime = q - betaPrime;
+            const glm::vec3 qPrime = q - betaPrime;
             const double g5Eval = G_5(qPrime, betaPrime, alpha, ds, bc);
-            const double segmentWeight = std::exp(alpha * betaHat.Dot(betaPrime));
+            const double segmentWeight = std::exp(alpha * glm::dot(betaHat, betaPrime));
 
             if (isnan(g5Eval) || isinf(g5Eval)) {
                 throw std::runtime_error("Invalid number occured g6.");
@@ -343,25 +343,25 @@ int main(int argc, char *argv[])
         float x = experimentConfig["experiment"]["basicExperiment"]["startPos"][0];
         float y = experimentConfig["experiment"]["basicExperiment"]["startPos"][1];
         float z = experimentConfig["experiment"]["basicExperiment"]["startPos"][2];
-        experimentGeometry.m_startPos = Farlor::Vector3(x, y, z);
+        experimentGeometry.m_startPos = glm::vec3(x, y, z);
     }
     {
         float x = experimentConfig["experiment"]["basicExperiment"]["startDir"][0];
         float y = experimentConfig["experiment"]["basicExperiment"]["startDir"][1];
         float z = experimentConfig["experiment"]["basicExperiment"]["startDir"][2];
-        experimentGeometry.m_startDir = Farlor::Vector3(x, y, z).Normalized();
+        experimentGeometry.m_startDir = glm::normalize(glm::vec3(x, y, z));
     }
 
     {
         float x = experimentConfig["experiment"]["basicExperiment"]["endPos"][0];
         float y = experimentConfig["experiment"]["basicExperiment"]["endPos"][1];
         float z = experimentConfig["experiment"]["basicExperiment"]["endPos"][2];
-        experimentGeometry.m_endPos = Farlor::Vector3(x, y, z);
+        experimentGeometry.m_endPos = glm::vec3(x, y, z);
     }
     {
         // Compute end dir from angle
         experimentGeometry.m_endDir
-              = Farlor::Vector3(std::cos(angle_rad), std::sin(angle_rad), 0.0f);
+              = glm::vec3(std::cos(angle_rad), std::sin(angle_rad), 0.0f);
     }
 
     experimentGeometry.arclength = arclength;
@@ -381,10 +381,9 @@ int main(int argc, char *argv[])
     const double alpha = 1.0
           / (experimentParams.weightingParameters.scatter * experimentParams.weightingParameters.mu
                 * ds);
-    const Farlor::Vector3 qVec
-          = (experimentGeometry.m_endPos - experimentGeometry.m_startPos) / (ds)
+    const glm::vec3 qVec = (experimentGeometry.m_endPos - experimentGeometry.m_startPos) / (ds)
           - (experimentGeometry.m_endDir + experimentGeometry.m_startDir);
-    const Farlor::Vector3 &betaHat = experimentGeometry.m_endDir;
+    const glm::vec3 &betaHat = experimentGeometry.m_endDir;
     twisty::ExperimentBase::Result result { 0 };
     result.totalWeight = G_6(qVec, betaHat, alpha, ds, experimentGeometry);
     result.numPathsTotal = 1;
