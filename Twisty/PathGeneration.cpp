@@ -59,8 +59,8 @@ namespace PathGeneration {
             throw std::runtime_error("Indices must be 2 apart");
         }
 
-        const glm::vec3 &leftSegmentStart = pointList[leftSegmentStartIdx];
-        const glm::vec3 &rightSegmentEnd = pointList[-rightSegmentEndIdx];
+const glm::vec3 &leftSegmentStart = pointList[leftSegmentStartIdx];
+        const glm::vec3 &rightSegmentEnd = pointList[rightSegmentEndIdx];
 
         const size_t finalPointIdx = leftSegmentStartIdx + 1;
         glm::vec3 &finalPoint = pointList[finalPointIdx];
